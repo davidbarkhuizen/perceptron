@@ -87,14 +87,14 @@ def plot_classifier_training_data(subplot, training_data: list[tuple[list[float]
         categories.append((category_value, [xy for (xy, output_value) in training_data if output_value == category_value]))
 
     for i in range(len(categories)):
-        (category_value, xy) = categories[i]
+        (category_value, values) = categories[i]
         marker = markers[i]
-        x, y = xy
+        x, y = zip(*[(x_[0], x_[1]) for x_ in values])
         subplot.plot(x, y, marker, color='black')
 
-def plot_reference_classifier(classifier: LinearClassifier):
+def plot_reference_classifier(classifier: LinearClassifier, training_data: list[tuple[list[float], float]]):
 
-    figure = pyplot.figure()
+    figure = pyplot.figure(f'reference classifier')
     subplot = figure.add_subplot(111)
 
     subplot.grid(True, which='both')
@@ -103,5 +103,7 @@ def plot_reference_classifier(classifier: LinearClassifier):
     subplot.set_ylim(classifier.y_bounds)
 
     plot_linear_classifier(subplot, classifier)
+
+    plot_classifier_training_data(subplot, training_data)
 
     pyplot.show()
