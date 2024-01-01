@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from random import uniform
 
 class SPoint:
@@ -34,33 +36,52 @@ class SLayer:
 
 class Perceptron:
             
-    def __init__(self, inputs, input_weights, activation_threshold, output_value):
+    def __init__(self, activation_threshold: float, output_value: float) -> None:
 
-        self.inputs = inputs        
-        self.input_weights = input_weights
-        assert(len(self.input_weights) == len(self.inputs))
-        self.input_count = len(self.inputs)
+        self.inputs = None        
+        self.input_weights = None
 
         self.activation_threshold = activation_threshold
         self.output_value = output_value
-        self.cached_output = None
 
-    def is_active(self, aggregate_input_value):
-        return aggregate_input_value >= self.activation_threshold
-
-    def output(self):
-
-        aggregate_input_value = sum([self.inputs[x].output() * self.input_weights[x] for x in range(self.input_count)])
+    def connect_inputs(self, inputs: list[SPoint | Perceptron], weights: list[float]):        
+        assert(len(inputs) == len(weights))
         
-        output = self.output_value if self.is_active(aggregate_input_value) else 0
-        self.cached_output = output
-        return output
+        self.inputs = inputs
+        self.input_weights = weights
+
+    def aggregate_input_value(self):
+        return sum([self.inputs[x].output() * self.input_weights[x] for x in range(len(self.inputs))])
+
+    def is_active(self) -> bool:
+        return self.aggregate_input_value() >= self.activation_threshold
+
+    def output(self) -> float:
+        return self.output_value if self.is_active() else 0
 
 def random_input_weights(n: int) -> list[float]:
     return [0.0 for j in range(n)]
 
 def random_activation_threshold() -> float:
     return 1.0
+
+class ALayer:
+    
+    def __init__(self, units) -> None:
+        self.units = units
+        
+    def size(self):
+        return len(self.units)
+
+
+    def connect_to(self):
+
+
+    # construct
+    # fully connect to
+    # - s_layer
+    # - parent a_layer
+
 
 class LinearClassifier:
     pass
