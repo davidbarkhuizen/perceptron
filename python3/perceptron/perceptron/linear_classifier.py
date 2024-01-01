@@ -34,6 +34,11 @@ class SLayer:
         
         return len(self.nodes)
     
+    def update_s_point_values(self, values: list[float]):
+        
+        for i in range(len(values)):
+            self.nodes[i].update(values[i])
+
     def randomize(self) -> None:
         
         for node in self.nodes:
@@ -61,7 +66,7 @@ class Perceptron:
     def z(self):
         return self.aggregate_input_value() + self.threshold
 
-    def activation_fn(z: float) -> float:
+    def activation_fn(self, z: float) -> float:
         return 1.0 if z > 0.0 else 0.0
 
     def evaluate(self) -> float:
@@ -88,12 +93,12 @@ class SimpleLinearClassifier:
     def __init__(self) -> None:
 
         self.x_bounds = (0.0, 2.0)
-        x = SPoint(mean(self.x_bounds), self.x_bounds)
+        self.x = SPoint(mean(self.x_bounds), self.x_bounds)
 
         self.y_bounds = (0.0, 2.0)
-        y = SPoint(mean(self.y_bounds), self.y_bounds)
+        self.y = SPoint(mean(self.y_bounds), self.y_bounds)
 
-        self.s_layer = SLayer([x, y])
+        self.s_layer = SLayer([self.x, self.y])
 
         # ax, by
         s_node_weights = [-2.0, -2.0]
@@ -132,6 +137,28 @@ class SimpleLinearClassifier:
 
         for node in self.a_layer.nodes:
             graph_a_node(node)
+
+        random_sample = [(uniform(*self.x_bounds), uniform(*self.y_bounds)) for i in range(sample_size)]
+
+        inside = []
+        outside = []
+
+        for (x,y) in random_sample:
+
+            self.s_layer.update_s_point_values([x,y])
+            final_output = self.a_layer.nodes[0].evaluate()
+
+            if final_output > 0:
+                inside.append((x,y))
+            else:
+                outside.append((x,y))
+
+
+        [inside_x, inside_y] = list(zip(*inside))
+        subplot.plot(inside_x, inside_y, 'x', color='black')
+
+        [outside_x, outside_y] = list(zip(*outside))
+        subplot.plot(outside_x, outside_y, '.', color='black')
 
         subplot.grid(True, which='both')
 
