@@ -46,10 +46,10 @@ class SLayer:
 
 class Perceptron:
             
-    def __init__(self, threshold: float, output_value: float) -> None:
+    def __init__(self, threshold: float = 1.0, output_value: float = 1.0) -> None:
 
         self.parent_nodes = None        
-        self.w = None
+        self.weights = None
 
         self.threshold = threshold
         self.output_value = output_value
@@ -58,10 +58,14 @@ class Perceptron:
         assert(len(nodes) == len(weights))
         
         self.parent_nodes = nodes
-        self.w = weights
+        self.weights = weights
+
+    def update_weights(self, weights: list[float]):        
+        assert(len(self.nodes) == len(weights))
+        self.weights = weights
 
     def aggregate_input_value(self):
-        return sum([self.parent_nodes[x].evaluate() * self.w[x] for x in range(len(self.parent_nodes))])
+        return sum([self.parent_nodes[x].evaluate() * self.weights[x] for x in range(len(self.parent_nodes))])
 
     def z(self):
         return self.aggregate_input_value() + self.threshold
@@ -71,6 +75,11 @@ class Perceptron:
 
     def evaluate(self) -> float:
         return self.output_value * self.activation_fn(self.z())
+
+    def zero(self):
+        self.update_weights([0.0 for x in self.weights])
+        self.threshold = 1
+        self.output_value = 1
 
 class ALayer:
     
@@ -87,6 +96,10 @@ class ALayer:
 
         for node in self.nodes:
             node.connect_parents(parent_layer.nodes, weights)
+
+    def zero_nodes(self):
+        for node in self.nodes:
+            node.zero()
 
 class SimpleLinearClassifier:
 
@@ -108,7 +121,7 @@ class SimpleLinearClassifier:
         self.a_layer = ALayer([perceptron])
         self.a_layer.fully_connect_parent_layer(self.s_layer, s_node_weights)
 
-    def graph(self):
+    def go(self):
 
         figure = pyplot.figure()
         subplot = figure.add_subplot(111)
@@ -124,10 +137,10 @@ class SimpleLinearClassifier:
     
         x_ = [x_min + (i * x_step_size) for i in range(sample_size)]
         
-        def graph_a_node(node: Perceptron, color = 'black'):
+        def graph_a_node(subplot, node: Perceptron, color = 'black'):
         
-            a = node.w[0]
-            b = node.w[1]
+            a = node.weights[0]
+            b = node.weights[1]
             c = node.threshold 
 
             y_ = [-1.0 * (a * x + c) / b for x in x_]
@@ -136,7 +149,7 @@ class SimpleLinearClassifier:
             subplot.add_line(line)
 
         for node in self.a_layer.nodes:
-            graph_a_node(node)
+            graph_a_node(subplot, node)
 
         random_sample = [(uniform(*self.x_bounds), uniform(*self.y_bounds)) for i in range(sample_size)]
 
@@ -153,7 +166,6 @@ class SimpleLinearClassifier:
             else:
                 outside.append((x,y))
 
-
         [inside_x, inside_y] = list(zip(*inside))
         subplot.plot(inside_x, inside_y, 'x', color='black')
 
@@ -167,6 +179,24 @@ class SimpleLinearClassifier:
 
         pyplot.show()
 
+        training_set = [ ([x,y], 1) for (x,y) in inside ] + [ ([x,y], 0) for (x,y) in outside ]
+
+        self.a_layer.zero_nodes()
+
+        learning_rate = 0.1
+
+        for (inputs, expected_output) in training_set:
+
+            self.s_layer.update_s_point_values(inputs)
+            actual_output = self.a_layer.nodes[0].evaluate()
+            error = expected_output - actual_output
+
+            for node in self.a_layer.nodes:
+                new_weights = [old_weight + (learning_rate * error) for old_weight in node.weights]
+                node.update_weights(new_weights)
+
+            # graph current state of node
+
 def entrypoint():
 
     logging.basicConfig(
@@ -178,7 +208,7 @@ def entrypoint():
         ]
     )
 
-    classifier = SimpleLinearClassifier()
-    classifier.graph()
+    reference = SimpleLinearClassifier()
+    reference.go()
 
 entrypoint()
