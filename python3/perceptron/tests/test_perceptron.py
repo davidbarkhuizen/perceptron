@@ -1,5 +1,5 @@
 from perceptron import __version__
-from perceptron.linear_classifier import LinearClassifier
+from perceptron.linear_classifier import LinearClassifier, plot_reference_classifier
 
 def test_version():
     assert __version__ == '0.1.0'
@@ -15,6 +15,8 @@ def test_linear_classifier():
     
     training_set_size = 30
     training_data_set = reference_classifier.generate_training_set(training_set_size)
+
+    plot_reference_classifier(reference_classifier)
 
     converged = True
     assert converged == True
