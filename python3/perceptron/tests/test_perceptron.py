@@ -13,10 +13,12 @@ def test_linear_classifier():
     output_value = 1.0
     reference_classifier = LinearClassifier(x_s, bounds, weights, threshold, output_value)
     
-    training_set_size = 30
+    training_set_size = 100
     training_data_set = reference_classifier.generate_training_set(training_set_size)
 
-    plot_reference_classifier(reference_classifier, training_data_set)
+    #plot_reference_classifier(reference_classifier, training_data_set)
+
+    reference_classifier.run_training_set(training_data_set)
 
     converged = True
     assert converged == True

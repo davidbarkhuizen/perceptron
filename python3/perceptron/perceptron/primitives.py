@@ -55,7 +55,7 @@ class Perceptron:
         self.weights = weights
 
     def update_weights(self, weights: list[float]):        
-        assert(len(self.nodes) == len(weights))
+        assert(len(self.parent_nodes) == len(weights))
         self.weights = weights
 
     def aggregate_input_value(self):
@@ -71,9 +71,9 @@ class Perceptron:
         return self.output_value * self.activation_fn(self.z())
 
     def zero(self):
-        self.update_weights([0.0 for x in self.weights])
-        self.threshold = 1
-        self.output_value = 1
+        self.update_weights([1.0 for x in self.weights])
+        self.threshold = 1.0
+        self.output_value = 1.0
 
 class ALayer:
     
