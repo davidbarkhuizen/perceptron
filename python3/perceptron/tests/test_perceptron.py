@@ -16,7 +16,7 @@ def test_linear_classifier():
     training_set_size = 100
     training_data_set = reference_classifier.generate_training_set(training_set_size)
 
-    #plot_reference_classifier(reference_classifier, training_data_set)
+    plot_reference_classifier(reference_classifier, training_data_set)
 
     reference_classifier.run_training_set(training_data_set)
 

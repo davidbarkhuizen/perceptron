@@ -95,6 +95,8 @@ def plot_linear_classifier(subplot, classifier: LinearClassifier, plotting_resol
 
     subplot.add_line(line_graph)
 
+    #pyplot.show()
+
 def plot_classifier_training_data(subplot, training_data: list[tuple[list[float], float]]):
     
     markers = ['x', '.', '*']
@@ -123,5 +125,3 @@ def plot_reference_classifier(classifier: LinearClassifier, training_data: list[
     plot_linear_classifier(subplot, classifier)
 
     plot_classifier_training_data(subplot, training_data)
-
-    pyplot.show()
