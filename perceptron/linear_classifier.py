@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from random import uniform
 from statistics import mean
+from typing import List
 from matplotlib import pyplot, lines
 
 from perceptron.primitives import ALayer, Perceptron, SLayer, SPoint
@@ -21,21 +22,6 @@ class LinearClassifier:
         perceptron = Perceptron(threshold, output_value)
         self.a_layer = ALayer([perceptron])
         self.a_layer.fully_connect_parent_layer(self.s_layer, weights)
-
-    def generate_training_set(self, size: int) -> list[tuple[list[float], int]]:
-        
-        x_training = [(uniform(*self.x_bounds), uniform(*self.y_bounds)) for i in range(size)]
-
-        ret = []
-
-        for (x,y) in x_training:
-
-            self.s_layer.update_s_point_values([x,y])
-            final_output = self.a_layer.nodes[0].evaluate()
-
-            ret.append(([x,y], final_output))
-
-        return ret
 
     def run_training_set(self, training_set: list[tuple[list[float], int]]):
 
@@ -74,7 +60,12 @@ class LinearClassifier:
 
         pyplot.show()
 
-def plot_linear_classifier(subplot, classifier: LinearClassifier, plotting_resolution: int = 100, color = 'black'):
+def plot_linear_classifier(
+        subplot, 
+        classifier: LinearClassifier, 
+        plotting_resolution: int = 100, 
+        color = 'black'
+    ):
 
     x_min = classifier.x_bounds[0]
     x_max = classifier.x_bounds[1]
@@ -95,9 +86,10 @@ def plot_linear_classifier(subplot, classifier: LinearClassifier, plotting_resol
 
     subplot.add_line(line_graph)
 
-    #pyplot.show()
-
-def plot_classifier_training_data(subplot, training_data: list[tuple[list[float], float]]):
+def plot_classifier_training_data(
+        subplot, 
+        training_data: list[tuple[list[float], float]]
+    ):
     
     markers = ['x', '.', '*']
 
@@ -112,16 +104,24 @@ def plot_classifier_training_data(subplot, training_data: list[tuple[list[float]
         x, y = zip(*[(x_[0], x_[1]) for x_ in values])
         subplot.plot(x, y, marker, color='black')
 
-def plot_reference_classifier(classifier: LinearClassifier, training_data: list[tuple[list[float], float]]):
+def plot_reference_classifiers(
+        classifiers: List[LinearClassifier], 
+        training_data: list[tuple[list[float], int]]
+    ):
 
     figure = pyplot.figure(f'reference classifier')
     subplot = figure.add_subplot(111)
 
     subplot.grid(True, which='both')
+    
+    # TODO determine common bounds of all classifiers
 
-    subplot.set_xlim(classifier.x_bounds)
-    subplot.set_ylim(classifier.y_bounds)
+    subplot.set_xlim(classifiers[0].x_bounds)
+    subplot.set_ylim(classifiers[0].y_bounds)
 
-    plot_linear_classifier(subplot, classifier)
-
+    for classifier in classifiers:
+        plot_linear_classifier(subplot, classifier)
+    
     plot_classifier_training_data(subplot, training_data)
+
+    pyplot.show()
