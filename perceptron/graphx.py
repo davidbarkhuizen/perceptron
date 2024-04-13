@@ -19,4 +19,4 @@ def plot(data_sets):
     subplot.set_xlim(min(x_all), max(x_all))
     subplot.set_ylim(min(y_all), max(y_all))
 
-    pyplot.show()
+    pyplot.show(block=False)

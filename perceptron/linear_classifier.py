@@ -124,4 +124,6 @@ def plot_reference_classifiers(
     
     plot_classifier_training_data(subplot, training_data)
 
-    pyplot.show()
+    pyplot.show(block=False)
+    pyplot.pause(3)
+    pyplot.close()

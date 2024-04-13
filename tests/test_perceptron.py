@@ -8,9 +8,9 @@ from perceptron.linear_classifier import LinearClassifier, plot_reference_classi
 def test_version():
     assert __version__ == '0.1.0'
 
-def test_linear_classifier(count = 5):
+def test_linear_classifier():
 
-    for i in range(count):
+    while True:
 
         x_s = [0.0, 0.0]
 
@@ -25,7 +25,7 @@ def test_linear_classifier(count = 5):
         classifier_count = 3
         classifiers = []
 
-        training_set_size = 100
+        training_set_size = 1000
         training_data_set = []
 
         for i in range(classifier_count):
