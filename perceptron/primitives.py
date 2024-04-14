@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 class SPoint:
+    '''
+    sense point
+    '''
 
     def __init__(self, value: float, bounds: tuple[float, float]) -> None:
 
@@ -20,6 +23,8 @@ class SPoint:
         return self.value
 
 class SLayer:
+    '''
+    sense layer'''
 
     def __init__(self, nodes: list[SPoint]) -> None:
         self.nodes = nodes 
@@ -76,15 +81,25 @@ class Perceptron:
         self.output_value = 1.0
 
 class ALayer:
+    '''
+    association layers
+    '''
     
-    def __init__(self, nodes: list[Perceptron]) -> None:
-        self.nodes = nodes
-        self.parent_layer: SLayer | ALayer | None = None
+    def __init__(self, 
+        nodes: list[Perceptron], 
+        parent_layer: SLayer | ALayer | None = None
+    ) -> None:
         
-    def size(self):
+        self.nodes = nodes
+        self.parent_layer = parent_layer
+        
+    def size(self) -> int:
         return len(self.nodes)
 
-    def fully_connect_parent_layer(self, parent_layer: SLayer | ALayer, weights: list[float]):
+    def fully_connect_parent_layer(self, 
+        parent_layer: SLayer | ALayer, 
+        weights: list[float
+    ]):
         
         self.parent_layer = parent_layer
 

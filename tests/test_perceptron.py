@@ -1,18 +1,16 @@
-import random
 from random import uniform
-from typing import List
 
 from perceptron import __version__
-from perceptron.linear_classifier import LinearClassifier, plot_reference_classifiers
+from perceptron.linear_classifier import new_linear_classifer, plot_reference_classifiers
 
 def test_version():
     assert __version__ == '0.1.0'
 
 def test_linear_classifier():
 
-    while True:
+    for i in range(5):
 
-        x_s = [0.0, 0.0]
+        x_ = [0.0, 0.0]
 
         x_min = -5.0
         x_max = 5.0
@@ -28,14 +26,8 @@ def test_linear_classifier():
         training_set_size = 1000
         training_data_set = []
 
-        for i in range(classifier_count):
-
-            weights = [random.uniform(-2, 2), random.uniform(-2, 2)]
-            threshold = random.uniform(0, 3)
-            output_value = 1.0
-
-            reference_classifier = LinearClassifier(x_s, bounds, weights, threshold, output_value)
-            classifiers.append(reference_classifier)
+        for i in range(classifier_count): 
+            classifiers.append(new_linear_classifer(x_, bounds))
                 
         classifier = classifiers[0]
         x_training = [(uniform(*classifier.x_bounds), uniform(*classifier.y_bounds)) for i in range(training_set_size)]
@@ -52,6 +44,5 @@ def test_linear_classifier():
             intersection = 1 if sum(classifier_outputs) == classifier_count else 0
 
             training_data_set.append(([x,y], intersection))
-
 
         plot_reference_classifiers(classifiers, training_data_set)

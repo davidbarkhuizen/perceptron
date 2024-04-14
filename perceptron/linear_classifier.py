@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from random import uniform
+import random
 from statistics import mean
 from typing import List
 from matplotlib import pyplot, lines
@@ -59,6 +60,15 @@ class LinearClassifier:
         subplot.add_line(line_graph)
 
         pyplot.show()
+
+
+def new_linear_classifer(x_: tuple[float, float], bounds: list[tuple[float, float]]):
+    
+    weights = [random.uniform(-2, 2), random.uniform(-2, 2)]
+    threshold = random.uniform(0, 3)
+    output_value = 1.0
+
+    return LinearClassifier(x_, bounds, weights, threshold, output_value)
 
 def plot_linear_classifier(
         subplot, 
