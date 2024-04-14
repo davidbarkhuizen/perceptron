@@ -1,16 +1,17 @@
 from __future__ import annotations
+from random import uniform
 
-class SPoint:
+class StateNode:
     '''
     sense point
     '''
 
-    def __init__(self, value: float, bounds: tuple[float, float]) -> None:
+    def __init__(self, bounds: tuple[float, float], value: float = 0.0) -> None:
 
         self.value = value
         self.bounds = bounds
         
-    def update(self, value: float) -> None:
+    def update_value(self, value: float) -> None:
         
         self.value = value
 
@@ -22,51 +23,50 @@ class SPoint:
         
         return self.value
 
-class SLayer:
+class StateLayer:
     '''
     sense layer'''
 
-    def __init__(self, nodes: list[SPoint]) -> None:
-        self.nodes = nodes 
-
-    def size(self) -> int:
+    def __init__(self, dimension: int, bounds: list[tuple[float, float]]) -> None:
+        assert(len(bounds) == dimension)
         
-        return len(self.nodes)
+        self.dimension = dimension
+        self.nodes = [StateNode(bounds[i]) for i in range(dimension)]
     
-    def update_s_point_values(self, values: list[float]):
+    def update_state(self, x_: tuple[float]) -> None:
         
-        for i in range(len(values)):
-            self.nodes[i].update(values[i])
+        for i in range(self.dimension):
+            self.nodes[i].update_value(x_[i])
 
     def randomize(self) -> None:
         
         for node in self.nodes:
             node.randomize()
 
-class Perceptron:
+class AssociationNode:
             
-    def __init__(self, threshold: float = 1.0, output_value: float = 1.0) -> None:
-
-        self.parent_nodes = None        
-        self.weights = None
+    def __init__(self, 
+        threshold: float = 0.0, 
+        output_value: float = 1.0,
+        parent_nodes: list[StateNode | AssociationNode] = None, 
+        parent_node_weights: list[float] = None
+    ) -> None:
 
         self.threshold = threshold
         self.output_value = output_value
 
-    def connect_parents(self, nodes: list[SPoint | Perceptron], weights: list[float]):        
-        assert(len(nodes) == len(weights))
-        
-        self.parent_nodes = nodes
-        self.weights = weights
+        self.parent_nodes = parent_nodes if parent_nodes is not None else []        
+        self.parent_node_weights = parent_node_weights if parent_node_weights is not None else []
 
-    def update_weights(self, weights: list[float]):        
-        assert(len(self.parent_nodes) == len(weights))
-        self.weights = weights
+    def update_parent_weights(self, weights: list[float]) -> None:                
+        assert(len(weights) == len(self.parent_nodes))
+        self.parent_node_weights.clear()
+        self.parent_node_weights.extend(weights)
 
-    def aggregate_input_value(self):
-        return sum([self.parent_nodes[x].evaluate() * self.weights[x] for x in range(len(self.parent_nodes))])
+    def aggregate_input_value(self) -> float:
+        return sum([self.parent_nodes[i].evaluate() * self.parent_node_weights[i] for i in range(len(self.parent_nodes))])
 
-    def z(self):
+    def z(self) -> float:
         return self.aggregate_input_value() + self.threshold
 
     def activation_fn(self, z: float) -> float:
@@ -75,37 +75,32 @@ class Perceptron:
     def evaluate(self) -> float:
         return self.output_value * self.activation_fn(self.z())
 
-    def zero(self):
-        self.update_weights([1.0 for x in self.weights])
+    def zero(self) -> None:
+        self.update_weights([1.0 for x in self.parent_node_weights])
         self.threshold = 1.0
         self.output_value = 1.0
 
-class ALayer:
+class AssociationLayer:
     '''
     association layers
     '''
     
     def __init__(self, 
-        nodes: list[Perceptron], 
-        parent_layer: SLayer | ALayer | None = None
+        nodes: list[AssociationNode], 
+        parent_layer: StateLayer | AssociationLayer | None = None
     ) -> None:
         
         self.nodes = nodes
         self.parent_layer = parent_layer
-        
+
     def size(self) -> int:
         return len(self.nodes)
-
-    def fully_connect_parent_layer(self, 
-        parent_layer: SLayer | ALayer, 
-        weights: list[float
-    ]):
-        
-        self.parent_layer = parent_layer
-
-        for node in self.nodes:
-            node.connect_parents(parent_layer.nodes, weights)
 
     def zero_nodes(self):
         for node in self.nodes:
             node.zero()
+
+    def randomize(self):
+        for node in self.nodes:
+            node.update_parent_weights()
+

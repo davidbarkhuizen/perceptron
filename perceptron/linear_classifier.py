@@ -6,102 +6,78 @@ from statistics import mean
 from typing import List
 from matplotlib import pyplot, lines
 
-from perceptron.primitives import ALayer, Perceptron, SLayer, SPoint
+from perceptron.networks import LinearClassifierNetwork
+from perceptron.primitives import AssociationLayer, AssociationNode, StateLayer, StateNode
 
-class LinearClassifier:
+    # def run_training_set(self, training_set: list[tuple[list[float], int]]):
 
-    def __init__(self, x, bounds, weights, threshold, output_value) -> None:
+    #     self.a_layer.zero_nodes()
 
-        self.x_bounds = bounds[0] 
-        self.x = SPoint(x[0], self.x_bounds)
+    #     learning_rate = 0.1
 
-        self.y_bounds = bounds[1]
-        self.y = SPoint(x[1], self.y_bounds)
+    #     error_ = []
 
-        self.s_layer = SLayer([self.x, self.y])
+    #     for (inputs, expected_output) in training_set:
 
-        perceptron = Perceptron(threshold, output_value)
-        self.a_layer = ALayer([perceptron])
-        self.a_layer.fully_connect_parent_layer(self.s_layer, weights)
+    #         self.s_layer.update_node_values(inputs)
+    #         actual_output = self.a_layer.nodes[0].evaluate()
+    #         error = expected_output - actual_output
 
-    def run_training_set(self, training_set: list[tuple[list[float], int]]):
+    #         error_.append(error)
 
-        self.a_layer.zero_nodes()
+    #         for node in self.a_layer.nodes:
+    #             new_weights = [old_weight + (learning_rate * error) for old_weight in node.parent_node_weights]
+    #             node.update_weights(new_weights)
+    #             node.threshold = node.threshold + (learning_rate * error)
 
-        learning_rate = 0.1
+    #     # graph error time series
 
-        error_ = []
+    #     figure = pyplot.figure(f'error time series')
+    #     subplot = figure.add_subplot(111)
 
-        for (inputs, expected_output) in training_set:
+    #     subplot.grid(True, which='both')
 
-            self.s_layer.update_s_point_values(inputs)
-            actual_output = self.a_layer.nodes[0].evaluate()
-            error = expected_output - actual_output
+    #     subplot.set_xlim((0.0, len(error_)))
+    #     subplot.set_ylim((min(error_), max(error_)))
 
-            error_.append(error)
+    #     line_graph = lines.Line2D(range(len(error_)), error_, color='red')
 
-            for node in self.a_layer.nodes:
-                new_weights = [old_weight + (learning_rate * error) for old_weight in node.weights]
-                node.update_weights(new_weights)
-                node.threshold = node.threshold + (learning_rate * error)
+    #     subplot.add_line(line_graph)
 
-        # graph error time series
+    #     pyplot.show()
 
-        figure = pyplot.figure(f'error time series')
-        subplot = figure.add_subplot(111)
-
-        subplot.grid(True, which='both')
-
-        subplot.set_xlim((0.0, len(error_)))
-        subplot.set_ylim((min(error_), max(error_)))
-
-        line_graph = lines.Line2D(range(len(error_)), error_, color='red')
-
-        subplot.add_line(line_graph)
-
-        pyplot.show()
-
-
-def new_linear_classifer(x_: tuple[float, float], bounds: list[tuple[float, float]]):
-    
-    weights = [random.uniform(-2, 2), random.uniform(-2, 2)]
-    threshold = random.uniform(0, 3)
-    output_value = 1.0
-
-    return LinearClassifier(x_, bounds, weights, threshold, output_value)
-
-def plot_linear_classifier(
+def plot_linear_classifier_network(
         subplot, 
-        classifier: LinearClassifier, 
+        classifier: LinearClassifierNetwork, 
         plotting_resolution: int = 100, 
         color = 'black'
     ):
 
-    x_min = classifier.x_bounds[0]
-    x_max = classifier.x_bounds[1]
+    x_min = classifier.input_bounds[0][0]
+    x_max = classifier.input_bounds[0][1]
 
     x_interval_size = x_max - x_min 
     x_step_size = x_interval_size / float(plotting_resolution)
     x_ = [x_min + (i * x_step_size) for i in range(plotting_resolution)]
 
-    node = classifier.a_layer.nodes[0]
+    for node in classifier.first_association_layer.nodes:
 
-    a = node.weights[0]
-    b = node.weights[1]
-    c = node.threshold 
+        a = node.parent_node_weights[0]
+        b = node.parent_node_weights[1]
+        c = node.threshold 
 
-    y_ = [-1.0 * (a * x + c) / b for x in x_]
+        y_ = [-1.0 * (a * x + c) / b for x in x_]
 
-    line_graph = lines.Line2D(x_, y_, color=color)
+        line_graph = lines.Line2D(x_, y_, color=color)
 
-    subplot.add_line(line_graph)
+        subplot.add_line(line_graph)
 
-def plot_classifier_training_data(
+def plot_training_data(
         subplot, 
-        training_data: list[tuple[list[float], float]]
+        training_data: list[tuple[tuple[float, float], int]]
     ):
     
-    markers = ['x', '.', '*']
+    markers = ['x', '.']
 
     categories = []
 
@@ -114,9 +90,9 @@ def plot_classifier_training_data(
         x, y = zip(*[(x_[0], x_[1]) for x_ in values])
         subplot.plot(x, y, marker, color='black')
 
-def plot_reference_classifiers(
-        classifiers: List[LinearClassifier], 
-        training_data: list[tuple[list[float], int]]
+def plot_classifier_with_training_data(
+        classifier: LinearClassifierNetwork, 
+        training_data: list[tuple[tuple[float, float], int]]
     ):
 
     figure = pyplot.figure(f'reference classifier')
@@ -124,16 +100,13 @@ def plot_reference_classifiers(
 
     subplot.grid(True, which='both')
     
-    # TODO determine common bounds of all classifiers
+    subplot.set_xlim(classifier.input_bounds[0])
+    subplot.set_ylim(classifier.input_bounds[1])
 
-    subplot.set_xlim(classifiers[0].x_bounds)
-    subplot.set_ylim(classifiers[0].y_bounds)
-
-    for classifier in classifiers:
-        plot_linear_classifier(subplot, classifier)
+    plot_linear_classifier_network(subplot, classifier)
     
-    plot_classifier_training_data(subplot, training_data)
+    plot_training_data(subplot, training_data)
 
     pyplot.show(block=False)
-    pyplot.pause(3)
+    pyplot.pause(5)
     pyplot.close()
