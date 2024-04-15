@@ -23,8 +23,12 @@ class LinearClassifierNetwork:
         self.first_association_layer = AssociationLayer(
             nodes = [AssociationNode(
                 parent_nodes=[node for node in self.state_layer.nodes],
+
+                # NEXT: move this randomization out to a distinct function
+                #
                 parent_node_weights=[random.uniform(-2, 2) for node in self.state_layer.nodes],
                 threshold=random.uniform(0, 3)
+
             ) for i in range(cardinality)],
             parent_layer=self.state_layer
         )
@@ -37,9 +41,9 @@ class LinearClassifierNetwork:
 
         self.final_association_layer = AssociationLayer(   
             nodes = [AssociationNode(
-                threshold=float(cardinality - 2),
                 parent_nodes=[node for node in self.first_association_layer.nodes],
-                parent_node_weights=[1.0 for _ in self.first_association_layer.nodes]
+                parent_node_weights=[1.0 for _ in self.first_association_layer.nodes],
+                threshold=-(cardinality-1) 
             )],
         )
 

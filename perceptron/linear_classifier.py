@@ -77,7 +77,7 @@ def plot_training_data(
         training_data: list[tuple[tuple[float, float], int]]
     ):
     
-    markers = ['x', '.']
+    markers = ['.', 'x']
 
     categories = []
 
