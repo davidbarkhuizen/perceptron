@@ -19,7 +19,7 @@ class StateNode:
         
         self.value = uniform(*self.bounds)
 
-    def evaluate(self) -> float:
+    def activation_fn(self) -> float:
         
         return self.value
 
@@ -46,14 +46,12 @@ class StateLayer:
 class AssociationNode:
             
     def __init__(self, 
-        threshold: float = 0.0, 
-        output_value: float = 1.0,
+        threshold: float = 0.0,
         parent_nodes: list[StateNode | AssociationNode] = None, 
         parent_node_weights: list[float] = None
     ) -> None:
 
         self.threshold = threshold
-        self.output_value = output_value
 
         self.parent_nodes = parent_nodes if parent_nodes is not None else []        
         self.parent_node_weights = parent_node_weights if parent_node_weights is not None else []
@@ -63,22 +61,17 @@ class AssociationNode:
         self.parent_node_weights.clear()
         self.parent_node_weights.extend(weights)
 
-    def aggregate_input_value(self) -> float:
-        return sum([self.parent_nodes[i].evaluate() * self.parent_node_weights[i] for i in range(len(self.parent_nodes))])
-
     def z(self) -> float:
-        return self.aggregate_input_value() + self.threshold
 
-    def activation_fn(self, z: float) -> float:
-        return 1.0 if z > 0.0 else 0.0
+        aggregate_input_value = sum([
+            self.parent_nodes[i].activation_fn() * self.parent_node_weights[i] 
+                for i in range(len(self.parent_nodes))
+        ])
 
-    def evaluate(self) -> float:
-        return self.output_value * self.activation_fn(self.z())
+        return aggregate_input_value + self.threshold
 
-    def zero(self) -> None:
-        self.update_weights([1.0 for x in self.parent_node_weights])
-        self.threshold = 1.0
-        self.output_value = 1.0
+    def activation_fn(self) -> int:
+        return 1 if self.z() > 0.0 else 0
 
 class AssociationLayer:
     '''
@@ -95,10 +88,6 @@ class AssociationLayer:
 
     def size(self) -> int:
         return len(self.nodes)
-
-    def zero_nodes(self):
-        for node in self.nodes:
-            node.zero()
 
     def randomize(self):
         for node in self.nodes:

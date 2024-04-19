@@ -52,7 +52,7 @@ class LinearClassifierNetwork:
 
     def classify_state(self, state: tuple[float]) -> int:
         self.update_state_layer(state)
-        return self.final_association_layer.nodes[0].evaluate()
+        return self.final_association_layer.nodes[0].activation_fn()
 
     # def run_training_set(self, training_set: list[tuple[list[float], int]]):
 
