@@ -25,10 +25,6 @@ class LinearClassifierNetwork:
             parent_layer=self.state_layer
         )
 
-        for node in self.first_association_layer.nodes:
-            node.update_parent_weights([random.uniform(-2, 2) for _ in self.state_layer.nodes])
-            node.threshold = random.uniform(0, 3) 
-
         # output a_layer consists of a 
         # - a single neuron
         #   * fully connected to all its parents
@@ -46,6 +42,11 @@ class LinearClassifierNetwork:
     def classify_state(self, state: tuple[float]) -> int:
         self.update_state_layer(state)
         return self.output_layer.nodes[0].activate()
+
+    def randomize(self):
+        for node in self.first_association_layer.nodes:
+            node.update_parent_weights([random.uniform(-2, 2) for _ in self.state_layer.nodes])
+            node.threshold = random.uniform(0, 3) 
 
     # def run_training_set(self, training_set: list[tuple[list[float], int]]):
 
