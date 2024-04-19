@@ -19,7 +19,7 @@ class StateNode:
         
         self.value = uniform(*self.bounds)
 
-    def activation_fn(self) -> float:
+    def activate(self) -> float:
         
         return self.value
 
@@ -64,13 +64,13 @@ class AssociationNode:
     def z(self) -> float:
 
         aggregate_input_value = sum([
-            self.parent_nodes[i].activation_fn() * self.parent_node_weights[i] 
+            self.parent_nodes[i].activate() * self.parent_node_weights[i] 
                 for i in range(len(self.parent_nodes))
         ])
 
         return aggregate_input_value + self.threshold
 
-    def activation_fn(self) -> int:
+    def activate(self) -> int:
         return 1 if self.z() > 0.0 else 0
 
 class AssociationLayer:
