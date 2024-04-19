@@ -34,7 +34,7 @@ class LinearClassifierNetwork:
         self.output_layer = AssociationLayer(size=1, parent_layer=self.first_association_layer)
         output_node = self.output_layer.nodes[0]
         output_node.parent_node_weights = [1.0 for _ in self.first_association_layer.nodes]
-        output_node.threshold = float(self.first_association_layer.size - 1) 
+        output_node.threshold = - float(self.first_association_layer.size - 1) 
 
     def update_state_layer(self, x_: tuple[float]) -> None:
         self.state_layer.update_state(x_)

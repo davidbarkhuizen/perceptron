@@ -76,10 +76,20 @@ class AssociationNode:
     def teach(self, target_state: int):
 
         print(f'state: {target_state}')
-        correctly_categorised = self.value() == target_state
-        print(f'correcty catgeorised: {correctly_categorised}')
-        d = 1.0 if correctly_categorised else -1.0
-        n = 0.1
+
+        current_state = self.value()
+        correctly_categorised = current_state == target_state
+        if correctly_categorised:
+            return
+
+        if target_state == 1 and current_state == 0:
+            d = 1.0
+        elif target_state == 0 and current_state == 1:
+            d = -1.0
+        else:
+            raise('wtf')
+
+        n = 0.2
 
         w_p0 = self.threshold + n * d * 1.0
         w_p1 = self.parent_node_weights[0] + n * d * self.parent_nodes[0].value()
@@ -87,7 +97,6 @@ class AssociationNode:
 
         self.threshold = w_p0
         self.update_parent_weights([w_p1, w_p2])
-
 
 class AssociationLayer:
     '''

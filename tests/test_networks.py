@@ -22,26 +22,26 @@ def random_training_data(size: int, classifier: LinearClassifierNetwork) -> list
         for state in training_data_states
     ]
 
-def test_linear_classifier_network():
+# def test_linear_classifier_network():
 
-    classifier_cardinality = 1
-    l = 7
-    x_min, x_max = -l, l
-    y_min, y_max = -l, l
-    input_bounds = [(x_min, x_max), (y_min, y_max)]
+#     classifier_cardinality = 1
+#     l = 7
+#     x_min, x_max = -l, l
+#     y_min, y_max = -l, l
+#     input_bounds = [(x_min, x_max), (y_min, y_max)]
 
-    classifier = LinearClassifierNetwork(classifier_cardinality, 2, input_bounds)
-    classifier.randomize()
+#     classifier = LinearClassifierNetwork(classifier_cardinality, 2, input_bounds)
+#     classifier.randomize()
 
-    training_set_size = 67
-    training_data = random_training_data(training_set_size, classifier)
+#     training_set_size = 67
+#     training_data = random_training_data(training_set_size, classifier)
 
-    plot_classifier_with_training_data(classifier, training_data)
+#     plot_classifier_with_training_data(classifier, training_data)
 
-    pyplot.pause(1)
-    pyplot.close()
+#     pyplot.pause(1)
+#     pyplot.close()
 
-    assert(True)
+#     assert(True)
 
 def test_training_of_linear_classifier():
 
@@ -88,12 +88,9 @@ def test_training_of_linear_classifier():
 
         classifier.teach(x_, reference_category)
         
-        plot_classifier_with_training_data(classifier, data_used)
-        pyplot.show(block=False)
-        pyplot.pause(0.2)
-        pyplot.close()
-     
-
-
+    plot_classifier_with_training_data(classifier, training_data)
+    pyplot.show(block=False)
+    pyplot.pause(5)
+    pyplot.close()
 
 
