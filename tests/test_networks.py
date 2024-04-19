@@ -5,7 +5,7 @@ from perceptron.chart import plot_classifier_with_training_data
 from perceptron.networks import LinearClassifierNetwork
 
 def test_version():
-    assert __version__ == '0.1.0'
+    assert __version__ == '0.0.1'
 
 def test_linear_classifier_network():
 
@@ -35,3 +35,21 @@ def test_linear_classifier_network():
         ]
 
         plot_classifier_with_training_data(classifier, training_data)
+
+
+def test_training_of_simples_linear_classifier():
+    pass
+
+    # - generate a random classifier network for reference
+    # - use reference classifier to produce a set of training data
+    # - generate a random classifier network for training
+    # - train the learning network using the reference data (run an epoch)
+    #   * during each epoch, graph
+    #     - the training data set so far
+    #     - the reference classifer
+    #     - the learning classifier
+     
+
+
+
+
