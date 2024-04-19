@@ -80,9 +80,7 @@ def plot_classifier_with_training_data(
     subplot.set_ylim(classifier.input_bounds[1])
 
     plot_linear_classifier_network(subplot, classifier)
-    
     plot_training_data(subplot, training_data)
 
     pyplot.show(block=False)
-    pyplot.pause(5)
-    pyplot.close()
+

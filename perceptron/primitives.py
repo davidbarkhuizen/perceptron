@@ -8,20 +8,18 @@ class StateNode:
 
     def __init__(self, bounds: tuple[float, float], value: float = 0.0) -> None:
 
-        self.value = value
+        self.__value = value
         self.bounds = bounds
-        
-    def update_value(self, value: float) -> None:
-        
-        self.value = value
 
     def randomize(self) -> None:
-        
-        self.value = uniform(*self.bounds)
+        self.__value = uniform(*self.bounds)
 
-    def activate(self) -> float:
-        
-        return self.value
+    def value(self) -> float:
+        return self.__value
+
+    def update_value(self, value: float) -> None:
+        self.__value = value
+
 
 class StateLayer:
     '''
@@ -34,7 +32,8 @@ class StateLayer:
         self.nodes = [StateNode(bounds[i]) for i in range(dimension)]
     
     def update_state(self, x_: tuple[float]) -> None:
-        
+        assert(len(x_) == self.dimension)
+
         for i in range(self.dimension):
             self.nodes[i].update_value(x_[i])
 
@@ -65,14 +64,30 @@ class AssociationNode:
     def z(self) -> float:
 
         aggregate_input_value = sum([
-            self.parent_nodes[i].activate() * self.parent_node_weights[i] 
+            self.parent_nodes[i].value() * self.parent_node_weights[i]
                 for i in range(len(self.parent_nodes))
         ])
 
         return aggregate_input_value + self.threshold
 
-    def activate(self) -> int:
+    def value(self) -> int:
         return 1 if self.z() > 0.0 else 0
+
+    def teach(self, target_state: int):
+
+        print(f'state: {target_state}')
+        correctly_categorised = self.value() == target_state
+        print(f'correcty catgeorised: {correctly_categorised}')
+        d = 1.0 if correctly_categorised else -1.0
+        n = 0.1
+
+        w_p0 = self.threshold + n * d * 1.0
+        w_p1 = self.parent_node_weights[0] + n * d * self.parent_nodes[0].value()
+        w_p2 = self.parent_node_weights[1] + n * d * self.parent_nodes[1].value()
+
+        self.threshold = w_p0
+        self.update_parent_weights([w_p1, w_p2])
+
 
 class AssociationLayer:
     '''

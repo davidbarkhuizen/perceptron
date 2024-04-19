@@ -1,15 +1,28 @@
 from random import uniform
+from time import sleep
 
 from perceptron import __version__
 from perceptron.chart import plot_classifier_with_training_data
 from perceptron.networks import LinearClassifierNetwork
 
+from matplotlib import pyplot
+
 def test_version():
     assert __version__ == '0.0.1'
 
-def test_linear_classifier_network():
+def random_training_data(size: int, classifier: LinearClassifierNetwork) -> list[tuple[tuple[float, float], int]]:
 
-    # produce training data set
+    training_data_states = [
+        (uniform(*classifier.input_bounds[0]), uniform(*classifier.input_bounds[1])) 
+            for i in range(size)
+    ] 
+
+    return [
+        (state, classifier.classify_state(state))
+        for state in training_data_states
+    ]
+
+def test_linear_classifier_network():
 
     classifier_cardinality = 1
     l = 7
@@ -21,18 +34,12 @@ def test_linear_classifier_network():
     classifier.randomize()
 
     training_set_size = 67
-    
-    training_data_states = [
-        (uniform(*classifier.input_bounds[0]), uniform(*classifier.input_bounds[1])) 
-            for i in range(training_set_size)
-    ] 
-
-    training_data: list[tuple[tuple[float, float], int]] = [
-        (state, classifier.classify_state(state))
-        for state in training_data_states
-    ]
+    training_data = random_training_data(training_set_size, classifier)
 
     plot_classifier_with_training_data(classifier, training_data)
+
+    pyplot.pause(1)
+    pyplot.close()
 
     assert(True)
 
@@ -45,9 +52,10 @@ def test_training_of_linear_classifier():
     y_min, y_max = -l, l
     input_bounds = [(x_min, x_max), (y_min, y_max)]
 
-    # randomly generate a reference classifier network
+    # generate a (random) reference classifier network
     #
     reference_classifer = LinearClassifierNetwork(classifier_cardinality, dimension, input_bounds)
+    reference_classifer.randomize()
 
     # use the reference classifier to produce a set of training data
 
@@ -66,12 +74,24 @@ def test_training_of_linear_classifier():
     ]
 
     # - generate a random classifier network for training
+    #
+    classifier = LinearClassifierNetwork(classifier_cardinality, dimension, input_bounds)
+    classifier.randomize()
 
     # - train the learning network using the reference data (run an epoch)
-    #   * during each epoch, graph
-    #     - the training data set so far
-    #     - the reference classifer
-    #     - the learning classifier
+    #
+
+    data_used = [] 
+    for datum in training_data:
+        data_used.append(datum)
+        (x_, reference_category) = datum
+
+        classifier.teach(x_, reference_category)
+        
+        plot_classifier_with_training_data(classifier, data_used)
+        pyplot.show(block=False)
+        pyplot.pause(0.2)
+        pyplot.close()
      
 
 

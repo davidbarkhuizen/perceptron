@@ -9,5 +9,5 @@ python3 -m pip install pip-tools
 pip-compile requirements.in
 pip-sync requirements.txt
 
-python3 -m pytest tests/test_networks.py
+python3 -m pytest --verbose tests/test_networks.py
 
