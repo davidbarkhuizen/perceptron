@@ -11,7 +11,7 @@ def test_linear_classifier_network():
 
     # produce training data set
 
-    classifier_cardinality = 3
+    classifier_cardinality = 1
     l = 7
     x_min, x_max = -l, l
     y_min, y_max = -l, l

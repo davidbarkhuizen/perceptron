@@ -54,12 +54,13 @@ class AssociationNode:
         self.threshold = threshold
 
         self.parent_nodes = parent_nodes if parent_nodes is not None else []        
-        self.parent_node_weights = parent_node_weights if parent_node_weights is not None else []
+        self.parent_node_weights = parent_node_weights if parent_node_weights is not None else [
+            1.0 for _ in self.parent_nodes
+        ]
 
     def update_parent_weights(self, weights: list[float]) -> None:                
         assert(len(weights) == len(self.parent_nodes))
-        self.parent_node_weights.clear()
-        self.parent_node_weights.extend(weights)
+        self.parent_node_weights = weights
 
     def z(self) -> float:
 
@@ -78,18 +79,12 @@ class AssociationLayer:
     association layers
     '''
     
-    def __init__(self, 
-        nodes: list[AssociationNode], 
-        parent_layer: StateLayer | AssociationLayer | None = None
-    ) -> None:
+    def __init__(self, size, parent_layer: StateLayer | AssociationLayer) -> None:
         
-        self.nodes = nodes
+        self.size = size
         self.parent_layer = parent_layer
 
-    def size(self) -> int:
-        return len(self.nodes)
-
-    def randomize(self):
-        for node in self.nodes:
-            node.update_parent_weights()
-
+        self.nodes = [
+            AssociationNode(parent_nodes=self.parent_layer.nodes) 
+                for i in range(size)
+        ]

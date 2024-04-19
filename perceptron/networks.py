@@ -21,17 +21,13 @@ class LinearClassifierNetwork:
         self.state_layer = StateLayer(dimension, input_bounds) 
 
         self.first_association_layer = AssociationLayer(
-            nodes = [AssociationNode(
-                parent_nodes=[node for node in self.state_layer.nodes],
-
-                # NEXT: move this randomization out to a distinct function
-                #
-                parent_node_weights=[random.uniform(-2, 2) for node in self.state_layer.nodes],
-                threshold=random.uniform(0, 3)
-
-            ) for i in range(cardinality)],
+            size=cardinality,
             parent_layer=self.state_layer
         )
+
+        for node in self.first_association_layer.nodes:
+            node.update_parent_weights([random.uniform(-2, 2) for _ in self.state_layer.nodes])
+            node.threshold = random.uniform(0, 3) 
 
         # output a_layer consists of a 
         # - a single neuron
@@ -39,20 +35,17 @@ class LinearClassifierNetwork:
         #   * that activates when all its parent nodes are active
         # return sum([self.parent_nodes[i].evaluate() * self.parent_node_weights[i]
 
-        self.final_association_layer = AssociationLayer(   
-            nodes = [AssociationNode(
-                parent_nodes=[node for node in self.first_association_layer.nodes],
-                parent_node_weights=[1.0 for _ in self.first_association_layer.nodes],
-                threshold=-(cardinality-1) 
-            )],
-        )
+        self.output_layer = AssociationLayer(size=1, parent_layer=self.first_association_layer)
+        output_node = self.output_layer.nodes[0]
+        output_node.parent_node_weights = [1.0 for _ in self.first_association_layer.nodes]
+        output_node.threshold = -float(self.first_association_layer.size - 1) 
 
     def update_state_layer(self, x_: tuple[float]) -> None:
         self.state_layer.update_state(x_)
 
     def classify_state(self, state: tuple[float]) -> int:
         self.update_state_layer(state)
-        return self.final_association_layer.nodes[0].activate()
+        return self.output_layer.nodes[0].activate()
 
     # def run_training_set(self, training_set: list[tuple[list[float], int]]):
 
