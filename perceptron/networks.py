@@ -1,6 +1,6 @@
 
 
-from perceptron.primitives import AssociationLayer, AssociationNode, StateLayer, StateNode
+from perceptron.primitives import AssociationLayer, AssociationNode, StateLayer
 import random
 
 class LinearClassifierNetwork:
@@ -54,4 +54,39 @@ class LinearClassifierNetwork:
         self.update_state_layer(state)
         return self.final_association_layer.nodes[0].evaluate()
 
+    # def run_training_set(self, training_set: list[tuple[list[float], int]]):
 
+    #     self.a_layer.zero_nodes()
+
+    #     learning_rate = 0.1
+
+    #     error_ = []
+
+    #     for (inputs, expected_output) in training_set:
+
+    #         self.s_layer.update_node_values(inputs)
+    #         actual_output = self.a_layer.nodes[0].evaluate()
+    #         error = expected_output - actual_output
+
+    #         error_.append(error)
+
+    #         for node in self.a_layer.nodes:
+    #             new_weights = [old_weight + (learning_rate * error) for old_weight in node.parent_node_weights]
+    #             node.update_weights(new_weights)
+    #             node.threshold = node.threshold + (learning_rate * error)
+
+    #     # graph error time series
+
+    #     figure = pyplot.figure(f'error time series')
+    #     subplot = figure.add_subplot(111)
+
+    #     subplot.grid(True, which='both')
+
+    #     subplot.set_xlim((0.0, len(error_)))
+    #     subplot.set_ylim((min(error_), max(error_)))
+
+    #     line_graph = lines.Line2D(range(len(error_)), error_, color='red')
+
+    #     subplot.add_line(line_graph)
+
+    #     pyplot.show()

@@ -1,7 +1,7 @@
 from random import uniform
 
 from perceptron import __version__
-from perceptron.linear_classifier import plot_classifier_with_training_data
+from perceptron.chart import plot_classifier_with_training_data
 from perceptron.networks import LinearClassifierNetwork
 
 def test_version():
