@@ -1,4 +1,6 @@
 from matplotlib import pyplot, lines
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from perceptron.networks import LinearClassifierNetwork
 
 def plot(data_sets):
@@ -23,7 +25,7 @@ def plot(data_sets):
     pyplot.show(block=False)
 
 def plot_linear_classifier_network(
-        subplot, 
+        axes: Axes, 
         classifier: LinearClassifierNetwork, 
         plotting_resolution: int = 100, 
         color = 'black'
@@ -46,10 +48,10 @@ def plot_linear_classifier_network(
 
         line_graph = lines.Line2D(x_, y_, color=color)
 
-        subplot.add_line(line_graph)
+        axes.add_line(line_graph)
 
 def plot_training_data(
-        subplot, 
+        axes: Axes, 
         training_data: list[tuple[tuple[float, float], int]]
     ):
     
@@ -64,23 +66,20 @@ def plot_training_data(
         (category_value, values) = categories[i]
         marker = markers[i]
         x, y = zip(*[(x_[0], x_[1]) for x_ in values])
-        subplot.plot(x, y, marker, color='black')
+        axes.plot(x, y, marker, color='black')
 
-def plot_classifier_with_training_data(
-        classifier: LinearClassifierNetwork, 
-        training_data: list[tuple[tuple[float, float], int]]
-    ):
+def new_figure(label: str) -> Figure:
+    return pyplot.figure(label)
 
-    figure = pyplot.figure(f'reference classifier')
-    subplot = figure.add_subplot(111)
+def new_axes(figure: Figure, bounds: list[tuple[float, float]]) -> Axes:
 
-    subplot.grid(True, which='both')
+    axes = figure.add_subplot(111)
+
+    axes.grid(True, which='both')
     
-    subplot.set_xlim(classifier.input_bounds[0])
-    subplot.set_ylim(classifier.input_bounds[1])
+    axes.set_xlim(bounds[0])
+    axes.set_ylim(bounds[1])
 
-    plot_linear_classifier_network(subplot, classifier)
-    plot_training_data(subplot, training_data)
+    axes.set_aspect('equal', adjustable='box')
 
-    pyplot.show(block=False)
-
+    return axes
