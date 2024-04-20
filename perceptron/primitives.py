@@ -73,9 +73,7 @@ class AssociationNode:
     def value(self) -> int:
         return 1 if self.z() > 0.0 else 0
 
-    def teach(self, target_state: int):
-
-        print(f'state: {target_state}')
+    def teach(self, learning_rate: float, target_state: int):
 
         current_state = self.value()
         correctly_categorised = current_state == target_state
@@ -89,11 +87,9 @@ class AssociationNode:
         else:
             raise('wtf')
 
-        n = 0.2
-
-        w_p0 = self.threshold + n * d * 1.0
-        w_p1 = self.parent_node_weights[0] + n * d * self.parent_nodes[0].value()
-        w_p2 = self.parent_node_weights[1] + n * d * self.parent_nodes[1].value()
+        w_p0 = self.threshold + learning_rate * d * 1.0
+        w_p1 = self.parent_node_weights[0] + learning_rate * d * self.parent_nodes[0].value()
+        w_p2 = self.parent_node_weights[1] + learning_rate * d * self.parent_nodes[1].value()
 
         self.threshold = w_p0
         self.update_parent_weights([w_p1, w_p2])

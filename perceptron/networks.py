@@ -43,13 +43,13 @@ class LinearClassifierNetwork:
         self.update_state_layer(state)
         return self.output_layer.nodes[0].value()
 
-    def teach(self, state: tuple[float], category: int) -> None:
+    def teach(self, learning_rate: float, state: tuple[float], category: int) -> None:
 
         self.update_state_layer(state)
         for node in self.first_association_layer.nodes:
-            node.teach(category)
+            node.teach(learning_rate, category)
 
     def randomize(self):
         for node in self.first_association_layer.nodes:
             node.update_parent_weights([random.uniform(-2, 2) for _ in self.state_layer.nodes])
-            node.threshold = 0 
+            node.threshold = random.uniform(-5, 5)

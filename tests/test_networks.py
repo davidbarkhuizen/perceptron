@@ -22,23 +22,20 @@ def random_training_data(size: int, classifier: LinearClassifierNetwork) -> list
         for state in training_data_states
     ]
 
-# def test_linear_classifier_network():
+def test_generation_of_random_test_data_from_reference_classifier():
 
-#     classifier_cardinality = 1
-#     l = 7
-#     x_min, x_max = -l, l
-#     y_min, y_max = -l, l
-#     input_bounds = [(x_min, x_max), (y_min, y_max)]
+    classifier_cardinality = 1
+    l = 7
+    x_min, x_max = -l, l
+    y_min, y_max = -l, l
+    input_bounds = [(x_min, x_max), (y_min, y_max)]
 
-#     classifier = LinearClassifierNetwork(classifier_cardinality, 2, input_bounds)
-#     classifier.randomize()
+    classifier = LinearClassifierNetwork(classifier_cardinality, 2, input_bounds)
+    classifier.randomize()
 
-#     training_set_size = 67
-#     training_data = random_training_data(training_set_size, classifier)
+    training_set_size = 67
 
-#     plot_classifier_with_training_data(classifier, training_data)
-
-#     assert(True)
+    assert(len(random_training_data(training_set_size, classifier)) == training_set_size)
 
 def test_training_of_linear_classifier():
 
@@ -48,8 +45,10 @@ def test_training_of_linear_classifier():
     x_min, x_max = -l, l
     y_min, y_max = -l, l
     input_bounds = [(x_min, x_max), (y_min, y_max)]
-
-    # generate plot for bounds
+    
+    learning_rate = 0.2
+    training_set_size = 100
+    epochs = 3
 
     # generate a (random) reference classifier network
     #
@@ -57,9 +56,7 @@ def test_training_of_linear_classifier():
     reference_classifer.randomize()
 
     # use the reference classifier to produce a set of training data
-
-    training_set_size = 1000
-    
+    #
     training_data_input_states = [
         (uniform(*input_bounds[0]), uniform(*input_bounds[1])) 
             for i in range(training_set_size)
@@ -72,35 +69,31 @@ def test_training_of_linear_classifier():
         for state in training_data_input_states
     ]
 
-    # - generate a random classifier network for training
+    # generate a random classifier network for training
     #
     classifier = LinearClassifierNetwork(classifier_cardinality, dimension, input_bounds)
     classifier.randomize()
 
-    # - train the learning network using the reference data (run an epoch)
+    # train the naive network using the reference data (run an epoch)
     #
+    for _ in range(epochs):        
+        for datum in training_data:
+            (x_, reference_category) = datum
+            classifier.teach(learning_rate, x_, reference_category)
 
-    figure = new_figure('perceptron')
+    figure = new_figure('taught perceptron')
     axes = new_axes(figure, classifier.input_bounds)
     pyplot.show(block=False)
 
-    data_used = [] 
-    for datum in training_data:
-        data_used.append(datum)
-        (x_, reference_category) = datum
+    axes.clear()
+    axes.set_xlim(input_bounds[0])
+    axes.set_ylim(input_bounds[1])
 
-        axes.clear()
-        axes.set_xlim(input_bounds[0])
-        axes.set_ylim(input_bounds[1])
-
-        plot_training_data(axes, data_used)
-
-        classifier.teach(x_, reference_category)
-
-        plot_linear_classifier_network(axes, classifier)
-
-        pyplot.pause(0.1)
+    plot_training_data(axes, training_data)
+    plot_linear_classifier_network(axes, reference_classifer, color='green')
+    plot_linear_classifier_network(axes, classifier, color='purple')
     
+    pyplot.pause(5)
     pyplot.close()
 
 
