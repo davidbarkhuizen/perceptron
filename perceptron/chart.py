@@ -28,7 +28,7 @@ def plot_linear_classifier_network(
         axes: Axes, 
         classifier: LinearClassifierNetwork, 
         plotting_resolution: int = 100, 
-        color = 'black'
+        color = 'purple'
     ):
 
     x_min = classifier.input_bounds[0][0]
@@ -56,6 +56,7 @@ def plot_training_data(
     ):
     
     markers = ['.', 'x']
+    colors = ['blue', 'yellow']
 
     categories = []
 
@@ -65,15 +66,19 @@ def plot_training_data(
     for i in range(len(categories)):
         (category_value, values) = categories[i]
         marker = markers[i]
+        color = colors[i]
         x, y = zip(*[(x_[0], x_[1]) for x_ in values])
-        axes.plot(x, y, marker, color='black')
+        axes.plot(x, y, marker, color=color)
 
 def new_figure(label: str) -> Figure:
-    return pyplot.figure(label)
+    figure = pyplot.figure(label)
+    figure.patch.set_facecolor('xkcd:black')
+    return figure
 
 def new_axes(figure: Figure, bounds: list[tuple[float, float]]) -> Axes:
 
     axes = figure.add_subplot(111)
+    axes.set_facecolor('xkcd:black')
 
     axes.grid(True, which='both')
     
@@ -81,5 +86,16 @@ def new_axes(figure: Figure, bounds: list[tuple[float, float]]) -> Axes:
     axes.set_ylim(bounds[1])
 
     axes.set_aspect('equal', adjustable='box')
+
+    axes.spines['bottom'].set_color('white')
+    axes.spines['top'].set_color('white')
+    axes.spines['left'].set_color('white')
+    axes.spines['right'].set_color('white')
+
+    axes.xaxis.label.set_color('white')
+    axes.tick_params(axis='x', colors='white')
+    axes.tick_params(axis='y', colors='white')
+
+
 
     return axes

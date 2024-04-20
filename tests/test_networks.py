@@ -90,6 +90,9 @@ def test_training_of_linear_classifier():
         (x_, reference_category) = datum
 
         axes.clear()
+        axes.set_xlim(input_bounds[0])
+        axes.set_ylim(input_bounds[1])
+
         plot_training_data(axes, data_used)
 
         classifier.teach(x_, reference_category)
