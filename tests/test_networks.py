@@ -34,8 +34,9 @@ def test_generation_of_random_test_data_from_reference_classifier():
     classifier.randomize()
 
     training_set_size = 67
+    training_data = random_training_data(training_set_size, classifier)
 
-    assert(len(random_training_data(training_set_size, classifier)) == training_set_size)
+    assert(len(training_data) == training_set_size)
 
 def test_training_of_linear_classifier():
 
@@ -47,7 +48,7 @@ def test_training_of_linear_classifier():
     input_bounds = [(x_min, x_max), (y_min, y_max)]
     
     learning_rate = 0.2
-    training_set_size = 100
+    training_set_size = 67
     epochs = 3
 
     # generate a (random) reference classifier network
@@ -56,18 +57,8 @@ def test_training_of_linear_classifier():
     reference_classifer.randomize()
 
     # use the reference classifier to produce a set of training data
-    #
-    training_data_input_states = [
-        (uniform(*input_bounds[0]), uniform(*input_bounds[1])) 
-            for i in range(training_set_size)
-    ]
-    
-    # x_, [w_.x_ > 0]_
-    #
-    training_data: list[tuple[tuple[float, float], int]] = [
-        (state, reference_classifer.classify_state(state))
-        for state in training_data_input_states
-    ]
+    #    
+    training_data = random_training_data(training_set_size, reference_classifer)
 
     # generate a random classifier network for training
     #
@@ -83,16 +74,15 @@ def test_training_of_linear_classifier():
 
     figure = new_figure('taught perceptron')
     axes = new_axes(figure, classifier.input_bounds)
-    pyplot.show(block=False)
 
-    axes.clear()
     axes.set_xlim(input_bounds[0])
     axes.set_ylim(input_bounds[1])
 
     plot_training_data(axes, training_data)
     plot_linear_classifier_network(axes, reference_classifer, color='green')
     plot_linear_classifier_network(axes, classifier, color='purple')
-    
+
+    pyplot.show(block=False)
     pyplot.pause(5)
     pyplot.close()
 
