@@ -54,4 +54,4 @@ class LinearClassifierNetwork:
             node.threshold = random.uniform(-5, 5)
     
     def distance(self, other: LinearClassifierNetwork) -> float:
-        return self.hidden_layer.nodes[0].distance(other.hidden_layer.nodes[0])
+        return self.hidden_layer.nodes[0].normalised_distance(other.hidden_layer.nodes[0])

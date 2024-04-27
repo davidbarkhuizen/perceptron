@@ -94,16 +94,34 @@ class AssociationNode:
         self.threshold = w_p0
         self.update_parent_weights([w_p1, w_p2])
 
-    def distance(self, other: AssociationNode):
-        return sqrt(
-            sum([
-                (self.threshold - other.threshold) ** 2,
-                *[
-                    (self.parent_node_weights[i] - other.parent_node_weights[i]) ** 2
-                        for i in range(len(self.parent_node_weights))
-                ] 
-            ])
-        )
+    def normalised_distance(self, other: AssociationNode) -> float:
+
+        parent_node_count = len(self.parent_node_weights)
+        assert(parent_node_count == len(other.parent_node_weights))
+
+        alpha = [
+            self.threshold, 
+            *[self.parent_node_weights[i] for i in range(parent_node_count)]
+        ]
+
+        beta = [
+            other.threshold, 
+            *[other.parent_node_weights[i] for i in range(parent_node_count)]
+        ]
+
+        def normalise(vector: list[float]) -> list[float]:            
+            length = sqrt(sum([x**2 for x in vector]))
+            return [x/length for x in vector]
+
+        def distance(alpha: list[float], beta: list[float]) -> float:
+            assert(len(alpha) == len(beta))
+            if len(alpha) == 0:
+                return ValueError('undefined')
+
+            return sqrt(sum([(alpha[i] - beta[i])**2 for i in range(len(alpha))]))
+
+        return distance(normalise(alpha), normalise(beta))
+
             
 class AssociationLayer:
     '''
