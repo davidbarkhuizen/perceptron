@@ -1,5 +1,6 @@
 from __future__ import annotations
 from random import uniform
+from math import sqrt
 
 class StateNode:
     '''
@@ -19,7 +20,6 @@ class StateNode:
 
     def update_value(self, value: float) -> None:
         self.__value = value
-
 
 class StateLayer:
     '''
@@ -94,6 +94,17 @@ class AssociationNode:
         self.threshold = w_p0
         self.update_parent_weights([w_p1, w_p2])
 
+    def distance(self, other: AssociationNode):
+        return sqrt(
+            sum([
+                (self.threshold - other.threshold) ** 2,
+                *[
+                    (self.parent_node_weights[i] - other.parent_node_weights[i]) ** 2
+                        for i in range(len(self.parent_node_weights))
+                ] 
+            ])
+        )
+            
 class AssociationLayer:
     '''
     association layers

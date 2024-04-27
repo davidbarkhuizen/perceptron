@@ -1,4 +1,4 @@
-from random import uniform
+from random import uniform, shuffle
 from time import sleep
 
 from perceptron import __version__
@@ -10,17 +10,26 @@ from matplotlib import pyplot
 def test_version():
     assert __version__ == '0.0.1'
 
-def random_training_data(size: int, classifier: LinearClassifierNetwork) -> list[tuple[tuple[float, float], int]]:
+def random_alternating_training_data(
+        size: int, 
+        classifier: LinearClassifierNetwork
+    ) -> list[tuple[tuple[float, float], int]]:
 
-    training_data_states = [
-        (uniform(*classifier.input_bounds[0]), uniform(*classifier.input_bounds[1])) 
-            for i in range(size)
-    ] 
+    states = { 0: [], 1: []}
 
-    return [
-        (state, classifier.classify_state(state))
-        for state in training_data_states
-    ]
+    k = size // 2
+
+    while len(states[0]) < k or len(states[1]) < k:
+
+        input = (uniform(*classifier.input_bounds[0]), uniform(*classifier.input_bounds[1]))
+        state = classifier.classify_state(input)
+
+        if len(states[state]) < k:
+            states[state].append((input, state))
+    
+    mixed = states[0] + states[1]
+    shuffle(mixed)
+    return mixed
 
 def test_generation_of_random_test_data_from_reference_classifier():
 
@@ -33,8 +42,8 @@ def test_generation_of_random_test_data_from_reference_classifier():
     classifier = LinearClassifierNetwork(classifier_cardinality, 2, input_bounds)
     classifier.randomize()
 
-    training_set_size = 67
-    training_data = random_training_data(training_set_size, classifier)
+    training_set_size = 50
+    training_data = random_alternating_training_data(training_set_size, classifier)
 
     assert(len(training_data) == training_set_size)
 
@@ -47,9 +56,9 @@ def test_training_of_linear_classifier():
     y_min, y_max = -l, l
     input_bounds = [(x_min, x_max), (y_min, y_max)]
     
-    learning_rate = 0.2
-    training_set_size = 67
-    epochs = 3
+    learning_rate = 0.25
+    training_set_size = 1000
+    epochs = 1
 
     # generate a (random) reference classifier network
     #
@@ -58,7 +67,7 @@ def test_training_of_linear_classifier():
 
     # use the reference classifier to produce a set of training data
     #    
-    training_data = random_training_data(training_set_size, reference_classifer)
+    training_data = random_alternating_training_data(training_set_size, reference_classifer)
 
     # generate a random classifier network for training
     #
@@ -67,12 +76,37 @@ def test_training_of_linear_classifier():
 
     # train the naive network using the reference data (run an epoch)
     #
+
+    iterations = 0
+    convergence = []
+
+    convergence.append((iterations, reference_classifer.distance(classifier)))
+
     for _ in range(epochs):        
         for datum in training_data:
             (x_, reference_category) = datum
             classifier.teach(learning_rate, x_, reference_category)
+            iterations += 1
+            convergence.append((iterations, reference_classifer.distance(classifier)))
 
-    figure = new_figure('taught perceptron')
+    figure = new_figure('perceptron convergence')
+    
+    convergence_bounds = [
+        (min(convergence, key=lambda x: x[0])[0], max(convergence, key=lambda x: x[0])[0]),
+        (min(convergence, key=lambda x: x[1])[1], max(convergence, key=lambda x: x[1])[1]),
+    ]
+
+    print(convergence_bounds)
+
+    convergence_axes = new_axes(figure, convergence_bounds,scaled=False)
+
+    n = [x[0] for x in convergence]
+    distance = [x[1] for x in convergence]
+    convergence_axes.plot(n, distance, '.', color='yellow')
+
+    # ---------------------
+
+    figure = new_figure('learning perceptron')
     axes = new_axes(figure, classifier.input_bounds)
 
     axes.set_xlim(input_bounds[0])
@@ -83,7 +117,7 @@ def test_training_of_linear_classifier():
     plot_linear_classifier_network(axes, classifier, color='purple')
 
     pyplot.show(block=False)
-    pyplot.pause(5)
+    pyplot.pause(20)
     pyplot.close()
 
 

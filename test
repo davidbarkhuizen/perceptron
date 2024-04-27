@@ -6,7 +6,7 @@ rm -rf tests/__pycache__
 
 source .env/bin/activate
 
-for i in $(seq 1 2);
+for i in $(seq 1 1);
 do
     python3 -m pytest --verbose tests/test_networks.py
 done

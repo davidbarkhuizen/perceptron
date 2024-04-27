@@ -38,7 +38,7 @@ def plot_linear_classifier_network(
     x_step_size = x_interval_size / float(plotting_resolution)
     x_ = [x_min + (i * x_step_size) for i in range(plotting_resolution)]
 
-    for node in classifier.first_association_layer.nodes:
+    for node in classifier.hidden_layer.nodes:
 
         a = node.parent_node_weights[0]
         b = node.parent_node_weights[1]
@@ -75,17 +75,19 @@ def new_figure(label: str) -> Figure:
     figure.patch.set_facecolor('xkcd:black')
     return figure
 
-def new_axes(figure: Figure, bounds: list[tuple[float, float]]) -> Axes:
+def new_axes(figure: Figure, bounds: list[tuple[float, float]] = None, scaled=True) -> Axes:
 
     axes = figure.add_subplot(111)
     axes.set_facecolor('xkcd:black')
 
     axes.grid(True, which='both')
     
-    axes.set_xlim(bounds[0])
-    axes.set_ylim(bounds[1])
+    if bounds is not None:
+        axes.set_xlim(bounds[0])
+        axes.set_ylim(bounds[1])
 
-    axes.set_aspect('equal', adjustable='box')
+    if scaled:
+        axes.set_aspect('equal', adjustable='box')
 
     axes.spines['bottom'].set_color('white')
     axes.spines['top'].set_color('white')
@@ -95,7 +97,5 @@ def new_axes(figure: Figure, bounds: list[tuple[float, float]]) -> Axes:
     axes.xaxis.label.set_color('white')
     axes.tick_params(axis='x', colors='white')
     axes.tick_params(axis='y', colors='white')
-
-
 
     return axes
