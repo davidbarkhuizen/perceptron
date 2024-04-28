@@ -1,4 +1,3 @@
-from random import uniform, shuffle
 from time import sleep
 
 from perceptron import __version__
@@ -7,29 +6,10 @@ from perceptron.networks import LinearClassifierNetwork
 
 from matplotlib import pyplot
 
+from perceptron.train import random_alternating_training_data, train_linear_classifier_network
+
 def test_version():
     assert __version__ == '0.0.1'
-
-def random_alternating_training_data(
-        size: int, 
-        classifier: LinearClassifierNetwork
-    ) -> list[tuple[tuple[float, float], int]]:
-
-    states = { 0: [], 1: []}
-
-    k = size // 2
-
-    while len(states[0]) < k or len(states[1]) < k:
-
-        input = (uniform(*classifier.input_bounds[0]), uniform(*classifier.input_bounds[1]))
-        state = classifier.classify_state(input)
-
-        if len(states[state]) < k:
-            states[state].append((input, state))
-    
-    mixed = states[0] + states[1]
-    shuffle(mixed)
-    return mixed
 
 def test_generation_of_random_test_data_from_reference_classifier():
 
@@ -74,20 +54,12 @@ def test_training_of_linear_classifier():
     classifier = LinearClassifierNetwork(classifier_cardinality, dimension, input_bounds)
     classifier.randomize()
 
-    # train the naive network using the reference data (run an epoch)
-    #
-
-    iterations = 0
-    convergence = []
-
-    convergence.append((iterations, reference_classifer.distance(classifier)))
-
-    for _ in range(epochs):        
-        for datum in training_data:
-            (x_, reference_category) = datum
-            classifier.teach(learning_rate, x_, reference_category)
-            iterations += 1
-            convergence.append((iterations, reference_classifer.distance(classifier)))
+    convergence = train_linear_classifier_network(
+        classifier, 
+        training_data,
+        learning_rate=0.25,
+        epochs=1,
+        reference_classifier=reference_classifer) 
 
     figure = new_figure('perceptron convergence')
     
@@ -119,5 +91,3 @@ def test_training_of_linear_classifier():
     pyplot.show(block=False)
     pyplot.pause(20)
     pyplot.close()
-
-
