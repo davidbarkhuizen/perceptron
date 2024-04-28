@@ -42,7 +42,7 @@ class LinearClassifierNetwork:
         self.update_state_layer(state)
         return self.output_layer.nodes[0].value()
 
-    def teach(self, learning_rate: float, state: tuple[float], category: int) -> None:
+    def learn(self, learning_rate: float, state: tuple[float], category: int) -> None:
 
         self.update_state_layer(state)
         for node in self.hidden_layer.nodes:

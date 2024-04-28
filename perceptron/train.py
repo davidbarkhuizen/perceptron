@@ -23,25 +23,25 @@ def random_alternating_training_data(
     return mixed
 
 def train_linear_classifier_network(
-    classifier: LinearClassifierNetwork,
+    student: LinearClassifierNetwork,
     training_data: list[tuple[tuple[float, float], int]],
     learning_rate: float = 0.25,
     epochs: int = 1,
     reference_classifier: LinearClassifierNetwork = None
-):
+) -> list[tuple[int, float]]:
 
     iterations = 0
     convergence = []
 
-    convergence.append((iterations, reference_classifier.distance(classifier)))
+    convergence.append((iterations, reference_classifier.distance(student)))
 
     for _ in range(epochs):        
         for datum in training_data:
-            (x_, reference_category) = datum
-            classifier.teach(learning_rate, x_, reference_category)
+            (reference_state, reference_category) = datum
+            student.learn(learning_rate, reference_state, reference_category)
             iterations += 1
 
             if reference_classifier is not None:
-                convergence.append((iterations, reference_classifier.distance(classifier)))
+                convergence.append((iterations, reference_classifier.distance(student)))
 
     return convergence

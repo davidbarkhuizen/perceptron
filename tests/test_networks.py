@@ -38,7 +38,7 @@ def test_training_of_linear_classifier():
     
     learning_rate = 0.25
     training_set_size = 1000
-    epochs = 1
+    epoch_count = 1
 
     # generate a (random) reference classifier network
     #
@@ -51,43 +51,45 @@ def test_training_of_linear_classifier():
 
     # generate a random classifier network for training
     #
-    classifier = LinearClassifierNetwork(classifier_cardinality, dimension, input_bounds)
-    classifier.randomize()
+    student_classifier = LinearClassifierNetwork(classifier_cardinality, dimension, input_bounds)
+    student_classifier.randomize()
 
-    convergence = train_linear_classifier_network(
-        classifier, 
+    convergence_series: list[tuple[int, float]] = train_linear_classifier_network(
+        student_classifier, 
         training_data,
-        learning_rate=0.25,
-        epochs=1,
+        learning_rate=learning_rate,
+        epochs=epoch_count,
         reference_classifier=reference_classifer) 
 
-    figure = new_figure('perceptron convergence')
+    convergence_figure = new_figure('convergence')
     
     convergence_bounds = [
-        (min(convergence, key=lambda x: x[0])[0], max(convergence, key=lambda x: x[0])[0]),
-        (min(convergence, key=lambda x: x[1])[1], max(convergence, key=lambda x: x[1])[1]),
+        (0.0, float(training_set_size)),
+        (0.0, 2.0),
     ]
 
-    print(convergence_bounds)
+    convergence_axes = new_axes(convergence_figure, convergence_bounds,scaled=False)
 
-    convergence_axes = new_axes(figure, convergence_bounds,scaled=False)
+    n = [x[0] for x in convergence_series]
+    distance = [x[1] for x in convergence_series]
+    convergence_axes.plot(n, distance)#, '.', color='yellow')
 
-    n = [x[0] for x in convergence]
-    distance = [x[1] for x in convergence]
-    convergence_axes.plot(n, distance, '.', color='yellow')
+    pyplot.get_current_fig_manager().window.wm_geometry("+800+0")
+    pyplot.show(block=False)
 
     # ---------------------
 
-    figure = new_figure('learning perceptron')
-    axes = new_axes(figure, classifier.input_bounds)
+    training_data_figure = new_figure('perceptrons (reference, student) with training data')
+    axes = new_axes(training_data_figure, student_classifier.input_bounds)
 
     axes.set_xlim(input_bounds[0])
     axes.set_ylim(input_bounds[1])
 
     plot_training_data(axes, training_data)
     plot_linear_classifier_network(axes, reference_classifer, color='green')
-    plot_linear_classifier_network(axes, classifier, color='purple')
+    plot_linear_classifier_network(axes, student_classifier, color='purple')
 
     pyplot.show(block=False)
+
     pyplot.pause(20)
     pyplot.close()
