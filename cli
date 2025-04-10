@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+
+option="$1"
+
+venv_root=".env"
+
+clean () {
+
+    find . -exec touch {} +
+}
+
+install () {
+
+    python3 -m venv $venv_root
+    source $venv_root/bin/activate
+
+    python3 -m pip install --upgrade pip
+    python3 -m pip install pip-tools
+
+    pip-compile requirements.in
+    pip-sync requirements.txt
+
+    deactivate
+}
+
+test () {
+
+    # rm -rf .pytest_cache
+    # rm -rf perceptron/__pycache__
+    # rm -rf tests/__pycache__
+
+    source $venv_root/bin/activate
+
+    x=1
+    while [ $x == 1 ]
+    do
+        python3 -m pytest --verbose tests/test_networks.py
+
+        echo "repeat? yY/nN"
+        read repeat     
+
+        if [ "$repeat" != "y" ]; then
+            x=0
+        fi
+    done
+
+    deactivate
+}
+
+usage () {
+    echo "usage: invoke [ clean | install | test]"
+}
+
+case "$option" in
+
+    clean)
+        clean
+    ;;
+
+    install)
+        install
+    ;;
+
+    test)
+        test
+    ;;
+
+    *)
+        usage
+    ;;
+esac
