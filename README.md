@@ -1,16 +1,9 @@
-2024 David Barkhuizen
+# perceptron
 
-# Machine Learning
-
-## Theory
-
-[docs/theory](docs/theory.md)
-
-## Installation
+## installation
 
 [docs/installation](docs/installation/md)
 
-
-## Execution
+## operation
 
     $ poetry run pytest
