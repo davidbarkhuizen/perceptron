@@ -121,7 +121,6 @@ class AssociationNode:
             return sqrt(sum([(alpha[i] - beta[i])**2 for i in range(len(alpha))]))
 
         return distance(normalise(alpha), normalise(beta))
-
             
 class AssociationLayer:
     '''
