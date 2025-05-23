@@ -1,8 +1,11 @@
 from time import sleep
 
 from perceptron import __version__
-from perceptron.chart import new_axes, new_figure, plot_linear_classifier_network, plot_training_data
-from perceptron.networks import LinearClassifierNetwork
+from perceptron.graphics.chart import new_axes, new_figure, plot_linear_classifier_network, plot_training_data
+from perceptron.model.linear_classifier_network import LinearClassifierNetwork
+
+import matplotlib
+matplotlib.use("TkAgg")
 
 from matplotlib import pyplot
 

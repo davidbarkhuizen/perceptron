@@ -2,7 +2,7 @@
 
 option="$1"
 
-venv_root=".env"
+venv_root=".venv"
 
 clean () {
 
@@ -11,14 +11,27 @@ clean () {
 
 install () {
 
+    echo "installing os package dependencies ..."
+    sudo apt install python3-tk
+    echo "... installed os package dependencies"
+
+    echo "creating & activating virtual environment @ $venv_root ..."
     python3 -m venv $venv_root
     source $venv_root/bin/activate
+    echo "... created & activated virtual environment @ $venv_root"
 
+    echo "installing & updating pip ..."
     python3 -m pip install --upgrade pip
     python3 -m pip install pip-tools
+    echo "... installed & updated pip"
 
+    echo "compiling requirements.txt from requirements.in ..."
     pip-compile requirements.in
+    echo "... compiled requirements.txt from requirements.in"
+
+    echo "installing python modules from requirements.txt to $venv_root ..."
     pip-sync requirements.txt
+    echo "... installed python modules from requirements.txt to $venv_root"
 
     deactivate
 }
