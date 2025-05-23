@@ -1,5 +1,5 @@
 from random import shuffle, uniform
-from perceptron.networks import LinearClassifierNetwork
+from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 
 def random_alternating_training_data(
         size: int, 

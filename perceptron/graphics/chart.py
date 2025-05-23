@@ -1,7 +1,7 @@
 from matplotlib import pyplot, lines
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
-from perceptron.networks import LinearClassifierNetwork
+from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 
 def plot(data_sets):
 
@@ -40,8 +40,8 @@ def plot_linear_classifier_network(
 
     for node in classifier.hidden_layer.nodes:
 
-        a = node.parent_node_weights[0]
-        b = node.parent_node_weights[1]
+        a = node.input_node_weights[0]
+        b = node.input_node_weights[1]
         c = node.threshold 
 
         y_ = [-1.0 * (a * x + c) / b for x in x_]
