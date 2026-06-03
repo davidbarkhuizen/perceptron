@@ -1,9 +1,9 @@
 # perceptron
 
-## installation
+## install
 
-[docs/installation](docs/installation/md)
+    . cli setup
 
-## operation
+## test
 
-    $ poetry run pytest
+    . cli test
