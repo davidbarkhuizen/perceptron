@@ -3,44 +3,67 @@
 option="$1"
 
 venv_root=".venv"
+os_packages="python3-tk"
 
 clean () {
 
-    find . -exec touch {} +
+    sudo rm -rf .pytest_cache
+    sudo rm -rf perceptron/__pycache__
+    sudo rm -rf tests/__pycache__
+
+    sudo find . -exec touch {} +
 }
 
-install () {
+install_os_packages () {
 
-    echo "installing os package dependencies ..."
-    sudo apt install python3-tk
-    echo "... installed os package dependencies"
+    echo "installing os packages ..."
+    sudo apt install $os_packages
+    echo "... installed os packages"
+}
 
-    echo "creating & activating virtual environment @ $venv_root ..."
+create_venv () {
+
+    echo "creating virtual environment @ $venv_root ..."
     python3 -m venv $venv_root
+    echo "... created virtual environment @ $venv_root"
+}
+
+activate_venv () {
+
     source $venv_root/bin/activate
-    echo "... created & activated virtual environment @ $venv_root"
+    echo "$(python --version) venv @ $(which python)"
+}
 
-    echo "installing & updating pip ..."
-    python3 -m pip install --upgrade pip
-    python3 -m pip install pip-tools
-    echo "... installed & updated pip"
-
-    echo "compiling requirements.txt from requirements.in ..."
-    pip-compile requirements.in
-    echo "... compiled requirements.txt from requirements.in"
-
-    echo "installing python modules from requirements.txt to $venv_root ..."
-    pip-sync requirements.txt
-    echo "... installed python modules from requirements.txt to $venv_root"
+deactivate_venv () {
 
     deactivate
 }
 
-test () {
+install_and_upgrade_pip () {
 
-    # rm -rf .pytest_cache
-    # rm -rf perceptron/__pycache__
-    # rm -rf tests/__pycache__
+    python -m pip install --upgrade pip
+    echo "$(python -m pip --version)"
+}
+
+install_python_modules () {
+
+    echo "installing python modules ..."
+    python -m pip install -r requirements.txt
+    echo "... installed python modules"
+}
+
+
+setup () {
+
+    install_os_packages
+    create_venv
+    activate_venv
+    install_and_upgrade_pip
+    install_python_modules
+    deactivate_venv
+}
+
+test () {
 
     source $venv_root/bin/activate
 
@@ -49,8 +72,8 @@ test () {
     do
         python3 -m pytest --verbose tests/test_networks.py
 
-        echo "repeat? yY/nN"
-        read repeat     
+        echo "repeat? y/n"
+        read repeat
 
         if [ "$repeat" != "y" ]; then
             x=0
@@ -70,11 +93,12 @@ case "$option" in
         clean
     ;;
 
-    install)
-        install
+    setup)
+        setup
     ;;
 
     test)
+        clean
         test
     ;;
 

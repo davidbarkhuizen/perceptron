@@ -1,0 +1,46 @@
+{
+  "languages": {
+    "Python": {
+      "language_servers": ["pyright", "ruff"],
+      "format_on_save": "on",
+      "formatter": [
+        {
+          "language_server": {
+            "name": "ruff",
+          },
+        },
+        {
+          "code_action": "source.organizeImports.ruff",
+        },
+      ],
+    },
+  },
+  "lsp": {
+    "ruff": {
+      "initialization_options": {
+        "settings": {
+          "lint": {
+            "enable": true,
+          },
+          "lineLength": 120,
+        },
+      },
+    },
+    "pyright": {
+      "settings": {
+        "python.analysis": {
+          "diagnosticMode": "workspace",
+          "typeCheckingMode": "strict",
+        },
+        "python": {
+          "pythonPath": "./.venv/bin/python",
+        },
+      },
+    },
+  },
+  "terminal": {
+    "env": {
+      "PYTHONPATH": ".",
+    },
+  },
+}

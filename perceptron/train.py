@@ -1,12 +1,13 @@
 from random import shuffle, uniform
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 
+
 def random_alternating_training_data(
-        size: int, 
+        size: int,
         classifier: LinearClassifierNetwork
     ) -> list[tuple[tuple[float, float], int]]:
 
-    states = { 0: [], 1: []}
+    states = {0: [], 1: []}
 
     k = size // 2
 
@@ -17,10 +18,11 @@ def random_alternating_training_data(
 
         if len(states[state]) < k:
             states[state].append((input, state))
-    
+
     mixed = states[0] + states[1]
     shuffle(mixed)
     return mixed
+
 
 def train_linear_classifier_network(
     student: LinearClassifierNetwork,
@@ -35,7 +37,7 @@ def train_linear_classifier_network(
 
     convergence.append((iterations, reference_classifier.distance(student)))
 
-    for _ in range(epochs):        
+    for _ in range(epochs):
         for datum in training_data:
             (reference_state, reference_category) = datum
             student.learn(learning_rate, reference_state, reference_category)
