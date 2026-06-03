@@ -11,9 +11,8 @@ class AssociationLayer:
 
     def __init__(self, size: int, input_layer: StateLayer | AssociationLayer) -> None:
 
-        self.size = size
-        self.input_layer = input_layer
+        self.size: int = size
 
-        self.nodes = [
-            AssociationNode(input_nodes=self.input_layer.nodes) for i in range(size)
-        ]
+        self.input_layer: StateLayer | AssociationLayer = input_layer
+
+        self.nodes: list[AssociationNode] = [AssociationNode(input_nodes=self.input_layer.nodes) for _ in range(size)]

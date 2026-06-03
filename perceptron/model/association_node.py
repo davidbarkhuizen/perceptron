@@ -15,14 +15,10 @@ class AssociationNode:
 
         self.threshold: float = threshold
 
-        self.input_nodes: list[StateNode | AssociationNode] = (
-            input_nodes if input_nodes is not None else []
-        )
+        self.input_nodes: list[StateNode | AssociationNode] = input_nodes if input_nodes is not None else []
 
         self.input_node_weights: list[float] = (
-            input_node_weights
-            if input_node_weights is not None
-            else [1.0 for _ in self.input_nodes]
+            input_node_weights if input_node_weights is not None else [1.0 for _ in self.input_nodes]
         )
 
     def update_input_weights(self, weights: list[float]) -> None:
@@ -32,18 +28,15 @@ class AssociationNode:
     def z(self) -> float:
 
         aggregate_input_value: float = sum(
-            [
-                self.input_nodes[i].value() * self.input_node_weights[i]
-                for i in range(len(self.input_nodes))
-            ]
+            [self.input_nodes[i].value() * self.input_node_weights[i] for i in range(len(self.input_nodes))]
         )
 
         return aggregate_input_value + self.threshold
 
-    def value(self) -> int:
-        return 1 if self.z() > 0.0 else 0
+    def value(self) -> float:
+        return 1.0 if self.z() > 0.0 else 0.0
 
-    def learn(self, learning_rate: float, reference_value: int):
+    def learn(self, learning_rate: float, reference_value: float):
 
         current_value = self.value()
         correctly_categorised = current_value == reference_value
@@ -55,17 +48,11 @@ class AssociationNode:
         elif reference_value == 0 and current_value == 1:
             d = -1.0
         else:
-            raise ValueError(
-                f"reference_value = {reference_value}, current_value = {current_value}"
-            )
+            raise ValueError(f"reference_value = {reference_value}, current_value = {current_value}")
 
         w_p0 = self.threshold + learning_rate * d * 1.0
-        w_p1 = (
-            self.input_node_weights[0] + learning_rate * d * self.input_nodes[0].value()
-        )
-        w_p2 = (
-            self.input_node_weights[1] + learning_rate * d * self.input_nodes[1].value()
-        )
+        w_p1 = self.input_node_weights[0] + learning_rate * d * self.input_nodes[0].value()
+        w_p2 = self.input_node_weights[1] + learning_rate * d * self.input_nodes[1].value()
 
         self.threshold = w_p0
         self.update_input_weights([w_p1, w_p2])
