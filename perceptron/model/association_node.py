@@ -1,24 +1,26 @@
 from __future__ import annotations
 
 from math import sqrt
+from typing import Sequence
 
-from perceptron.model.state_node import StateNode
+from perceptron.model.base_node import AbstractNode
 
 
-class AssociationNode:
+class AssociationNode(AbstractNode):
     def __init__(
         self,
+        input_nodes: Sequence[AbstractNode],
+        input_node_weights: Sequence[float] | None = None,
         threshold: float = 0.0,
-        input_nodes: list[StateNode | AssociationNode] | None = None,
-        input_node_weights: list[float] | None = None,
+        default_input_node_weight: float = 1.0,
     ) -> None:
 
         self.threshold: float = threshold
 
-        self.input_nodes: list[StateNode | AssociationNode] = input_nodes if input_nodes is not None else []
+        self.input_nodes: Sequence[AbstractNode] = input_nodes if input_nodes else []
 
-        self.input_node_weights: list[float] = (
-            input_node_weights if input_node_weights is not None else [1.0 for _ in self.input_nodes]
+        self.input_node_weights: Sequence[float] = (
+            input_node_weights if input_node_weights else [default_input_node_weight for _ in self.input_nodes]
         )
 
     def update_input_weights(self, weights: list[float]) -> None:

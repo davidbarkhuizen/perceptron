@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Sequence
+
 from perceptron.model.association_node import AssociationNode
 from perceptron.model.state_layer import StateLayer
 
@@ -15,4 +17,6 @@ class AssociationLayer:
 
         self.input_layer: StateLayer | AssociationLayer = input_layer
 
-        self.nodes: list[AssociationNode] = [AssociationNode(input_nodes=self.input_layer.nodes) for _ in range(size)]
+        self.nodes: Sequence[AssociationNode] = [
+            AssociationNode(input_nodes=self.input_layer.nodes) for _ in range(size)
+        ]
