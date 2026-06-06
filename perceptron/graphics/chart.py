@@ -5,27 +5,6 @@ from matplotlib.figure import Figure
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 
 
-def plot(data_sets: list[tuple[str, float, float, str]]):
-
-    figure = pyplot.figure()
-    subplot = figure.add_subplot(111)
-
-    x_all = []
-    y_all = []
-
-    for label, x, y, color in data_sets:
-        line = lines.Line2D(x, y, color=color)
-        subplot.add_line(line)
-
-        x_all.extend(x)
-        y_all.extend(y)
-
-    subplot.set_xlim(min(x_all), max(x_all))
-    subplot.set_ylim(min(y_all), max(y_all))
-
-    pyplot.show(block=False)
-
-
 def plot_linear_classifier_network(
     axes: Axes, classifier: LinearClassifierNetwork, plotting_resolution: int = 100, color: str = "purple"
 ):
@@ -54,7 +33,7 @@ def plot_training_data(axes: Axes, training_data: list[tuple[tuple[float, float]
     markers = [".", "x"]
     colors = ["blue", "yellow"]
 
-    categories = []
+    categories: list[tuple[int, list[tuple[float, float]]]] = []
 
     for category_value in set([output_value for (_, output_value) in training_data]):
         categories.append(
@@ -75,14 +54,14 @@ def new_figure(label: str) -> Figure:
     return figure
 
 
-def new_axes(figure: Figure, bounds: list[tuple[float, float]] = None, scaled=True) -> Axes:
+def new_axes(figure: Figure, bounds: list[tuple[float, float]] | None = None, scaled=True) -> Axes:
 
     axes = figure.add_subplot(111)
     axes.set_facecolor("xkcd:black")
 
     axes.grid(True, which="both")
 
-    if bounds is not None:
+    if bounds:
         axes.set_xlim(bounds[0])
         axes.set_ylim(bounds[1])
 
