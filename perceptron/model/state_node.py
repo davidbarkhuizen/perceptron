@@ -1,15 +1,17 @@
 from random import uniform
 
+from perceptron.model.base_node import AbstractNode
 
-class StateNode:
-    '''
+
+class StateNode(AbstractNode):
+    """
     sense point
-    '''
+    """
 
     def __init__(self, bounds: tuple[float, float], value: float = 0.0) -> None:
 
-        self.__value = value
-        self.bounds = bounds
+        self.__value: float = value
+        self.bounds: tuple[float, float] = bounds
 
     def randomize(self) -> None:
         self.__value = uniform(*self.bounds)

@@ -31,14 +31,14 @@ class LinearClassifierNetwork:
         output_node.input_node_weights = [1.0 for _ in self.hidden_layer.nodes]
         output_node.threshold = -float(self.hidden_layer.size - 1)
 
-    def update_state_layer(self, x_: tuple[float]) -> None:
+    def update_state_layer(self, x_: tuple[float, ...]) -> None:
         self.input_layer.update_state(x_)
 
-    def classify_state(self, state: tuple[float]) -> float:
+    def classify_state(self, state: tuple[float, ...]) -> float:
         self.update_state_layer(state)
         return self.output_layer.nodes[0].value()
 
-    def learn(self, learning_rate: float, state: tuple[float], category: int) -> None:
+    def learn(self, learning_rate: float, state: tuple[float, ...], category: int) -> None:
 
         self.update_state_layer(state)
         for node in self.hidden_layer.nodes:
