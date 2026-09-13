@@ -46,8 +46,7 @@ def main() -> None:
             cardinality, dimension, bounds, training_set_size
         )
 
-        student = LinearClassifierNetwork(cardinality, dimension, bounds)
-        student.randomize()
+        student = LinearClassifierNetwork.randomized(cardinality, dimension, bounds)
 
         convergence_series = train_linear_classifier_network(
             student,

@@ -80,8 +80,7 @@ def test_training_of_linear_classifier():
 
     # generate a new random classifier network for training
     #
-    student_classifier = LinearClassifierNetwork(classifier_cardinality, dimension, input_bounds)
-    student_classifier.randomize()
+    student_classifier = LinearClassifierNetwork.randomized(classifier_cardinality, dimension, input_bounds)
 
     convergence_series: list[tuple[int, float]] = train_linear_classifier_network(
         student_classifier,
@@ -133,10 +132,8 @@ def test_class_balanced_disagreement_rate_detects_error_the_old_metric_missed():
     cardinality, dimension, l = 4, 2, 10.0
     bounds = [(-l, l), (-l, l)]
 
-    reference = LinearClassifierNetwork(cardinality, dimension, bounds)
-    reference.randomize()
-    student = LinearClassifierNetwork(cardinality, dimension, bounds)
-    student.randomize()
+    reference = LinearClassifierNetwork.randomized(cardinality, dimension, bounds)
+    student = LinearClassifierNetwork.randomized(cardinality, dimension, bounds)
 
     assert class_balanced_disagreement_rate(reference, student, per_class_sample_count=200) > 0.3
 
@@ -190,8 +187,7 @@ def test_reference_region_bounds_expands_to_include_a_bounded_region():
 def test_reference_region_bounds_leaves_fallback_unchanged_when_unbounded():
 
     bounds = [(-10.0, 10.0), (-10.0, 10.0)]
-    classifier = LinearClassifierNetwork(1, 2, bounds)
-    classifier.randomize()
+    classifier = LinearClassifierNetwork.randomized(1, 2, bounds)
 
     assert reference_region_bounds(classifier, bounds) == bounds
 
@@ -215,8 +211,7 @@ def test_is_positive_region_bounded_true_for_a_known_bounded_square():
 def test_is_positive_region_bounded_false_for_cardinality_one():
 
     bounds = [(-10.0, 10.0), (-10.0, 10.0)]
-    classifier = LinearClassifierNetwork(1, 2, bounds)
-    classifier.randomize()
+    classifier = LinearClassifierNetwork.randomized(1, 2, bounds)
 
     # a single half-plane can never be a bounded region
     assert is_positive_region_bounded(classifier) is False
@@ -262,8 +257,7 @@ def test_learn_reduces_to_single_node_update_for_cardinality_one():
     learning_rate = 0.25
 
     for category in (0, 1):
-        network = LinearClassifierNetwork(1, dimension, bounds)
-        network.randomize()
+        network = LinearClassifierNetwork.randomized(1, dimension, bounds)
         node = network.hidden_layer.nodes[0]
         weights_before = list(node.input_node_weights)
         threshold_before = node.threshold
@@ -291,12 +285,10 @@ def test_training_of_cardinality_two_linear_classifier_reduces_disagreement():
     l: float = 10.0
     bounds = [(-l, l), (-l, l)]
 
-    reference = LinearClassifierNetwork(cardinality, dimension, bounds)
-    reference.randomize()
+    reference = LinearClassifierNetwork.randomized(cardinality, dimension, bounds)
     training_data = random_alternating_training_data(400, reference)
 
-    student = LinearClassifierNetwork(cardinality, dimension, bounds)
-    student.randomize()
+    student = LinearClassifierNetwork.randomized(cardinality, dimension, bounds)
 
     disagreement_before = class_balanced_disagreement_rate(reference, student, per_class_sample_count=500)
     train_linear_classifier_network(student, training_data, learning_rate=0.25, epochs=5)
@@ -310,3 +302,17 @@ def test_cardinality_must_be_at_least_one():
 
     with pytest.raises(AssertionError):
         LinearClassifierNetwork(0, 2, [(-1.0, 1.0), (-1.0, 1.0)])
+
+
+def test_randomized_returns_an_already_randomized_classifier():
+
+    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+    classifier = LinearClassifierNetwork.randomized(2, 2, bounds)
+
+    assert classifier.cardinality == 2
+    assert classifier.dimension == 2
+    # a fresh (non-randomized) node always starts at threshold=0.0, weights=[1.0, 1.0] -
+    # confirm randomize() actually ran, not just construction
+    assert any(
+        node.threshold != 0.0 or list(node.input_node_weights) != [1.0, 1.0] for node in classifier.hidden_layer.nodes
+    )

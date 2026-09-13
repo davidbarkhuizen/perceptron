@@ -60,8 +60,7 @@ def main() -> None:
 
     # generate a new random classifier network for training
     #
-    student_classifier = LinearClassifierNetwork(classifier_cardinality, dimension, input_bounds)
-    student_classifier.randomize()
+    student_classifier = LinearClassifierNetwork.randomized(classifier_cardinality, dimension, input_bounds)
 
     convergence_series: list[tuple[int, float]] = train_linear_classifier_network(
         student_classifier,

@@ -9,8 +9,7 @@ def main() -> None:
 
     print("generating training data from a normal, randomly initialised classifier...")
     for attempt in range(1, 21):
-        reachable = LinearClassifierNetwork(1, dimension, bounds)
-        reachable.randomize()
+        reachable = LinearClassifierNetwork.randomized(1, dimension, bounds)
         try:
             training_data = random_alternating_training_data(200, reachable, max_attempts=10_000)
             break
