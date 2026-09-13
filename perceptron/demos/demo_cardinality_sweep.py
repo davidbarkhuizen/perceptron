@@ -5,7 +5,7 @@ matplotlib.use("TkAgg")
 from matplotlib import pyplot
 from matplotlib.axes import Axes
 
-from perceptron.evaluate import compare_on_random_point, smoothed_series
+from perceptron.evaluate import class_balanced_disagreement_rate, compare_on_random_point, smoothed_series
 from perceptron.geometry import square_bounds
 from perceptron.graphics.chart import disagreement_axis_bounds, new_axes, new_figure
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
@@ -57,11 +57,19 @@ def main() -> None:
         disagreement = [x[1] for x in convergence_series]
         results.append((cardinality, color, n, disagreement))
 
+        # measured fresh against the actual final student, not convergence_series[-1][1] -
+        # that's the raw last training iteration's disagreement, sampled before
+        # train_linear_classifier_network's pocket-tracking (possibly) rolled student back to
+        # an earlier, better epoch, so it can silently disagree with student's real final
+        # performance (verified: seed 19, cardinality=4 printed 0.250 there while the actual
+        # final student was really at 0.017 - a 15x discrepancy in the wrong direction)
+        final_disagreement = class_balanced_disagreement_rate(reference, student, per_class_sample_count=300)
+
         new_state, reference_category, student_category = compare_on_random_point(reference, student)
         agreement = "agree" if reference_category == student_category else "disagree"
         print(
             f"cardinality={cardinality}: disagreement {convergence_series[0][1]:.3f} -> "
-            f"{convergence_series[-1][1]:.3f}, prediction on new point: reference={reference_category}, "
+            f"{final_disagreement:.3f}, prediction on new point: reference={reference_category}, "
             f"student={student_category} ({agreement})"
         )
 
