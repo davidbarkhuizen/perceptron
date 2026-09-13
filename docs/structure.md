@@ -10,7 +10,7 @@ perceptron/
     state_layer.py                a vector of StateNodes (network input layer)
     association_node.py           weighted, thresholded neuron (z, activation, learning rule)
     association_layer.py          a layer of AssociationNodes over a given input layer
-    linear_classifier_network.py  input -> hidden (association) -> output (AND) layers
+    linear_classifier_network.py  input -> hidden (association) -> output (k-of-n) layers
   graphics/
     chart.py                      matplotlib helpers: figures/axes, decision-boundary and
                                    training-data plotting, and expanding plot bounds to
@@ -46,8 +46,14 @@ cli                                setup / test / clean helper script
 
 - an **input layer** (`StateLayer`) of raw input values,
 - a **hidden layer** of `cardinality` `AssociationNode`s, each fully connected to the input layer,
-- a single-node **output layer** that ANDs the hidden layer's activations (via weights of 1
-  and a threshold of `-(cardinality - 1)`).
+- a single-node **output layer** that fires once at least `required_active` of the hidden
+  layer's nodes are active (via weights of 1 and a threshold of `-(required_active - 1)`).
+  `required_active` defaults to `cardinality` (AND: every hidden node must agree); passing 1
+  gives OR (any one is enough), and anything in between gives a general k-of-n gate, in the
+  spirit of a MADALINE-style committee machine. `geometry.py`'s positive-region functions
+  only support the AND case (`required_active == cardinality`) - the true positive region
+  under any other gate is a union of intersections, not a single intersection, and those
+  functions raise rather than silently return a wrong answer if called on one.
 
 Each `AssociationNode` updates via the perceptron learning rule
 (`w += learning_rate * (reference - actual) * input`), and `train.py` drives this over a
@@ -56,7 +62,12 @@ a misclassification, `LinearClassifierNetwork.learn()` doesn't update every hidd
 it picks the single node closest to flipping (smallest `|z()|`) among those responsible for
 the error, a minimum-disturbance rule in the spirit of Widrow's MADALINE, needed once
 `cardinality > 1` so hidden nodes can specialize into different half-planes instead of all
-converging to the same one. Unlike the single-neuron case (see [theory](theory.md)), this
+converging to the same one. This selection is combination-gate-agnostic: it only relies on
+the output being a monotonically non-decreasing function of how many hidden nodes are
+active, which holds for AND, OR, or any k-of-n `required_active` - so `learn()` needed no
+changes to support gates other than AND.
+
+Unlike the single-neuron case (see [theory](theory.md)), this
 has no convergence guarantee analogous to Rosenblatt's theorem — there's no proof it finds a
 matching set of hyperplanes in finite steps, or at all, for an arbitrary target polytope. In
 practice it converges well for modest cardinality (see `tests/test_training_pipeline.py`'s

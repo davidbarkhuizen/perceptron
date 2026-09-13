@@ -51,7 +51,20 @@ def reference_positive_region_polygon(
 
     Returns the region's polygon vertices when it's bounded; an empty list when it's
     unbounded or empty.
+
+    Only valid for an AND-combined classifier (required_active == cardinality) - the
+    intersection-of-half-planes computed here is only actually the classifier's positive
+    region under AND. For any other required_active (e.g. OR, or a general k-of-n gate),
+    the true positive region is a union of such intersections, which this function does not
+    compute; calling it on one would silently return a wrong polygon, so it's rejected
+    outright instead.
     """
+
+    assert classifier.required_active == classifier.cardinality, (
+        "reference_positive_region_polygon only supports AND-combined classifiers "
+        f"(required_active == cardinality); got required_active={classifier.required_active} "
+        f"with cardinality={classifier.cardinality}"
+    )
 
     polygon: list[tuple[float, float]] = [(-huge, -huge), (huge, -huge), (huge, huge), (-huge, huge)]
 

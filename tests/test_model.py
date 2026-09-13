@@ -1,7 +1,11 @@
+import random
+
 import pytest
 
+from perceptron.evaluate import class_balanced_disagreement_rate
 from perceptron.geometry import square_bounds
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
+from perceptron.train import random_alternating_training_data, train_linear_classifier_network
 
 
 def test_cardinality_must_be_at_least_one():
@@ -97,6 +101,80 @@ def test_association_node_activates_strictly_above_zero():
 
     assert node.z() == 0.0
     assert node.value() == 0.0
+
+
+def test_required_active_defaults_to_cardinality():
+
+    network = LinearClassifierNetwork(3, 2, square_bounds(10.0))
+
+    assert network.required_active == 3
+
+
+def test_required_active_must_be_between_one_and_cardinality():
+
+    bounds = square_bounds(10.0)
+
+    with pytest.raises(AssertionError):
+        LinearClassifierNetwork(3, 2, bounds, required_active=0)
+
+    with pytest.raises(AssertionError):
+        LinearClassifierNetwork(3, 2, bounds, required_active=4)
+
+
+def test_required_active_one_gives_or_semantics():
+
+    bounds = square_bounds(10.0)
+    network = LinearClassifierNetwork(3, 2, bounds, required_active=1)
+    for node in network.hidden_layer.nodes:
+        node.update_input_weights([0.0, 0.0])
+        node.threshold = -5.0  # every hidden node inactive
+
+    assert network.classify_state((0.0, 0.0)) == 0.0
+
+    network.hidden_layer.nodes[1].threshold = 1.0  # exactly one hidden node active
+
+    assert network.classify_state((0.0, 0.0)) == 1.0
+
+
+def test_required_active_two_of_three_gives_majority_semantics():
+
+    bounds = square_bounds(10.0)
+    network = LinearClassifierNetwork(3, 2, bounds, required_active=2)
+    for node in network.hidden_layer.nodes:
+        node.update_input_weights([0.0, 0.0])
+        node.threshold = -5.0
+
+    network.hidden_layer.nodes[0].threshold = 1.0  # one of three active
+
+    assert network.classify_state((0.0, 0.0)) == 0.0
+
+    network.hidden_layer.nodes[1].threshold = 1.0  # two of three active
+
+    assert network.classify_state((0.0, 0.0)) == 1.0
+
+
+def test_learn_converges_under_or_combination():
+
+    # the minimum-disturbance candidate-selection in learn() was designed against AND, but
+    # it only relies on the output being a monotonically non-decreasing function of how many
+    # hidden nodes are active - true for OR too. This confirms it actually trains under OR,
+    # not just that OR's classify_state() truth table is correct in isolation.
+    random.seed(0)
+
+    cardinality, dimension, l = 2, 2, 10.0
+    bounds = square_bounds(l, dimension)
+
+    reference = LinearClassifierNetwork.randomized(cardinality, dimension, bounds, required_active=1)
+    training_data = random_alternating_training_data(400, reference)
+
+    student = LinearClassifierNetwork.randomized(cardinality, dimension, bounds, required_active=1)
+
+    disagreement_before = class_balanced_disagreement_rate(reference, student, per_class_sample_count=300)
+    train_linear_classifier_network(student, training_data, learning_rate=0.25, epochs=5)
+    disagreement_after = class_balanced_disagreement_rate(reference, student, per_class_sample_count=300)
+
+    assert disagreement_after < disagreement_before
+    assert disagreement_after < 0.2
 
 
 def test_learn_updates_only_the_single_closest_to_flipping_node():
