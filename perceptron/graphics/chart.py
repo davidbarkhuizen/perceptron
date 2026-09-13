@@ -13,6 +13,10 @@ def plot_linear_classifier_network(
     color: str = "purple",
     x_bounds: tuple[float, float] | None = None,
 ):
+    assert classifier.dimension == 2, (
+        "plot_linear_classifier_network only supports 2D classifiers - each hidden node's "
+        f"decision line is drawn in the x/y plane; got dimension={classifier.dimension}"
+    )
 
     x_min, x_max = x_bounds if x_bounds else classifier.input_bounds[0]
 
@@ -25,9 +29,19 @@ def plot_linear_classifier_network(
         b = node.input_node_weights[1]
         c = node.threshold
 
-        y_ = [-1.0 * (a * x + c) / b for x in x_]
-
-        line_graph = lines.Line2D(x_, y_, color=color)
+        if b == 0.0 and a == 0.0:
+            # a*x + b*y + c = 0 doesn't depend on position at all (the node is either always
+            # active or always inactive, everywhere) - there's no line to draw for it
+            continue
+        elif b == 0.0:
+            # a*x + c = 0 is vertical (no y term to solve for) - draw x = -c/a spanning the
+            # axes' current y-range instead of dividing by the zero b below
+            x_line = -c / a
+            y_min, y_max = axes.get_ylim()
+            line_graph = lines.Line2D([x_line, x_line], [y_min, y_max], color=color)
+        else:
+            y_ = [-1.0 * (a * x + c) / b for x in x_]
+            line_graph = lines.Line2D(x_, y_, color=color)
 
         axes.add_line(line_graph)
 

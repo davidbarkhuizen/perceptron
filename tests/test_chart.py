@@ -1,9 +1,16 @@
 import matplotlib
+import pytest
 
 matplotlib.use("Agg")
 
 from perceptron.geometry import square_bounds
-from perceptron.graphics.chart import disagreement_axis_bounds, reference_region_bounds
+from perceptron.graphics.chart import (
+    disagreement_axis_bounds,
+    new_axes,
+    new_figure,
+    plot_linear_classifier_network,
+    reference_region_bounds,
+)
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 
 from helpers import classifier_with_bounded_square_region
@@ -33,3 +40,49 @@ def test_disagreement_axis_bounds():
 
     assert disagreement_axis_bounds(500.0) == [(0.0, 500.0), (0.0, 1.0)]
     assert disagreement_axis_bounds(500.0, log=True) == [(0.0, 500.0), (1.0e-3, 1.0)]
+
+
+def test_plot_linear_classifier_network_draws_a_vertical_line_for_a_zero_y_weight():
+
+    # a*x + c = 0 (no y term) can't be solved for y as a function of x - previously crashed
+    # with ZeroDivisionError; should draw a vertical line at x = -c/a instead
+    bounds = square_bounds(10.0)
+    classifier = LinearClassifierNetwork(1, 2, bounds)
+    node = classifier.hidden_layer.nodes[0]
+    node.update_input_weights([1.0, 0.0])
+    node.threshold = -5.0
+
+    axes = new_axes(new_figure("test"), bounds)
+    plot_linear_classifier_network(axes, classifier)
+
+    assert len(axes.lines) == 1
+    line = axes.lines[0]
+    assert list(line.get_xdata()) == [5.0, 5.0]
+    assert list(line.get_ydata()) == list(bounds[1])
+
+
+def test_plot_linear_classifier_network_skips_a_node_with_no_weights_at_all():
+
+    # a*x + b*y + c = 0 with a == b == 0 doesn't depend on position at all (the node is
+    # either always active or always inactive everywhere) - there's no line to draw
+    bounds = square_bounds(10.0)
+    classifier = LinearClassifierNetwork(1, 2, bounds)
+    node = classifier.hidden_layer.nodes[0]
+    node.update_input_weights([0.0, 0.0])
+    node.threshold = 1.0
+
+    axes = new_axes(new_figure("test"), bounds)
+    plot_linear_classifier_network(axes, classifier)
+
+    assert len(axes.lines) == 0
+
+
+def test_plot_linear_classifier_network_rejects_a_non_2d_classifier():
+
+    bounds = [(-10.0, 10.0)] * 3
+    classifier = LinearClassifierNetwork.randomized(1, 3, bounds)
+
+    axes = new_axes(new_figure("test"), square_bounds(10.0))
+
+    with pytest.raises(AssertionError):
+        plot_linear_classifier_network(axes, classifier)
