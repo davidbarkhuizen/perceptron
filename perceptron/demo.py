@@ -19,6 +19,7 @@ from perceptron.train import (
     compare_on_random_point,
     reachable_reference_and_training_data,
     smoothed_series,
+    square_bounds,
     train_linear_classifier_network,
 )
 
@@ -33,9 +34,7 @@ def main() -> None:
     training_set_size: int = 1000
     epoch_count: int = 1
 
-    x_min, x_max = -l, l
-    y_min, y_max = -l, l
-    input_bounds = [(x_min, x_max), (y_min, y_max)]
+    input_bounds = square_bounds(l, dimension)
 
     # generate a (random) reference classifier network and use it to produce a set of
     # training data - a higher cardinality shrinks the reference's positive region, so this

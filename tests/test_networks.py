@@ -24,6 +24,7 @@ from perceptron.train import (
     random_alternating_training_data,
     reachable_reference_and_training_data,
     smoothed_series,
+    square_bounds,
     train_linear_classifier_network,
 )
 
@@ -48,9 +49,7 @@ def test_generation_of_random_test_data_from_reference_classifier():
     l: float = 7.0
     training_set_size: int = 50
 
-    x_min, x_max = -l, l
-    y_min, y_max = -l, l
-    input_bounds = [(x_min, x_max), (y_min, y_max)]
+    input_bounds = square_bounds(l, dimension)
 
     _, training_data = reachable_reference_and_training_data(
         classifier_cardinality, dimension, input_bounds, training_set_size
@@ -81,9 +80,7 @@ def test_training_of_linear_classifier():
     training_set_size: int = 1000
     epoch_count: int = 1
 
-    x_min, x_max = -l, l
-    y_min, y_max = -l, l
-    input_bounds = [(x_min, x_max), (y_min, y_max)]
+    input_bounds = square_bounds(l, dimension)
 
     # generate a (random) reference classifier network and use it to produce a set of
     # training data
@@ -131,7 +128,7 @@ def test_training_of_linear_classifier():
 
 def test_class_balanced_disagreement_rate_is_zero_for_identical_classifier():
 
-    classifier, _ = reachable_reference_and_training_data(2, 2, [(-5.0, 5.0), (-5.0, 5.0)], 10)
+    classifier, _ = reachable_reference_and_training_data(2, 2, square_bounds(5.0), 10)
 
     assert class_balanced_disagreement_rate(classifier, classifier) == 0.0
 
@@ -141,7 +138,7 @@ def test_class_balanced_disagreement_rate_detects_error_the_old_metric_missed():
     random.seed(1)
 
     cardinality, dimension, l = 4, 2, 10.0
-    bounds = [(-l, l), (-l, l)]
+    bounds = square_bounds(l, dimension)
 
     reference = LinearClassifierNetwork.randomized(cardinality, dimension, bounds)
     student = LinearClassifierNetwork.randomized(cardinality, dimension, bounds)
@@ -151,7 +148,7 @@ def test_class_balanced_disagreement_rate_detects_error_the_old_metric_missed():
 
 def test_compare_on_random_point_classifies_with_both_networks():
 
-    classifier, _ = reachable_reference_and_training_data(2, 2, [(-5.0, 5.0), (-5.0, 5.0)], 10)
+    classifier, _ = reachable_reference_and_training_data(2, 2, square_bounds(5.0), 10)
 
     state, reference_category, student_category = compare_on_random_point(classifier, classifier)
 
@@ -164,7 +161,7 @@ def test_reachable_reference_and_training_data_returns_class_balanced_data():
 
     cardinality = 4
     dimension = 2
-    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+    bounds = square_bounds(10.0)
     training_set_size = 200
 
     reference, training_data = reachable_reference_and_training_data(cardinality, dimension, bounds, training_set_size)
@@ -176,7 +173,7 @@ def test_reachable_reference_and_training_data_returns_class_balanced_data():
 
 def test_reference_region_bounds_expands_to_include_a_bounded_region():
 
-    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+    bounds = square_bounds(10.0)
     classifier = _classifier_with_bounded_square_region(bounds)
 
     small_fallback = [(-0.5, 0.5), (-0.5, 0.5)]
@@ -188,7 +185,7 @@ def test_reference_region_bounds_expands_to_include_a_bounded_region():
 
 def test_reference_region_bounds_leaves_fallback_unchanged_when_unbounded():
 
-    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+    bounds = square_bounds(10.0)
     classifier = LinearClassifierNetwork.randomized(1, 2, bounds)
 
     assert reference_region_bounds(classifier, bounds) == bounds
@@ -202,7 +199,7 @@ def test_disagreement_axis_bounds():
 
 def test_is_positive_region_bounded_true_for_a_known_bounded_square():
 
-    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+    bounds = square_bounds(10.0)
     classifier = _classifier_with_bounded_square_region(bounds)
 
     assert is_positive_region_bounded(classifier) is True
@@ -210,7 +207,7 @@ def test_is_positive_region_bounded_true_for_a_known_bounded_square():
 
 def test_is_positive_region_bounded_false_for_cardinality_one():
 
-    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+    bounds = square_bounds(10.0)
     classifier = LinearClassifierNetwork.randomized(1, 2, bounds)
 
     # a single half-plane can never be a bounded region
@@ -221,7 +218,7 @@ def test_reachable_reference_and_training_data_respects_is_valid():
 
     cardinality = 4
     dimension = 2
-    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+    bounds = square_bounds(10.0)
 
     reference, _ = reachable_reference_and_training_data(
         cardinality, dimension, bounds, 200, regeneration_attempts=200, is_valid=is_positive_region_bounded
@@ -253,7 +250,7 @@ def test_smoothed_series_is_a_trailing_moving_average():
 def test_learn_reduces_to_single_node_update_for_cardinality_one():
 
     dimension = 2
-    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+    bounds = square_bounds(10.0)
     learning_rate = 0.25
 
     for category in (0, 1):
@@ -283,7 +280,7 @@ def test_training_of_cardinality_two_linear_classifier_reduces_disagreement():
     cardinality: int = 2
     dimension: int = 2
     l: float = 10.0
-    bounds = [(-l, l), (-l, l)]
+    bounds = square_bounds(l, dimension)
 
     reference = LinearClassifierNetwork.randomized(cardinality, dimension, bounds)
     training_data = random_alternating_training_data(400, reference)
@@ -306,7 +303,7 @@ def test_cardinality_must_be_at_least_one():
 
 def test_randomized_returns_an_already_randomized_classifier():
 
-    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+    bounds = square_bounds(10.0)
     classifier = LinearClassifierNetwork.randomized(2, 2, bounds)
 
     assert classifier.cardinality == 2
@@ -316,3 +313,9 @@ def test_randomized_returns_an_already_randomized_classifier():
     assert any(
         node.threshold != 0.0 or list(node.input_node_weights) != [1.0, 1.0] for node in classifier.hidden_layer.nodes
     )
+
+
+def test_square_bounds():
+
+    assert square_bounds(10.0) == [(-10.0, 10.0), (-10.0, 10.0)]
+    assert square_bounds(10.0, dimension=3) == [(-10.0, 10.0), (-10.0, 10.0), (-10.0, 10.0)]

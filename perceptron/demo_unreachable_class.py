@@ -1,11 +1,11 @@
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
-from perceptron.train import random_alternating_training_data
+from perceptron.train import random_alternating_training_data, square_bounds
 
 
 def main() -> None:
 
     dimension = 2
-    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+    bounds = square_bounds(10.0)
 
     print("generating training data from a normal, randomly initialised classifier...")
     for attempt in range(1, 21):

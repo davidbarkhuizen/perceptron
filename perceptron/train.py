@@ -4,6 +4,10 @@ from typing import Any, Callable
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 
 
+def square_bounds(l: float, dimension: int = 2) -> list[tuple[float, float]]:
+    return [(-l, l)] * dimension
+
+
 def random_alternating_training_data(
     size: int, classifier: LinearClassifierNetwork, max_attempts: int = 100_000
 ) -> list[tuple[tuple[float, ...], float]]:

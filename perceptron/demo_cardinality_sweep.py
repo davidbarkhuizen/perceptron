@@ -11,6 +11,7 @@ from perceptron.train import (
     compare_on_random_point,
     reachable_reference_and_training_data,
     smoothed_series,
+    square_bounds,
     train_linear_classifier_network,
 )
 
@@ -33,7 +34,7 @@ def main() -> None:
 
     dimension: int = 2
     l: float = 10.0
-    bounds = [(-l, l), (-l, l)]
+    bounds = square_bounds(l, dimension)
 
     learning_rate: float = 0.25
     training_set_size: int = 600
