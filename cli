@@ -92,8 +92,15 @@ demo-unreachable-class () {
     deactivate_venv
 }
 
+demo-nonrepresentable-target () {
+
+    activate_venv
+    python3 -m perceptron.demos.demo_nonrepresentable_target
+    deactivate_venv
+}
+
 usage () {
-    echo "usage: invoke [ clean | setup | test | demo | demo-cardinality-sweep | demo-unreachable-class ]"
+    echo "usage: invoke [ clean | setup | test | demo | demo-cardinality-sweep | demo-unreachable-class | demo-nonrepresentable-target ]"
 }
 
 case "$option" in
@@ -121,6 +128,10 @@ case "$option" in
 
     demo-unreachable-class)
         demo-unreachable-class
+    ;;
+
+    demo-nonrepresentable-target)
+        demo-nonrepresentable-target
     ;;
 
     *)

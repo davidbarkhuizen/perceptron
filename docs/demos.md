@@ -57,3 +57,23 @@ one class unreachable within the bounds — this alone can occasionally happen),
 deliberately constructs a classifier with tiny weights and a large threshold, whose decision
 boundary never crosses its bounds, and shows the resulting `RuntimeError` being raised and
 caught instead of hanging forever.
+
+## demo: non-representable target
+
+    . cli demo-nonrepresentable-target
+
+Runs `perceptron/demos/demo_nonrepresentable_target.py`. Every other demo's target is a
+`LinearClassifierNetwork` of the same architecture the student trains with, so it's always
+representable by construction; this one deliberately isn't. It trains students at
+`cardinality = 1..4`, swept across AND, OR, and (where distinct) majority `required_active`
+gates (see [structure](structure.md)), against an XOR-style target
+(`category = (x > 0) != (y > 0)`, two diagonally opposite quadrants) built as a small
+adapter object exposing the same `input_bounds`/`classify_state` interface as
+`LinearClassifierNetwork` - which is enough for it to drop straight into
+`random_alternating_training_data`/`class_balanced_disagreement_rate` unchanged, no new
+training-data or metric code needed. None of the nine configurations get close to
+converging, and prints why: the output layer's weights are always `1.0` per hidden node, so
+the output can only be a monotonically non-decreasing function of how many hidden nodes are
+active - XOR needs the opposite for some units, which no `required_active` at any cardinality
+can express. Finishes by plotting the training data (colored by true label) against the
+best-performing student's hyperplanes, to show the mismatch visually.
