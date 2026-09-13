@@ -35,6 +35,17 @@ def _reference_and_training_data(
     raise RuntimeError(f"no workable cardinality={cardinality} reference classifier found within these bounds")
 
 
+def _smoothed(values: list[float], window: int = 31) -> list[float]:
+
+    # trailing moving average - only ever looks backward, so it stays a fair comparison
+    # against the raw series at every point (no look-ahead)
+    smoothed = []
+    for i in range(len(values)):
+        segment = values[max(0, i - window + 1) : i + 1]
+        smoothed.append(sum(segment) / len(segment))
+    return smoothed
+
+
 def _plot_convergence(axes: Axes, results: list[tuple[int, str, list[int], list[float]]]) -> None:
 
     for cardinality, color, n, disagreement in results:
@@ -112,6 +123,21 @@ def main() -> None:
     log_axes = new_axes(log_figure, [(0.0, x_max), (1e-3, 1.0)], scaled=False)
     log_axes.set_yscale("log")
     _plot_convergence(log_axes, results)
+
+    smoothed_results = [
+        (cardinality, color, n, _smoothed(disagreement)) for cardinality, color, n, disagreement in results
+    ]
+
+    print(
+        "smoothed convergence chart: the same per-cardinality disagreement-rate curves, each "
+        "passed through a trailing moving average - makes the underlying trend easier to see "
+        "through the sampling noise from classification_disagreement_rate's small per-checkpoint "
+        "sample size"
+    )
+
+    smoothed_figure = new_figure("convergence by cardinality (smoothed)")
+    smoothed_axes = new_axes(smoothed_figure, [(0.0, x_max), (0.0, 1.0)], scaled=False)
+    _plot_convergence(smoothed_axes, smoothed_results)
 
     pyplot.show()
 
