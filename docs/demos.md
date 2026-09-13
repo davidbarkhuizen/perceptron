@@ -158,3 +158,19 @@ build artifact) via the new `save()`/`load()` persistence, printing how to reloa
 retraining. Plots a training-accuracy-by-epoch curve, a confusion matrix
 (`chart.plot_confusion_matrix`), and a grid of sample test predictions
 (`chart.plot_sample_predictions`) colored to flag any incorrect ones.
+
+## demo: digit capture
+
+    . cli demo-digit-capture
+
+Runs `perceptron/demos/demo_digit_capture.py` - an interactive companion to the digit-recognition
+demo above. Loads the model that demo trains and saves (`data/digits/trained_model.json` via
+`MultiClassBackpropClassifierNetwork.load`; run `demo-digit-recognition` first if that file
+doesn't exist yet), then opens an 8x8 grid of tiles you paint with the mouse (click or
+click-and-drag). Every tile you paint reclassifies live, showing the predicted digit and the
+model's confidence in it. Unlike every other demo, this one needs a display and mouse input -
+it's not part of the automated test suite (`tests/test_digit_capture.py` covers only the pure
+grid-flattening/coordinate-mapping logic behind it, not the tkinter UI itself). Tiles are binary
+(fully on or off) for now, not graded like the training data's actual 0-16 pixel values - so
+don't be surprised if a thin, single-tile-wide stroke classifies less confidently than a real
+handwritten sample would; graded/grayscale painting is a planned follow-up.

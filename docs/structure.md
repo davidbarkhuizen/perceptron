@@ -38,6 +38,9 @@ perceptron/
   multiclass_evaluate.py          confusion_matrix and accuracy against a held-out test set -
                                    evaluate.py's functions are two-class- and geometry-specific
                                    and don't generalize to this
+  digit_capture.py                pure helpers for the interactive digit-capture tool: flattens
+                                   an 8x8 tile grid into the same state shape digits_data.py
+                                   produces, and maps a mouse pixel coordinate to a tile
   demos/
     demo.py                           standalone script that trains a classifier and plots the result
     demo_cardinality_sweep.py         trains classifiers at several cardinalities and compares convergence
@@ -53,6 +56,9 @@ perceptron/
     demo_digit_recognition.py         classic-style handwritten digit recognition on the
                                        bundled 8x8 dataset, with confusion-matrix/sample charts
                                        and a saved, reloadable trained model
+    demo_digit_capture.py             an interactive, mouse-painted 8x8 tile grid, classified
+                                       live by the trained model saved above (binary tiles for
+                                       now - see the "multi-class" section above)
 data/
   digits/
     digits.csv                      bundled 8x8 digits dataset (1797 rows, 64 pixels + a
@@ -88,6 +94,9 @@ tests/                           one file per module under test, plus test_train
   test_multiclass_training_pipeline.py  proves train_linear_classifier_network drives
                                      MultiClassBackpropClassifierNetwork on real digit data,
                                      unchanged
+  test_digit_capture.py           tile_grid_to_state, pixel_to_tile - the pure logic behind
+                                   demo_digit_capture.py; the tkinter mouse/canvas code itself
+                                   isn't unit-tested (no headless display in this test suite)
 cli                                setup / test / clean helper script
 ```
 
@@ -217,3 +226,10 @@ functions are two-class- and geometry-specific and don't generalize here).
 `train_linear_classifier_network` still needs no changes at all - it only calls `.learn()`,
 `.snapshot()`/`.restore()`, and `.classify_state()` (via `_training_accuracy`'s bare `==` check,
 which works identically whether `category` is a float or an int).
+
+`demo_digit_capture.py` classifies a live, mouse-painted 8x8 tile grid with a trained model
+loaded from disk (`MultiClassBackpropClassifierNetwork.load`), via `digit_capture.py`'s
+`tile_grid_to_state` - the same row-major, `[0.0, 1.0]`-normalized shape `digits_data.py`
+produces. Tiles are binary (fully on or off) for now; the bundled training data is actually
+graded 0-16 per pixel (NIST's own preprocessing averages each cell), so this is a deliberate
+first cut rather than a distribution match - graded/grayscale painting is a planned follow-up.
