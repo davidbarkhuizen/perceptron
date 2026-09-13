@@ -56,29 +56,48 @@ def main() -> None:
     agreement = "agree" if reference_category == student_category else "disagree"
     print(f"prediction on new point {new_state}: reference={reference_category}, student={student_category} ({agreement})")
 
+    n: list[int] = [x[0] for x in convergence_series]
+    disagreement: list[float] = smoothed_series([x[1] for x in convergence_series])
+
     print(
-        "convergence chart: x-axis = training iteration, y-axis = disagreement rate "
-        "(fraction of sampled points where the student's classification differs from the "
-        "reference's), smoothed with a trailing moving average and log-scaled - lower means "
-        "the student more closely matches the reference; a curve stops early once its "
-        "disagreement reaches exactly zero, which has no position on a log axis"
+        "convergence chart (linear scale): x-axis = training iteration, y-axis = "
+        "disagreement rate (fraction of sampled points where the student's classification "
+        "differs from the reference's), smoothed with a trailing moving average - lower "
+        "means the student more closely matches the reference"
     )
 
-    convergence_figure = new_figure("convergence")
+    linear_convergence_figure = new_figure("convergence (linear scale)")
 
-    convergence_bounds = [
+    linear_convergence_bounds = [
+        (0.0, float(training_set_size)),
+        (0.0, 1.0),
+    ]
+
+    linear_convergence_axes: Axes = new_axes(linear_convergence_figure, linear_convergence_bounds, scaled=False)
+    linear_convergence_axes.plot(n, disagreement)
+
+    pyplot.get_current_fig_manager().window.wm_geometry("+800+0")
+    pyplot.show(block=False)
+
+    print(
+        "convergence chart (log scale): the same smoothed disagreement-rate series, "
+        "log-scaled - useful for seeing how fast the student converges, since disagreement "
+        "tends to drop roughly exponentially; the curve stops early once disagreement "
+        "reaches exactly zero, which has no position on a log axis"
+    )
+
+    log_convergence_figure = new_figure("convergence (log scale)")
+
+    log_convergence_bounds = [
         (0.0, float(training_set_size)),
         (1e-3, 1.0),
     ]
 
-    convergence_axes: Axes = new_axes(convergence_figure, convergence_bounds, scaled=False)
-    convergence_axes.set_yscale("log")
+    log_convergence_axes: Axes = new_axes(log_convergence_figure, log_convergence_bounds, scaled=False)
+    log_convergence_axes.set_yscale("log")
+    log_convergence_axes.plot(n, disagreement)
 
-    n: list[int] = [x[0] for x in convergence_series]
-    disagreement: list[float] = smoothed_series([x[1] for x in convergence_series])
-    convergence_axes.plot(n, disagreement)
-
-    pyplot.get_current_fig_manager().window.wm_geometry("+800+0")
+    pyplot.get_current_fig_manager().window.wm_geometry("+800+500")
     pyplot.show(block=False)
 
     # ---------------------
