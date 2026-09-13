@@ -77,8 +77,15 @@ demo () {
     deactivate
 }
 
+demo-cardinality-sweep () {
+
+    source $venv_root/bin/activate
+    python3 -m perceptron.demo_cardinality_sweep
+    deactivate
+}
+
 usage () {
-    echo "usage: invoke [ clean | install | test | demo ]"
+    echo "usage: invoke [ clean | install | test | demo | demo-cardinality-sweep ]"
 }
 
 case "$option" in
@@ -98,6 +105,10 @@ case "$option" in
 
     demo)
         demo
+    ;;
+
+    demo-cardinality-sweep)
+        demo-cardinality-sweep
     ;;
 
     *)
