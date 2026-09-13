@@ -73,3 +73,10 @@ has no convergence guarantee analogous to Rosenblatt's theorem — there's no pr
 matching set of hyperplanes in finite steps, or at all, for an arbitrary target polytope. In
 practice it converges well for modest cardinality (see `tests/test_training_pipeline.py`'s
 cardinality=2 case), but that's an empirical observation, not a theorem.
+
+`LinearClassifierNetwork.randomize()` scales each hidden node's weight range inversely with
+its own dimension's `input_bounds` half-width (and leaves the threshold range fixed) so that
+a random hidden node has a similar chance of splitting the input space regardless of how
+large, small, or asymmetric `input_bounds` is - a fixed weight range would let the threshold
+dominate at small bounds scales, making almost every random classifier permanently one
+class.

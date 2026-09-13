@@ -5,7 +5,11 @@ import pytest
 from perceptron.evaluate import class_balanced_disagreement_rate
 from perceptron.geometry import square_bounds
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
-from perceptron.train import random_alternating_training_data, train_linear_classifier_network
+from perceptron.train import (
+    random_alternating_training_data,
+    reachable_reference_and_training_data,
+    train_linear_classifier_network,
+)
 
 from helpers import network_with_hidden_thresholds
 
@@ -34,6 +38,44 @@ def test_randomized_returns_an_already_randomized_classifier():
     assert any(
         node.threshold != 0.0 or list(node.input_node_weights) != [1.0, 1.0] for node in classifier.hidden_layer.nodes
     )
+
+
+def test_randomize_scales_weight_range_with_input_bounds_half_width(monkeypatch):
+
+    # weight_i's range must be calibrated per dimension (20 / half_width) so that w_i * x_i
+    # has a similar typical magnitude regardless of that dimension's bounds - independently
+    # of the other dimensions', so asymmetric bounds are handled correctly too. The
+    # threshold's range doesn't need to scale at all once weights are normalised this way.
+    calls: list[tuple[float, float]] = []
+    original_uniform = random.uniform
+
+    def recording_uniform(a: float, b: float) -> float:
+        calls.append((a, b))
+        return original_uniform(a, b)
+
+    monkeypatch.setattr(random, "uniform", recording_uniform)
+
+    network = LinearClassifierNetwork(1, 2, [(-1000.0, 1000.0), (-0.001, 0.001)])
+    network.randomize()
+
+    weight_call_1, weight_call_2, threshold_call = calls[:3]
+    assert weight_call_1 == pytest.approx((-0.02, 0.02))  # 20 / half_width 1000
+    assert weight_call_2 == pytest.approx((-20_000.0, 20_000.0))  # 20 / half_width 0.001
+    assert threshold_call == (-5, 5)
+
+
+def test_randomize_produces_reachable_classifiers_at_a_tiny_bounds_scale():
+
+    # before this fix, the weight range was fixed regardless of input_bounds, so at a small
+    # enough scale the (comparatively enormous) fixed threshold range dominated w.x, making
+    # almost every random classifier permanently one class - verified via a 200-sample sweep
+    # at this exact scale: 0/200 classifiers had both classes reachable. This would have
+    # reliably exhausted regeneration_attempts and raised RuntimeError before the fix.
+    bounds = square_bounds(0.001)
+
+    reference, training_data = reachable_reference_and_training_data(1, 2, bounds, 50)
+
+    assert len(training_data) == 50
 
 
 def test_learn_reduces_to_single_node_update_for_cardinality_one():

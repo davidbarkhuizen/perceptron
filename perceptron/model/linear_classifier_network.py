@@ -73,8 +73,23 @@ class LinearClassifierNetwork:
         responsible_node.learn(learning_rate, category)
 
     def randomize(self) -> None:
+        # each weight's range scales inversely with its own dimension's half-width, so that
+        # w_i * x_i has a similar typical magnitude no matter how large or small that
+        # dimension's bounds are (and independently of the other dimensions' bounds, so
+        # asymmetric bounds are handled correctly too). The threshold's range doesn't need to
+        # scale at all once weights are normalised this way. Without this, a hidden node's
+        # weights stayed fixed while x shrank or grew with the bounds, so the threshold ended
+        # up dominating w.x whenever the bounds were much smaller than the range was
+        # implicitly tuned for, making almost every random node permanently active or
+        # permanently inactive (verified: at bounds half-width 0.001, 0/200 random
+        # cardinality=1 classifiers had both classes reachable at all). Calibrated so that at
+        # half-width 10 - what every existing demo and test uses - this reduces to exactly
+        # uniform(-2, 2) per weight, unchanged.
+        half_widths = [(hi - lo) / 2.0 for lo, hi in self.input_bounds]
         for node in self.hidden_layer.nodes:
-            node.update_input_weights([random.uniform(-2, 2) for _ in self.input_layer.nodes])
+            node.update_input_weights(
+                [random.uniform(-20.0 / half_width, 20.0 / half_width) for half_width in half_widths]
+            )
             node.threshold = random.uniform(-5, 5)
 
     @classmethod
