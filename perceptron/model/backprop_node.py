@@ -1,0 +1,80 @@
+from __future__ import annotations
+
+import math
+from typing import Sequence
+
+from perceptron.model.base_node import AbstractNode
+
+
+class BackpropNode(AbstractNode):
+    """
+    Sigmoid-activation neuron trained by gradient descent, in contrast to AssociationNode's
+    hard step function and discrete minimum-disturbance update rule. bias plays the same role
+    as AssociationNode's threshold (added to the weighted input sum before activation), but is
+    named differently to signal it's additive rather than a hard cutoff.
+    """
+
+    def __init__(
+        self,
+        input_nodes: Sequence[AbstractNode],
+        input_node_weights: Sequence[float] | None = None,
+        bias: float = 0.0,
+    ) -> None:
+
+        self.bias: float = bias
+
+        self.input_nodes: Sequence[AbstractNode] = input_nodes if input_nodes else []
+
+        self.input_node_weights: Sequence[float] = (
+            input_node_weights if input_node_weights else [1.0 for _ in self.input_nodes]
+        )
+
+        # populated by forward(); no default - value() must never be called before a forward()
+        # pass, that's a caller bug, not something to paper over with a fallback
+        self._activation: float
+
+        # populated by compute_output_delta()/compute_hidden_delta() during the backward pass
+        self.delta: float
+
+    def update_input_weights(self, weights: list[float]) -> None:
+        assert len(weights) == len(self.input_nodes)
+        self.input_node_weights = weights
+
+    def z(self) -> float:
+
+        aggregate_input_value: float = sum(
+            [self.input_nodes[i].value() * self.input_node_weights[i] for i in range(len(self.input_nodes))]
+        )
+
+        return aggregate_input_value + self.bias
+
+    def forward(self) -> float:
+        # the only place activation is computed - value() is a pure cache read, so downstream
+        # nodes reading this one multiple times in a forward pass don't each pay for a fresh
+        # sigmoid evaluation
+        self._activation = 1.0 / (1.0 + math.exp(-self.z()))
+        return self._activation
+
+    def value(self) -> float:
+        return self._activation
+
+    def compute_output_delta(self, reference_value: float) -> None:
+        a = self.value()
+        self.delta = (a - reference_value) * a * (1.0 - a)
+
+    def compute_hidden_delta(self, next_layer_nodes: Sequence["BackpropNode"], own_index: int) -> None:
+        # relies on every node in next_layer_nodes sharing this node's position (own_index) in
+        # its own input_node_weights - true by construction, since every node in a
+        # BackpropLayer is built from the same input_layer.nodes list
+        a = self.value()
+        downstream = sum(node.delta * node.input_node_weights[own_index] for node in next_layer_nodes)
+        self.delta = downstream * a * (1.0 - a)
+
+    def apply_gradient(self, learning_rate: float) -> None:
+        self.update_input_weights(
+            [
+                weight - learning_rate * self.delta * node.value()
+                for weight, node in zip(self.input_node_weights, self.input_nodes)
+            ]
+        )
+        self.bias = self.bias - learning_rate * self.delta
