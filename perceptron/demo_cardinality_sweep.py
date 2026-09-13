@@ -102,42 +102,32 @@ def main() -> None:
 
     x_max = float(training_set_size * epoch_count)
 
-    print(
-        "linear-scale convergence chart: x-axis = training iteration (pooled across epochs), "
-        "y-axis = disagreement rate between each cardinality's reference and student "
-        "classifier - one curve per cardinality, lower is better"
-    )
-
-    linear_figure = new_figure("convergence by cardinality")
-    linear_axes = new_axes(linear_figure, [(0.0, x_max), (0.0, 1.0)], scaled=False)
-    _plot_convergence(linear_axes, results)
-
-    print(
-        "log-scale convergence chart: the same per-cardinality disagreement-rate curves as "
-        "above, with a log-scaled y-axis - useful for comparing how fast each cardinality "
-        "converges, since disagreement tends to drop roughly exponentially; a curve stops "
-        "early once its disagreement reaches exactly zero, which has no position on a log axis"
-    )
-
-    log_figure = new_figure("convergence by cardinality (log scale)")
-    log_axes = new_axes(log_figure, [(0.0, x_max), (1e-3, 1.0)], scaled=False)
-    log_axes.set_yscale("log")
-    _plot_convergence(log_axes, results)
-
     smoothed_results = [
         (cardinality, color, n, _smoothed(disagreement)) for cardinality, color, n, disagreement in results
     ]
 
     print(
-        "smoothed convergence chart: the same per-cardinality disagreement-rate curves, each "
-        "passed through a trailing moving average - makes the underlying trend easier to see "
-        "through the sampling noise from classification_disagreement_rate's small per-checkpoint "
-        "sample size"
+        "smoothed convergence chart: x-axis = training iteration (pooled across epochs), "
+        "y-axis = each cardinality's disagreement-rate series passed through a trailing "
+        "moving average - makes the underlying trend easier to see through the sampling "
+        "noise from classification_disagreement_rate's small per-checkpoint sample size"
     )
 
     smoothed_figure = new_figure("convergence by cardinality (smoothed)")
     smoothed_axes = new_axes(smoothed_figure, [(0.0, x_max), (0.0, 1.0)], scaled=False)
     _plot_convergence(smoothed_axes, smoothed_results)
+
+    print(
+        "smoothed log-scale convergence chart: the same smoothed curves as above, with a "
+        "log-scaled y-axis - useful for comparing how fast each cardinality converges, "
+        "since disagreement tends to drop roughly exponentially; a curve stops early once "
+        "its disagreement reaches exactly zero, which has no position on a log axis"
+    )
+
+    smoothed_log_figure = new_figure("convergence by cardinality (smoothed, log scale)")
+    smoothed_log_axes = new_axes(smoothed_log_figure, [(0.0, x_max), (1e-3, 1.0)], scaled=False)
+    smoothed_log_axes.set_yscale("log")
+    _plot_convergence(smoothed_log_axes, smoothed_results)
 
     pyplot.show()
 
