@@ -51,8 +51,7 @@ def reachable_reference_and_training_data(
     # below, so a caller can reject a candidate on cheap criteria (e.g. "region must be
     # bounded") without paying for training-data generation on a rejected candidate
     for _ in range(regeneration_attempts):
-        reference = LinearClassifierNetwork(cardinality, dimension, bounds)
-        reference.randomize()
+        reference = LinearClassifierNetwork.randomized(cardinality, dimension, bounds)
         if is_valid is not None and not is_valid(reference):
             continue
         try:

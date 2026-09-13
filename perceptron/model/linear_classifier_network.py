@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import random
 
 from perceptron.model.association_layer import AssociationLayer
@@ -55,3 +57,11 @@ class LinearClassifierNetwork:
         for node in self.hidden_layer.nodes:
             node.update_input_weights([random.uniform(-2, 2) for _ in self.input_layer.nodes])
             node.threshold = random.uniform(-5, 5)
+
+    @classmethod
+    def randomized(
+        cls, cardinality: int, dimension: int, input_bounds: list[tuple[float, float]]
+    ) -> LinearClassifierNetwork:
+        network = cls(cardinality, dimension, input_bounds)
+        network.randomize()
+        return network
