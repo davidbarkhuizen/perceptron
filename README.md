@@ -80,3 +80,6 @@ of pytest: trains a classifier against a random reference classifier and pops up
 convergence curve and decision-boundary charts. Unlike the test, it isn't time-boxed — the
 windows stay open until you close them. It uses `cardinality=2` (two hyperplanes ANDed
 together) to also showcase the minimum-disturbance multi-unit learning rule described above.
+It also prints the trained student's classification of a fresh point (never seen during
+training) alongside the reference's, to show the trained classifier actually being used to
+predict, not just compared to the reference by eye on a chart.

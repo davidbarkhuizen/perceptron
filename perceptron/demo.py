@@ -1,3 +1,5 @@
+from random import uniform
+
 import matplotlib
 
 matplotlib.use("TkAgg")
@@ -45,6 +47,14 @@ def main() -> None:
         epochs=epoch_count,
         reference_classifier=reference_classifier,
     )
+
+    # use the trained student to classify a fresh point, never seen during training
+    #
+    new_state = tuple(uniform(*bounds) for bounds in input_bounds)
+    reference_category = reference_classifier.classify_state(new_state)
+    student_category = student_classifier.classify_state(new_state)
+    agreement = "agree" if reference_category == student_category else "disagree"
+    print(f"prediction on new point {new_state}: reference={reference_category}, student={student_category} ({agreement})")
 
     convergence_figure = new_figure("convergence")
 
