@@ -33,6 +33,19 @@ def test_dimension_must_match_bounds_length():
         LinearClassifierNetwork(1, 2, [(-1.0, 1.0)])
 
 
+def test_input_bounds_must_all_have_positive_width():
+
+    # a zero-width dimension previously wasn't rejected at construction - it instead crashed
+    # later, deep inside randomize(), with a cryptic ZeroDivisionError (dividing by that
+    # dimension's zero half-width)
+    with pytest.raises(AssertionError):
+        LinearClassifierNetwork(1, 2, [(-10.0, 10.0), (5.0, 5.0)])
+
+    # inverted bounds (hi < lo) are equally nonsensical
+    with pytest.raises(AssertionError):
+        LinearClassifierNetwork(1, 2, [(-10.0, 10.0), (5.0, -5.0)])
+
+
 def test_hidden_layer_snapshot_and_restore_round_trip():
 
     network = LinearClassifierNetwork.randomized(3, 2, square_bounds(10.0))

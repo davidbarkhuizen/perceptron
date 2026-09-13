@@ -21,6 +21,7 @@ class LinearClassifierNetwork:
         self.dimension = dimension
 
         assert len(input_bounds) == dimension
+        assert all(hi > lo for lo, hi in input_bounds), f"input_bounds must all have positive width; got {input_bounds}"
         self.input_bounds = input_bounds
 
         # how many of the cardinality hidden nodes must be active for the output to fire -
