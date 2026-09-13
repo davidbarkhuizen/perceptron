@@ -13,6 +13,7 @@ from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 from perceptron.train import (
     classification_disagreement_rate,
     random_alternating_training_data,
+    smoothed_series,
     train_linear_classifier_network,
 )
 
@@ -121,6 +122,26 @@ def test_classification_disagreement_rate_is_zero_for_identical_classifier():
     classifier.randomize()
 
     assert classification_disagreement_rate(classifier, classifier) == 0.0
+
+
+def test_smoothed_series_with_window_one_is_identity():
+
+    values = [0.0, 1.0, 0.0, 1.0]
+
+    assert smoothed_series(values, window=1) == values
+
+
+def test_smoothed_series_is_a_trailing_moving_average():
+
+    values = [0.0, 1.0, 0.0, 1.0, 0.0, 1.0]
+
+    smoothed = smoothed_series(values, window=3)
+
+    assert len(smoothed) == len(values)
+    assert smoothed[0] == 0.0
+    assert smoothed[1] == 0.5
+    assert smoothed[2] == pytest.approx(1 / 3)
+    assert smoothed[3] == pytest.approx(2 / 3)
 
 
 def test_learn_reduces_to_single_node_update_for_cardinality_one():

@@ -9,7 +9,7 @@ from matplotlib.axes import Axes
 
 from perceptron.graphics.chart import new_axes, new_figure, plot_linear_classifier_network, plot_training_data
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
-from perceptron.train import random_alternating_training_data, train_linear_classifier_network
+from perceptron.train import random_alternating_training_data, smoothed_series, train_linear_classifier_network
 
 
 def main() -> None:
@@ -59,20 +59,23 @@ def main() -> None:
     print(
         "convergence chart: x-axis = training iteration, y-axis = disagreement rate "
         "(fraction of sampled points where the student's classification differs from the "
-        "reference's) - lower means the student more closely matches the reference"
+        "reference's), smoothed with a trailing moving average and log-scaled - lower means "
+        "the student more closely matches the reference; a curve stops early once its "
+        "disagreement reaches exactly zero, which has no position on a log axis"
     )
 
     convergence_figure = new_figure("convergence")
 
     convergence_bounds = [
         (0.0, float(training_set_size)),
-        (0.0, 1.0),
+        (1e-3, 1.0),
     ]
 
     convergence_axes: Axes = new_axes(convergence_figure, convergence_bounds, scaled=False)
+    convergence_axes.set_yscale("log")
 
     n: list[int] = [x[0] for x in convergence_series]
-    disagreement: list[float] = [x[1] for x in convergence_series]
+    disagreement: list[float] = smoothed_series([x[1] for x in convergence_series])
     convergence_axes.plot(n, disagreement)
 
     pyplot.get_current_fig_manager().window.wm_geometry("+800+0")
