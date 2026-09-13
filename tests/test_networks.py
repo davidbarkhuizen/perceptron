@@ -19,6 +19,7 @@ from perceptron.graphics.chart import (
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 from perceptron.train import (
     class_balanced_disagreement_rate,
+    compare_on_random_point,
     random_alternating_training_data,
     reachable_reference_and_training_data,
     smoothed_series,
@@ -138,6 +139,17 @@ def test_class_balanced_disagreement_rate_detects_error_the_old_metric_missed():
     student.randomize()
 
     assert class_balanced_disagreement_rate(reference, student, per_class_sample_count=200) > 0.3
+
+
+def test_compare_on_random_point_classifies_with_both_networks():
+
+    classifier, _ = reachable_reference_and_training_data(2, 2, [(-5.0, 5.0), (-5.0, 5.0)], 10)
+
+    state, reference_category, student_category = compare_on_random_point(classifier, classifier)
+
+    assert len(state) == 2
+    assert all(bound[0] <= value <= bound[1] for value, bound in zip(state, classifier.input_bounds))
+    assert reference_category == student_category == classifier.classify_state(state)
 
 
 def test_reachable_reference_and_training_data_returns_class_balanced_data():

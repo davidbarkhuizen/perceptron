@@ -1,5 +1,3 @@
-from random import uniform
-
 import matplotlib
 
 matplotlib.use("TkAgg")
@@ -9,7 +7,12 @@ from matplotlib.axes import Axes
 
 from perceptron.graphics.chart import new_axes, new_figure
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
-from perceptron.train import reachable_reference_and_training_data, smoothed_series, train_linear_classifier_network
+from perceptron.train import (
+    compare_on_random_point,
+    reachable_reference_and_training_data,
+    smoothed_series,
+    train_linear_classifier_network,
+)
 
 
 def _plot_convergence(axes: Axes, results: list[tuple[int, str, list[int], list[float]]]) -> None:
@@ -58,9 +61,7 @@ def main() -> None:
         disagreement = [x[1] for x in convergence_series]
         results.append((cardinality, color, n, disagreement))
 
-        new_state = tuple(uniform(*b) for b in bounds)
-        reference_category = reference.classify_state(new_state)
-        student_category = student.classify_state(new_state)
+        new_state, reference_category, student_category = compare_on_random_point(reference, student)
         agreement = "agree" if reference_category == student_category else "disagree"
         print(
             f"cardinality={cardinality}: disagreement {convergence_series[0][1]:.3f} -> "
