@@ -52,12 +52,13 @@ class AssociationNode(AbstractNode):
         else:
             raise ValueError(f"reference_value = {reference_value}, current_value = {current_value}")
 
-        w_p0 = self.threshold + learning_rate * d * 1.0
-        w_p1 = self.input_node_weights[0] + learning_rate * d * self.input_nodes[0].value()
-        w_p2 = self.input_node_weights[1] + learning_rate * d * self.input_nodes[1].value()
-
-        self.threshold = w_p0
-        self.update_input_weights([w_p1, w_p2])
+        self.threshold = self.threshold + learning_rate * d * 1.0
+        self.update_input_weights(
+            [
+                weight + learning_rate * d * node.value()
+                for weight, node in zip(self.input_node_weights, self.input_nodes)
+            ]
+        )
 
     def normalised_distance(self, other: AssociationNode) -> float:
 
