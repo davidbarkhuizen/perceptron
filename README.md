@@ -92,9 +92,11 @@ predict, not just compared to the reference by eye on a chart.
 
 Runs `perceptron/demo_cardinality_sweep.py`, which trains independent reference/student
 pairs at `cardinality = 1, 2, 3, 4` and overlays their disagreement-rate convergence curves
-on two charts — one linear-scale, one log-scale (better for comparing how fast each
-cardinality's disagreement rate drops, since it does so roughly exponentially) — printing
-each cardinality's before/after disagreement and a prediction-agreement check. A disagreement
+on three charts — linear-scale, log-scale (better for comparing how fast each cardinality's
+disagreement rate drops, since it does so roughly exponentially), and smoothed (each series
+passed through a trailing moving average, to see the trend through the sampling noise from
+`classification_disagreement_rate`'s small per-checkpoint sample size) — printing each
+cardinality's before/after disagreement and a prediction-agreement check. A disagreement
 rate of exactly 0.0 has no position on a log axis, so a fully-converged cardinality's curve on
 that chart simply stops once it hits zero. Since a higher cardinality shrinks the reference's
 positive region (the intersection of more half-planes), some randomly generated reference
