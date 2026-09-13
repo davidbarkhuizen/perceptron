@@ -60,3 +60,51 @@ def test_reference_positive_region_polygon_rejects_a_non_and_classifier():
 
     with pytest.raises(AssertionError):
         is_positive_region_bounded(classifier)
+
+
+def test_reference_positive_region_polygon_rejects_a_non_2d_classifier():
+
+    # only ever reads each hidden node's first two weights - for dimension > 2 it would
+    # otherwise silently project onto the first two dimensions and could report a completely
+    # wrong answer (verified before this fix: a classifier whose true 3D region is an
+    # unbounded infinite prism - bounded in x/y, unconstrained in z - was reported as bounded)
+    bounds = [(-10.0, 10.0)] * 3
+    classifier = LinearClassifierNetwork(4, 3, bounds)
+    for node, (weights, threshold) in zip(
+        classifier.hidden_layer.nodes,
+        [([1.0, 0.0, 0.0], 1.0), ([-1.0, 0.0, 0.0], 1.0), ([0.0, 1.0, 0.0], 1.0), ([0.0, -1.0, 0.0], 1.0)],
+    ):
+        node.update_input_weights(weights)
+        node.threshold = threshold
+
+    with pytest.raises(AssertionError):
+        reference_positive_region_polygon(classifier)
+
+    with pytest.raises(AssertionError):
+        is_positive_region_bounded(classifier)
+
+
+def test_is_positive_region_bounded_true_for_a_large_scale_bounded_region():
+
+    # huge used to be a fixed 1.0e6 constant, independent of the classifier's own
+    # input_bounds - so a genuinely bounded region whose vertices approached or exceeded
+    # that fixed constant was incorrectly reported as unbounded. Verified before this fix:
+    # a bounded square with vertices at +/-2,000,000 (within bounds of half-width 1.0e7) was
+    # reported as unbounded.
+    l = 1.0e7
+    bounds = square_bounds(l)
+    classifier = LinearClassifierNetwork(4, 2, bounds)
+    half_extent = 2.0e6
+    for node, (weights, threshold) in zip(
+        classifier.hidden_layer.nodes,
+        [
+            ([1.0, 0.0], half_extent),
+            ([-1.0, 0.0], half_extent),
+            ([0.0, 1.0], half_extent),
+            ([0.0, -1.0], half_extent),
+        ],
+    ):
+        node.update_input_weights(weights)
+        node.threshold = threshold
+
+    assert is_positive_region_bounded(classifier) is True
