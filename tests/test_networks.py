@@ -35,6 +35,21 @@ def test_generation_of_random_test_data_from_reference_classifier():
     assert len(training_data) == training_set_size
 
 
+def test_generation_of_random_test_data_for_non_2d_classifier():
+
+    dimension: int = 3
+    training_set_size: int = 50
+    input_bounds = [(-7.0, 7.0)] * dimension
+
+    classifier = LinearClassifierNetwork(1, dimension, input_bounds)
+    classifier.randomize()
+
+    training_data = random_alternating_training_data(training_set_size, classifier)
+
+    assert len(training_data) == training_set_size
+    assert all(len(state) == dimension for state, _ in training_data)
+
+
 def test_training_of_linear_classifier():
 
     classifier_cardinality: int = 1
