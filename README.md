@@ -24,6 +24,7 @@ perceptron/
   train.py                        random training-data generation and the training loop
   demo.py                         standalone script that trains a classifier and plots the result
   demo_cardinality_sweep.py       trains classifiers at several cardinalities and compares convergence
+  demo_unreachable_class.py       shows random_alternating_training_data's max_attempts guard tripping
 tests/
   test_networks.py                exercises training-data generation and training convergence;
                                    headless (matplotlib `Agg` backend, no windows shown)
@@ -96,3 +97,15 @@ check. Since a higher cardinality shrinks the reference's positive region (the i
 more half-planes), some randomly generated reference classifiers make one class unreachable
 within the given bounds — the demo regenerates the reference (up to 20 times) rather than
 failing the whole sweep on one unlucky draw.
+
+## demo: unreachable class
+
+    . cli demo-unreachable-class
+
+Runs `perceptron/demo_unreachable_class.py`, a headless, console-only demo of
+`random_alternating_training_data`'s safety guard: it first generates training data from a
+normal, randomly initialised classifier (retrying if an unlucky `randomize()` happens to make
+one class unreachable within the bounds — this alone can occasionally happen), then
+deliberately constructs a classifier with tiny weights and a large threshold, whose decision
+boundary never crosses its bounds, and shows the resulting `RuntimeError` being raised and
+caught instead of hanging forever.
