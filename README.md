@@ -24,8 +24,8 @@ perceptron/
   train.py                        random training-data generation and the training loop
   demo.py                         standalone script that trains a classifier and plots the result
 tests/
-  test_networks.py                exercises training-data generation and training convergence,
-                                   rendering live matplotlib charts (interactive, not headless)
+  test_networks.py                exercises training-data generation and training convergence;
+                                   headless (matplotlib `Agg` backend, no windows shown)
 docs/
   theory.md                       Rosenblatt perceptron theory and reference material
 cli                                setup / test / clean helper script
@@ -45,7 +45,8 @@ shuffled, class-balanced set of training examples generated from a reference cla
 ## requirements
 
 - Python 3.10+
-- `python3-tk` (for the interactive matplotlib `TkAgg` backend used by the tests)
+- `python3-tk` (for the interactive matplotlib `TkAgg` backend used by `. cli demo`; the
+  tests themselves are headless and don't need it)
 
 ## install
 
@@ -58,10 +59,9 @@ dependencies (`matplotlib`, `pytest`) from `requirements.txt`.
 
     . cli test
 
-Runs `tests/test_networks.py` under pytest. The tests are interactive: they pop up
-matplotlib windows (convergence curve, and the reference vs. trained decision boundary
-over the training data) and pause execution for ~20 seconds so you can inspect them, then
-prompt to repeat the run.
+Runs `tests/test_networks.py` under pytest. The tests are headless: they build the same
+convergence-curve and decision-boundary charts as `. cli demo`, using matplotlib's `Agg`
+backend, but never open a window — so they run unattended, e.g. in CI.
 
 `. cli clean` removes `__pycache__`/`.pytest_cache` directories (used automatically before
 `. cli test`).

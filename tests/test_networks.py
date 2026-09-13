@@ -1,6 +1,6 @@
 import matplotlib
 
-matplotlib.use("TkAgg")
+matplotlib.use("Agg")
 
 from matplotlib import pyplot
 from matplotlib.axes import Axes
@@ -78,9 +78,6 @@ def test_training_of_linear_classifier():
     distance: list[float] = [x[1] for x in convergence_series]
     convergence_axes.plot(n, distance)  # , '.', color='yellow')
 
-    pyplot.get_current_fig_manager().window.wm_geometry("+800+0")
-    pyplot.show(block=False)
-
     # ---------------------
 
     training_data_figure = new_figure("perceptrons (reference, student) with training data")
@@ -93,7 +90,4 @@ def test_training_of_linear_classifier():
     plot_linear_classifier_network(axes, reference_classifer, color="green")
     plot_linear_classifier_network(axes, student_classifier, color="purple")
 
-    pyplot.show(block=False)
-
-    pyplot.pause(20)
-    pyplot.close()
+    pyplot.close("all")
