@@ -97,3 +97,20 @@ monotonically increase how likely it is to fire. Prints the same kind of `.diagn
 as every other training demo, then plots the training data over a probability heatmap
 (`chart.plot_classifier_probability_heatmap`) instead of decision lines, since the learned
 region isn't a union of half-planes a line can represent.
+
+## demo: backprop architecture sweep
+
+    . cli demo-backprop-architecture-sweep
+
+Runs `perceptron/demos/demo_backprop_architecture_sweep.py`, which mirrors
+`demo_cardinality_sweep.py`'s pattern (train several configurations against the same target,
+overlay smoothed convergence curves) but compares `BackpropClassifierNetwork` architectures -
+`[4]`, `[8]`, `[4, 4]`, `[8, 8]` - instead of `LinearClassifierNetwork` cardinalities. `[8]` and
+`[4, 4]` share the same total node count, as do `[4]` and `[8, 8]`'s first layer vs its second,
+so the comparison is at a matched node budget rather than just "more capacity wins". The target
+is `StripesTarget`, 4 alternating vertical bands - harder than `demo_backprop_xor.py`'s 2-region
+XOR, so the architectures actually separate instead of all converging easily. Unseeded, like
+every sweep demo in this codebase: which architecture comes out ahead varies noticeably between
+runs, since plain fixed-learning-rate gradient descent is sensitive to where random
+initialization happens to land - this demo shows that variability rather than asserting depth
+or width is definitively better.

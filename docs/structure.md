@@ -35,6 +35,8 @@ perceptron/
     demo_unreachable_class.py         shows random_alternating_training_data's max_attempts guard tripping
     demo_nonrepresentable_target.py   trains against a target no required_active/cardinality can represent
     demo_backprop_xor.py              trains a BackpropClassifierNetwork on the same target - and converges
+    demo_backprop_architecture_sweep.py  compares single- vs two-hidden-layer BackpropClassifierNetworks
+                                       at matched node budgets, on a harder-than-XOR striped target
 tests/                           one file per module under test, plus test_training_pipeline.py for
                                   end-to-end coverage; all headless (matplotlib `Agg` backend, no
                                   windows shown)
