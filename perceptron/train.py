@@ -34,6 +34,21 @@ def random_alternating_training_data(
     return mixed
 
 
+def classification_disagreement_rate(
+    reference: LinearClassifierNetwork,
+    student: LinearClassifierNetwork,
+    sample_count: int = 30,
+) -> float:
+
+    disagreements = 0
+    for _ in range(sample_count):
+        state = tuple(uniform(*bounds) for bounds in reference.input_bounds)
+        if reference.classify_state(state) != student.classify_state(state):
+            disagreements += 1
+
+    return disagreements / sample_count
+
+
 def train_linear_classifier_network(
     student: LinearClassifierNetwork,
     training_data: list[tuple[tuple[float, float], int]],
@@ -46,7 +61,7 @@ def train_linear_classifier_network(
     convergence: list[tuple[int, float]] = []
 
     if reference_classifier:
-        convergence.append((iterations, reference_classifier.distance(student)))
+        convergence.append((iterations, classification_disagreement_rate(reference_classifier, student)))
 
     for _ in range(epochs):
         for datum in training_data:
@@ -55,6 +70,6 @@ def train_linear_classifier_network(
             iterations += 1
 
             if reference_classifier:
-                convergence.append((iterations, reference_classifier.distance(student)))
+                convergence.append((iterations, classification_disagreement_rate(reference_classifier, student)))
 
     return convergence

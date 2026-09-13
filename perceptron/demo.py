@@ -50,14 +50,14 @@ def main() -> None:
 
     convergence_bounds = [
         (0.0, float(training_set_size)),
-        (0.0, 2.0),
+        (0.0, 1.0),
     ]
 
     convergence_axes: Axes = new_axes(convergence_figure, convergence_bounds, scaled=False)
 
     n: list[int] = [x[0] for x in convergence_series]
-    distance: list[float] = [x[1] for x in convergence_series]
-    convergence_axes.plot(n, distance)
+    disagreement: list[float] = [x[1] for x in convergence_series]
+    convergence_axes.plot(n, disagreement)
 
     pyplot.get_current_fig_manager().window.wm_geometry("+800+0")
     pyplot.show(block=False)
