@@ -46,4 +46,11 @@ class LinearClassifierNetwork:
             node.threshold = random.uniform(-5, 5)
 
     def distance(self, other: LinearClassifierNetwork) -> float:
-        return self.hidden_layer.nodes[0].normalised_distance(other.hidden_layer.nodes[0])
+        assert len(self.hidden_layer.nodes) == len(other.hidden_layer.nodes)
+
+        node_distances = [
+            self_node.normalised_distance(other_node)
+            for self_node, other_node in zip(self.hidden_layer.nodes, other.hidden_layer.nodes)
+        ]
+
+        return sum(node_distances) / len(node_distances)
