@@ -120,8 +120,15 @@ demo-backprop-circular-target () {
     deactivate_venv
 }
 
+demo-backprop-vs-linear () {
+
+    activate_venv
+    python3 -m perceptron.demos.demo_backprop_vs_linear
+    deactivate_venv
+}
+
 usage () {
-    echo "usage: invoke [ clean | setup | test | demo | demo-cardinality-sweep | demo-unreachable-class | demo-nonrepresentable-target | demo-backprop-xor | demo-backprop-architecture-sweep | demo-backprop-circular-target ]"
+    echo "usage: invoke [ clean | setup | test | demo | demo-cardinality-sweep | demo-unreachable-class | demo-nonrepresentable-target | demo-backprop-xor | demo-backprop-architecture-sweep | demo-backprop-circular-target | demo-backprop-vs-linear ]"
 }
 
 case "$option" in
@@ -165,6 +172,10 @@ case "$option" in
 
     demo-backprop-circular-target)
         demo-backprop-circular-target
+    ;;
+
+    demo-backprop-vs-linear)
+        demo-backprop-vs-linear
     ;;
 
     *)
