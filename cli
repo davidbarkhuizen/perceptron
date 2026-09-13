@@ -83,8 +83,15 @@ test () {
     deactivate
 }
 
+demo () {
+
+    source $venv_root/bin/activate
+    python3 -m perceptron.demo
+    deactivate
+}
+
 usage () {
-    echo "usage: invoke [ clean | install | test]"
+    echo "usage: invoke [ clean | install | test | demo ]"
 }
 
 case "$option" in
@@ -100,6 +107,10 @@ case "$option" in
     test)
         clean
         test
+    ;;
+
+    demo)
+        demo
     ;;
 
     *)
