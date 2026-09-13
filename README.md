@@ -78,13 +78,14 @@ backend, but never open a window — so they run unattended, e.g. in CI.
     . cli demo
 
 Runs `perceptron/demo.py`, which replicates `test_training_of_linear_classifier` outside
-of pytest: trains a classifier against a random reference classifier and pops up the same
-convergence curve and decision-boundary charts. Unlike the test, it isn't time-boxed — the
-windows stay open until you close them. It uses `cardinality=2` (two hyperplanes ANDed
-together) to also showcase the minimum-disturbance multi-unit learning rule described above.
-It also prints the trained student's classification of a fresh point (never seen during
-training) alongside the reference's, to show the trained classifier actually being used to
-predict, not just compared to the reference by eye on a chart.
+of pytest: trains a classifier against a random reference classifier and pops up a
+convergence curve (smoothed with a trailing moving average and log-scaled — see the
+cardinality-sweep demo below for why) and decision-boundary chart. Unlike the test, it isn't
+time-boxed — the windows stay open until you close them. It uses `cardinality=2` (two
+hyperplanes ANDed together) to also showcase the minimum-disturbance multi-unit learning
+rule described above. It also prints the trained student's classification of a fresh point
+(never seen during training) alongside the reference's, to show the trained classifier
+actually being used to predict, not just compared to the reference by eye on a chart.
 
 ## demo: cardinality sweep
 

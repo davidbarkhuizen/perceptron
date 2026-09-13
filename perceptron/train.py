@@ -34,6 +34,17 @@ def random_alternating_training_data(
     return mixed
 
 
+def smoothed_series(values: list[float], window: int = 31) -> list[float]:
+
+    # trailing moving average - only ever looks backward, so it stays a fair comparison
+    # against the raw series at every point (no look-ahead)
+    smoothed = []
+    for i in range(len(values)):
+        segment = values[max(0, i - window + 1) : i + 1]
+        smoothed.append(sum(segment) / len(segment))
+    return smoothed
+
+
 def classification_disagreement_rate(
     reference: LinearClassifierNetwork,
     student: LinearClassifierNetwork,

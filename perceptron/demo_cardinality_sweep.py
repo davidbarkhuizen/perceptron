@@ -9,7 +9,7 @@ from matplotlib.axes import Axes
 
 from perceptron.graphics.chart import new_axes, new_figure
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
-from perceptron.train import random_alternating_training_data, train_linear_classifier_network
+from perceptron.train import random_alternating_training_data, smoothed_series, train_linear_classifier_network
 
 
 def _reference_and_training_data(
@@ -33,17 +33,6 @@ def _reference_and_training_data(
             continue
 
     raise RuntimeError(f"no workable cardinality={cardinality} reference classifier found within these bounds")
-
-
-def _smoothed(values: list[float], window: int = 31) -> list[float]:
-
-    # trailing moving average - only ever looks backward, so it stays a fair comparison
-    # against the raw series at every point (no look-ahead)
-    smoothed = []
-    for i in range(len(values)):
-        segment = values[max(0, i - window + 1) : i + 1]
-        smoothed.append(sum(segment) / len(segment))
-    return smoothed
 
 
 def _plot_convergence(axes: Axes, results: list[tuple[int, str, list[int], list[float]]]) -> None:
@@ -103,7 +92,7 @@ def main() -> None:
     x_max = float(training_set_size * epoch_count)
 
     smoothed_results = [
-        (cardinality, color, n, _smoothed(disagreement)) for cardinality, color, n, disagreement in results
+        (cardinality, color, n, smoothed_series(disagreement)) for cardinality, color, n, disagreement in results
     ]
 
     print(
