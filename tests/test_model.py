@@ -7,6 +7,8 @@ from perceptron.geometry import square_bounds
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 from perceptron.train import random_alternating_training_data, train_linear_classifier_network
 
+from helpers import network_with_hidden_thresholds
+
 
 def test_cardinality_must_be_at_least_one():
 
@@ -124,10 +126,7 @@ def test_required_active_must_be_between_one_and_cardinality():
 def test_required_active_one_gives_or_semantics():
 
     bounds = square_bounds(10.0)
-    network = LinearClassifierNetwork(3, 2, bounds, required_active=1)
-    for node in network.hidden_layer.nodes:
-        node.update_input_weights([0.0, 0.0])
-        node.threshold = -5.0  # every hidden node inactive
+    network = network_with_hidden_thresholds(2, bounds, [-5.0, -5.0, -5.0], required_active=1)
 
     assert network.classify_state((0.0, 0.0)) == 0.0
 
@@ -139,10 +138,7 @@ def test_required_active_one_gives_or_semantics():
 def test_required_active_two_of_three_gives_majority_semantics():
 
     bounds = square_bounds(10.0)
-    network = LinearClassifierNetwork(3, 2, bounds, required_active=2)
-    for node in network.hidden_layer.nodes:
-        node.update_input_weights([0.0, 0.0])
-        node.threshold = -5.0
+    network = network_with_hidden_thresholds(2, bounds, [-5.0, -5.0, -5.0], required_active=2)
 
     network.hidden_layer.nodes[0].threshold = 1.0  # one of three active
 
@@ -190,22 +186,13 @@ def test_learn_updates_only_the_single_closest_to_flipping_node():
     learning_rate = 0.25
     state = (2.0, 3.0)
 
-    def network_with_hidden_thresholds(thresholds: list[float]) -> LinearClassifierNetwork:
-        # zero input weights make each node's z() equal to its threshold alone, regardless
-        # of state - so the thresholds directly pick each node's z()
-        network = LinearClassifierNetwork(len(thresholds), dimension, bounds)
-        for node, threshold in zip(network.hidden_layer.nodes, thresholds):
-            node.update_input_weights([0.0, 0.0])
-            node.threshold = threshold
-        return network
-
     def snapshot(network: LinearClassifierNetwork) -> list[tuple[list[float], float]]:
         return [(list(node.input_node_weights), node.threshold) for node in network.hidden_layer.nodes]
 
     # false negative: two inactive nodes (z <= 0); the closer-to-flipping one (threshold
     # -0.5, |z|=0.5) should be updated, not the farther one (threshold -5.0, |z|=5.0) - and
     # the already-active third node must be untouched
-    network = network_with_hidden_thresholds([-5.0, -0.5, 2.0])
+    network = network_with_hidden_thresholds(dimension, bounds, [-5.0, -0.5, 2.0])
     far, near, active = network.hidden_layer.nodes
     network.learn(learning_rate, state, 1)
 
@@ -216,7 +203,7 @@ def test_learn_updates_only_the_single_closest_to_flipping_node():
 
     # false positive: all three nodes active; the closest-to-flipping one (threshold 0.4,
     # |z|=0.4) should be updated, not the other two
-    network = network_with_hidden_thresholds([3.0, 0.4, 6.0])
+    network = network_with_hidden_thresholds(dimension, bounds, [3.0, 0.4, 6.0])
     far, near, farther = network.hidden_layer.nodes
     network.learn(learning_rate, state, 0)
 
@@ -227,7 +214,7 @@ def test_learn_updates_only_the_single_closest_to_flipping_node():
 
     # already correct: all three active and category=1 means the output already matches -
     # no hidden node should change at all
-    network = network_with_hidden_thresholds([3.0, 0.4, 6.0])
+    network = network_with_hidden_thresholds(dimension, bounds, [3.0, 0.4, 6.0])
     before = snapshot(network)
     network.learn(learning_rate, state, 1)
     assert snapshot(network) == before

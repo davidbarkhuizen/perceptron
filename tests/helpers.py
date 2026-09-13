@@ -12,3 +12,19 @@ def classifier_with_bounded_square_region(bounds: list[tuple[float, float]]) -> 
         node.update_input_weights(weights)
         node.threshold = threshold
     return classifier
+
+
+def network_with_hidden_thresholds(
+    dimension: int,
+    bounds: list[tuple[float, float]],
+    thresholds: list[float],
+    required_active: int | None = None,
+) -> LinearClassifierNetwork:
+
+    # zero input weights make each node's z() equal to its threshold alone, regardless of
+    # state - so the thresholds directly pick each node's active/inactive status
+    network = LinearClassifierNetwork(len(thresholds), dimension, bounds, required_active)
+    for node, threshold in zip(network.hidden_layer.nodes, thresholds):
+        node.update_input_weights([0.0] * dimension)
+        node.threshold = threshold
+    return network
