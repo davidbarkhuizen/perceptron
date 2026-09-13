@@ -31,6 +31,7 @@ tests/
                                    headless (matplotlib `Agg` backend, no windows shown)
 docs/
   theory.md                       Rosenblatt perceptron theory and reference material
+  findings/                       standalone write-ups of notable issues found during review
 cli                                setup / test / clean helper script
 ```
 
@@ -126,3 +127,8 @@ one class unreachable within the bounds — this alone can occasionally happen),
 deliberately constructs a classifier with tiny weights and a large threshold, whose decision
 boundary never crosses its bounds, and shows the resulting `RuntimeError` being raised and
 caught instead of hanging forever.
+
+## findings
+
+Notable issues discovered during review of this codebase, each documented as a standalone
+write-up rather than fixed inline: see [`docs/findings/`](docs/findings/README.md).
