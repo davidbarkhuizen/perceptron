@@ -9,6 +9,7 @@ from perceptron.graphics.chart import (
     new_axes,
     new_figure,
     plot_linear_classifier_network,
+    plot_training_data,
     reference_region_bounds,
 )
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
@@ -40,6 +41,26 @@ def test_disagreement_axis_bounds():
 
     assert disagreement_axis_bounds(500.0) == [(0.0, 500.0), (0.0, 1.0)]
     assert disagreement_axis_bounds(500.0, log=True) == [(0.0, 500.0), (1.0e-3, 1.0)]
+
+
+def test_plot_training_data_assigns_marker_and_color_by_sorted_category_not_set_order():
+
+    # category-to-marker/color assignment used to iterate a bare set() of category values -
+    # not a guaranteed-order operation - rather than an explicit sort. Pins down that class
+    # 0.0 always gets the first marker/color ("." / blue) and 1.0 the second ("x" / yellow),
+    # regardless of what order set() would have produced them in.
+    bounds = square_bounds(10.0)
+    training_data = [((1.0, 1.0), 1.0), ((-1.0, -1.0), 0.0), ((2.0, 2.0), 1.0), ((-2.0, -2.0), 0.0)]
+
+    axes = new_axes(new_figure("test"), bounds)
+    plot_training_data(axes, training_data)
+
+    assert len(axes.lines) == 2
+    zero_line, one_line = axes.lines
+    assert zero_line.get_marker() == "." and zero_line.get_color() == "blue"
+    assert list(zero_line.get_xdata()) == [-1.0, -2.0]
+    assert one_line.get_marker() == "x" and one_line.get_color() == "yellow"
+    assert list(one_line.get_xdata()) == [1.0, 2.0]
 
 
 def test_plot_linear_classifier_network_draws_a_vertical_line_for_a_zero_y_weight():

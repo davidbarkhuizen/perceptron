@@ -42,6 +42,18 @@ def test_class_balanced_disagreement_rate_raises_for_an_unreachable_reference_cl
         class_balanced_disagreement_rate(unreachable, unreachable, per_class_sample_count=10, max_attempts=200)
 
 
+def test_class_balanced_disagreement_rate_rejects_a_zero_sample_count():
+
+    # per_class_sample_count=0 previously wasn't rejected - the sampling loop's condition
+    # was vacuously already satisfied (0 < 0 is False), so it returned immediately and
+    # divided 0/0
+    bounds = square_bounds(10.0)
+    classifier = LinearClassifierNetwork.randomized(1, 2, bounds)
+
+    with pytest.raises(AssertionError):
+        class_balanced_disagreement_rate(classifier, classifier, per_class_sample_count=0)
+
+
 def test_compare_on_random_point_classifies_with_both_networks():
 
     classifier, _ = reachable_reference_and_training_data(2, 2, square_bounds(5.0), 10)

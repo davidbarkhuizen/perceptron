@@ -84,7 +84,10 @@ def plot_training_data(axes: Axes, training_data: list[tuple[tuple[float, float]
 
     categories: list[tuple[int, list[tuple[float, float]]]] = []
 
-    for category_value in set([output_value for (_, output_value) in training_data]):
+    # sorted rather than a bare set(): iteration order over a set isn't a guaranteed
+    # contract, so relying on it would make which class gets which marker/color
+    # implementation-defined rather than a predictable 0.0 -> first, 1.0 -> second
+    for category_value in sorted(set(output_value for (_, output_value) in training_data)):
         categories.append(
             (category_value, [xy for (xy, output_value) in training_data if output_value == category_value])
         )

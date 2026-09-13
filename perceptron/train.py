@@ -142,6 +142,8 @@ def train_linear_classifier_network(
     student.
     """
 
+    assert len(training_data) >= 1, "training_data must not be empty"
+
     iterations: int = 0
     convergence: list[tuple[int, float]] = []
 
