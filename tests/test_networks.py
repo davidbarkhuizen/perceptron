@@ -13,6 +13,7 @@ from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 from perceptron.train import (
     classification_disagreement_rate,
     random_alternating_training_data,
+    reachable_reference_and_training_data,
     smoothed_series,
     train_linear_classifier_network,
 )
@@ -122,6 +123,20 @@ def test_classification_disagreement_rate_is_zero_for_identical_classifier():
     classifier.randomize()
 
     assert classification_disagreement_rate(classifier, classifier) == 0.0
+
+
+def test_reachable_reference_and_training_data_returns_class_balanced_data():
+
+    cardinality = 4
+    dimension = 2
+    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+    training_set_size = 200
+
+    reference, training_data = reachable_reference_and_training_data(cardinality, dimension, bounds, training_set_size)
+
+    assert reference.cardinality == cardinality
+    assert len(training_data) == training_set_size
+    assert all(len(state) == dimension for state, _ in training_data)
 
 
 def test_smoothed_series_with_window_one_is_identity():

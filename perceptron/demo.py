@@ -9,12 +9,12 @@ from matplotlib.axes import Axes
 
 from perceptron.graphics.chart import new_axes, new_figure, plot_linear_classifier_network, plot_training_data
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
-from perceptron.train import random_alternating_training_data, smoothed_series, train_linear_classifier_network
+from perceptron.train import reachable_reference_and_training_data, smoothed_series, train_linear_classifier_network
 
 
 def main() -> None:
 
-    classifier_cardinality: int = 2
+    classifier_cardinality: int = 4
     dimension: int = 2
     l: float = 10.0
 
@@ -26,14 +26,13 @@ def main() -> None:
     y_min, y_max = -l, l
     input_bounds = [(x_min, x_max), (y_min, y_max)]
 
-    # generate a (random) reference classifier network
+    # generate a (random) reference classifier network and use it to produce a set of
+    # training data - a higher cardinality shrinks the reference's positive region, so this
+    # regenerates the reference rather than failing on one unlucky randomize()
     #
-    reference_classifier = LinearClassifierNetwork(classifier_cardinality, dimension, input_bounds)
-    reference_classifier.randomize()
-
-    # use the reference classifier to produce a set of training data
-    #
-    training_data = random_alternating_training_data(training_set_size, reference_classifier)
+    reference_classifier, training_data = reachable_reference_and_training_data(
+        classifier_cardinality, dimension, input_bounds, training_set_size
+    )
 
     # generate a new random classifier network for training
     #

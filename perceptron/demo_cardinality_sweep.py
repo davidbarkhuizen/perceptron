@@ -9,30 +9,7 @@ from matplotlib.axes import Axes
 
 from perceptron.graphics.chart import new_axes, new_figure
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
-from perceptron.train import random_alternating_training_data, smoothed_series, train_linear_classifier_network
-
-
-def _reference_and_training_data(
-    cardinality: int,
-    dimension: int,
-    bounds: list[tuple[float, float]],
-    training_set_size: int,
-    regeneration_attempts: int = 20,
-) -> tuple[LinearClassifierNetwork, list[tuple[tuple[float, ...], float]]]:
-
-    # higher cardinality shrinks the reference's positive region (intersection of more
-    # half-planes), so some random reference classifiers make one class unreachable within
-    # these bounds - regenerate the reference rather than failing the whole sweep on one
-    # unlucky draw
-    for _ in range(regeneration_attempts):
-        reference = LinearClassifierNetwork(cardinality, dimension, bounds)
-        reference.randomize()
-        try:
-            return reference, random_alternating_training_data(training_set_size, reference, max_attempts=20_000)
-        except RuntimeError:
-            continue
-
-    raise RuntimeError(f"no workable cardinality={cardinality} reference classifier found within these bounds")
+from perceptron.train import reachable_reference_and_training_data, smoothed_series, train_linear_classifier_network
 
 
 def _plot_convergence(axes: Axes, results: list[tuple[int, str, list[int], list[float]]]) -> None:
@@ -62,7 +39,9 @@ def main() -> None:
     results: list[tuple[int, str, list[int], list[float]]] = []
 
     for cardinality, color in zip(cardinalities, colors):
-        reference, training_data = _reference_and_training_data(cardinality, dimension, bounds, training_set_size)
+        reference, training_data = reachable_reference_and_training_data(
+            cardinality, dimension, bounds, training_set_size
+        )
 
         student = LinearClassifierNetwork(cardinality, dimension, bounds)
         student.randomize()

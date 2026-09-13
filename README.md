@@ -83,11 +83,14 @@ windows — the convergence curve on a linear scale, the same curve on a log sca
 seeing how fast it converges, since disagreement tends to drop roughly exponentially — see
 the cardinality-sweep demo below for more on this), and the decision-boundary chart. Both
 convergence charts are smoothed with a trailing moving average. Unlike the test, it isn't
-time-boxed — the windows stay open until you close them. It uses `cardinality=2` (two
+time-boxed — the windows stay open until you close them. It uses `cardinality=4` (four
 hyperplanes ANDed together) to also showcase the minimum-disturbance multi-unit learning
-rule described above. It also prints the trained student's classification of a fresh point
-(never seen during training) alongside the reference's, to show the trained classifier
-actually being used to predict, not just compared to the reference by eye on a chart.
+rule described above; since a higher cardinality shrinks the reference's positive region,
+it uses `train.reachable_reference_and_training_data` (also used by the cardinality-sweep
+demo) to regenerate the reference rather than risk failing on one unlucky `randomize()`. It
+also prints the trained student's classification of a fresh point (never seen during
+training) alongside the reference's, to show the trained classifier actually being used to
+predict, not just compared to the reference by eye on a chart.
 
 ## demo: cardinality sweep
 
