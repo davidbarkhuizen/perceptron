@@ -106,8 +106,15 @@ demo-backprop-xor () {
     deactivate_venv
 }
 
+demo-backprop-architecture-sweep () {
+
+    activate_venv
+    python3 -m perceptron.demos.demo_backprop_architecture_sweep
+    deactivate_venv
+}
+
 usage () {
-    echo "usage: invoke [ clean | setup | test | demo | demo-cardinality-sweep | demo-unreachable-class | demo-nonrepresentable-target | demo-backprop-xor ]"
+    echo "usage: invoke [ clean | setup | test | demo | demo-cardinality-sweep | demo-unreachable-class | demo-nonrepresentable-target | demo-backprop-xor | demo-backprop-architecture-sweep ]"
 }
 
 case "$option" in
@@ -143,6 +150,10 @@ case "$option" in
 
     demo-backprop-xor)
         demo-backprop-xor
+    ;;
+
+    demo-backprop-architecture-sweep)
+        demo-backprop-architecture-sweep
     ;;
 
     *)
