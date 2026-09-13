@@ -15,6 +15,9 @@ perceptron/
                                      cache, output/hidden delta, gradient step)
     backprop_layer.py               a layer of BackpropNodes over a given input layer
     backprop_classifier_network.py  input -> hidden (backprop, any depth) -> trainable output
+    multiclass_backprop_classifier_network.py  one-vs-rest multi-class sibling of
+                                     backprop_classifier_network.py (class_count-node output,
+                                     fan-in-aware init, save()/load() persistence)
   graphics/
     chart.py                      matplotlib helpers: figures/axes, decision-boundary and
                                    training-data plotting, and expanding plot bounds to
@@ -29,6 +32,12 @@ perceptron/
                                    positive region when available), sampling a point and
                                    classifying it with two networks, a permutation-invariant
                                    class-balanced disagreement metric, and series smoothing
+  digits_data.py                  loads/normalizes the bundled 8x8 digits dataset, plus a
+                                   train/test split (a fixed finite dataset, unlike every other
+                                   target here, which is continuously re-sampleable)
+  multiclass_evaluate.py          confusion_matrix and accuracy against a held-out test set -
+                                   evaluate.py's functions are two-class- and geometry-specific
+                                   and don't generalize to this
   demos/
     demo.py                           standalone script that trains a classifier and plots the result
     demo_cardinality_sweep.py         trains classifiers at several cardinalities and compares convergence
@@ -41,6 +50,14 @@ perceptron/
                                        boundary, unlike any LinearClassifierNetwork's polygon
     demo_backprop_vs_linear.py        parity check: both models on the same easy, linearly-
                                        separable target
+    demo_digit_recognition.py         classic-style handwritten digit recognition on the
+                                       bundled 8x8 dataset, with confusion-matrix/sample charts
+                                       and a saved, reloadable trained model
+data/
+  digits/
+    digits.csv                      bundled 8x8 digits dataset (1797 rows, 64 pixels + a
+                                     label), extracted offline from sklearn.datasets.load_digits() -
+                                     scikit-learn was never a runtime dependency
 tests/                           one file per module under test, plus test_training_pipeline.py for
                                   end-to-end coverage; all headless (matplotlib `Agg` backend, no
                                   windows shown)
@@ -63,6 +80,14 @@ tests/                           one file per module under test, plus test_train
   test_backprop_training_pipeline.py  proves train_linear_classifier_network drives a
                                        BackpropClassifierNetwork well past the linear ceiling on XOR,
                                        unchanged
+  test_digits_data.py             load_digits_dataset, split_train_test
+  test_multiclass_backprop_model.py  MultiClassBackpropClassifierNetwork construction,
+                                     hand-computed one-vs-rest forward/backward pass, fan-in
+                                     init, snapshot/restore, save()/load()
+  test_multiclass_evaluate.py     confusion_matrix, accuracy
+  test_multiclass_training_pipeline.py  proves train_linear_classifier_network drives
+                                     MultiClassBackpropClassifierNetwork on real digit data,
+                                     unchanged
 cli                                setup / test / clean helper script
 ```
 
@@ -162,3 +187,33 @@ this reason), and `.classify_state()`, all of which both classes implement. The 
 `.snapshot()` shapes differ (flat, hidden-layer-only for `LinearClassifierNetwork`; nested,
 covering every trainable layer including the output layer for `BackpropClassifierNetwork`) but
 the training loop only ever treats the snapshot as opaque, so this is invisible to it.
+
+## multi-class
+
+`MultiClassBackpropClassifierNetwork` is a one-vs-rest multi-class sibling of
+`BackpropClassifierNetwork`, built entirely on the same `BackpropNode`/`BackpropLayer` blocks -
+a new class rather than a retrofit, because `classify_state()`'s return type changes (a class
+index, not a 0.0/1.0 float), and every existing backprop demo depends on the binary contract.
+Its output layer has `class_count` nodes instead of one; each is trained independently against
+a one-hot target (`BackpropNode.compute_output_delta` needed no changes for this - it was
+already a per-node, sibling-independent computation), and the predicted class at inference is
+whichever output node has the highest activation.
+
+Its `randomize()` uses **fan-in-aware** initialization (`limit = 1/sqrt(fan_in)`) rather than
+`BackpropClassifierNetwork.randomize()`'s per-dimension-bounds-width scaling - that scaling was
+tuned for 1-2D geometric problems and produces exploding pre-activation sums (guaranteed sigmoid
+saturation at every node) once fan-in reaches the tens or hundreds, as it does for a 64-pixel
+digit image. Also new: `save()`/`load()` (plain JSON) - trained-model persistence, so a trained
+network can be reused without retraining.
+
+`digits_data.py` bundles a small, classic dataset - the UCI ML hand-written digits set (8x8
+pixel images, 10 classes, 1797 samples), extracted once, offline, from
+`sklearn.datasets.load_digits()` into `data/digits/digits.csv`. scikit-learn was only ever a
+throwaway extraction tool; there's no runtime dependency on it, just a flat CSV and a small
+parser. This is a fixed, finite, already-labeled dataset, unlike every other target in this
+codebase (which are all continuously re-sampleable geometric regions) - hence `split_train_test`
+(new) and `multiclass_evaluate.py`'s `confusion_matrix`/`accuracy` (new; `evaluate.py`'s
+functions are two-class- and geometry-specific and don't generalize here).
+`train_linear_classifier_network` still needs no changes at all - it only calls `.learn()`,
+`.snapshot()`/`.restore()`, and `.classify_state()` (via `_training_accuracy`'s bare `==` check,
+which works identically whether `category` is a float or an int).

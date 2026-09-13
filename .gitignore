@@ -152,6 +152,10 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
+# trained-model export (regenerable build artifact - see
+# MultiClassBackpropClassifierNetwork.save()/demo_digit_recognition.py)
+data/digits/trained_model.json
+
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore

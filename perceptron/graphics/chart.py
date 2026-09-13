@@ -1,3 +1,5 @@
+import math
+
 from matplotlib import lines, pyplot
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -128,6 +130,59 @@ def plot_classifier_probability_heatmap(
     ]
 
     axes.imshow(grid, extent=(x_min, x_max, y_min, y_max), cmap="viridis", vmin=0.0, vmax=1.0, aspect="auto")
+
+
+def plot_confusion_matrix(axes: Axes, matrix: list[list[int]], class_labels: list[str] | None = None) -> None:
+    """
+    Renders a confusion matrix (matrix[true][predicted] = count, see
+    multiclass_evaluate.confusion_matrix) as a heatmap with each cell's count annotated - same
+    imshow technique plot_classifier_probability_heatmap uses, just over a class x class grid
+    instead of a spatial one.
+    """
+
+    class_count = len(matrix)
+    class_labels = class_labels if class_labels is not None else [str(i) for i in range(class_count)]
+
+    axes.imshow(matrix, cmap="viridis")
+    axes.set_xticks(range(class_count))
+    axes.set_yticks(range(class_count))
+    axes.set_xticklabels(class_labels)
+    axes.set_yticklabels(class_labels)
+    axes.set_xlabel("predicted")
+    axes.set_ylabel("true")
+
+    row_max = [max(row) if row else 0 for row in matrix]
+    for true_label in range(class_count):
+        for predicted_label in range(class_count):
+            count = matrix[true_label][predicted_label]
+            # dark text on the heatmap's bright cells, light text on its dark ones
+            text_color = "black" if row_max[true_label] and count > row_max[true_label] / 2 else "white"
+            axes.text(predicted_label, true_label, str(count), ha="center", va="center", color=text_color)
+
+
+def plot_sample_predictions(
+    figure: Figure,
+    samples: list[tuple[tuple[float, ...], int, int]],
+    image_shape: tuple[int, int] = (8, 8),
+) -> None:
+    """
+    A grid of small subplots, one per (pixels, predicted_label, true_label) sample, each
+    imshowing the reshaped image with a title flagging correct (white) vs. incorrect (red)
+    predictions. Dimension-agnostic beyond image_shape - not digit-specific.
+    """
+
+    columns = math.ceil(math.sqrt(len(samples)))
+    rows = math.ceil(len(samples) / columns)
+    height, width = image_shape
+
+    for index, (pixels, predicted_label, true_label) in enumerate(samples):
+        axes = figure.add_subplot(rows, columns, index + 1)
+        image = [pixels[row * width : (row + 1) * width] for row in range(height)]
+        axes.imshow(image, cmap="gray")
+        axes.set_xticks([])
+        axes.set_yticks([])
+        correct = predicted_label == true_label
+        axes.set_title(f"pred={predicted_label} true={true_label}", color="white" if correct else "red", fontsize=8)
 
 
 def disagreement_axis_bounds(x_max: float, log: bool = False) -> list[tuple[float, float]]:

@@ -141,3 +141,20 @@ reach ~0.995-0.999 training accuracy), then plots the reference's boundary (gree
 student's boundary (purple), and the backprop student's boundary as a probability heatmap
 underneath, all overlaid - a parity check showing backprop learns just as well here, not only on
 the harder targets the other backprop demos focus on.
+
+## demo: digit recognition
+
+    . cli demo-digit-recognition
+
+Runs `perceptron/demos/demo_digit_recognition.py` - classic-style handwritten digit recognition,
+using `MultiClassBackpropClassifierNetwork` (see [structure](structure.md#multi-class)) instead
+of any 2D geometric target. Loads the bundled UCI ML hand-written digits dataset
+(`data/digits/digits.csv` via `digits_data.load_digits_dataset`, 8x8 pixel images, 10 classes,
+1797 samples), splits 80/20 into train/test, and trains a single-hidden-layer (32-node) network
+with `train_linear_classifier_network` - reused completely unmodified, the same as every other
+backprop demo. Measured: ~99.5% training accuracy, ~95-97% held-out test accuracy, in under a
+minute. Saves the trained model to `data/digits/trained_model.json` (gitignored - a regenerable
+build artifact) via the new `save()`/`load()` persistence, printing how to reload it without
+retraining. Plots a training-accuracy-by-epoch curve, a confusion matrix
+(`chart.plot_confusion_matrix`), and a grid of sample test predictions
+(`chart.plot_sample_predictions`) colored to flag any incorrect ones.
