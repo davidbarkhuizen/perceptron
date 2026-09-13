@@ -61,12 +61,23 @@ def main() -> None:
 
     best_student: LinearClassifierNetwork | None = None
     best_disagreement = float("inf")
+    plateaued_count = 0
+    converged_count = 0
 
     for cardinality, required_active, label in configs:
         student = LinearClassifierNetwork.randomized(cardinality, dimension, bounds, required_active)
-        train_linear_classifier_network(student, training_data, learning_rate=0.25, epochs=10)
+        result = train_linear_classifier_network(student, training_data, learning_rate=0.25, epochs=10)
         disagreement = class_balanced_disagreement_rate(target, student, per_class_sample_count=300)
-        print(f"{label}: final disagreement = {disagreement:.3f}")
+
+        diagnostic = result.diagnostic
+        status = "converged" if diagnostic.converged else "plateaued" if diagnostic.plateaued else "still improving"
+        plateaued_count += diagnostic.plateaued
+        converged_count += diagnostic.converged
+        print(
+            f"{label}: final disagreement = {disagreement:.3f}, training accuracy "
+            f"{diagnostic.best_training_accuracy:.3f} ({status} - best epoch "
+            f"{diagnostic.best_epoch_index + 1}/{len(diagnostic.epoch_training_accuracies)})"
+        )
 
         if disagreement < best_disagreement:
             best_disagreement = disagreement
@@ -74,12 +85,16 @@ def main() -> None:
 
     print()
     print(
-        f"none come close to converging (best seen: {best_disagreement:.3f}) - and this "
-        "isn't a training-budget problem. The output layer's weights are always 1.0 per "
-        "hidden node, so the output can only be a monotonically non-decreasing function of "
-        "how many hidden nodes are active. XOR needs the opposite for some units (one "
-        "hidden node firing should sometimes make the output LESS likely to fire), which no "
-        "choice of required_active, at any cardinality, can express."
+        f"none come close to converging (best seen: {best_disagreement:.3f}): "
+        f"{converged_count}/{len(configs)} configurations above reported 'converged', "
+        f"{plateaued_count}/{len(configs)} 'plateaued' (more epochs already stopped helping "
+        f"well before the last one), and the rest were still (slowly) improving as of the "
+        "last epoch. Either way, more training isn't the fix: the output layer's weights "
+        "are always 1.0 per hidden node, so the output can only be a monotonically "
+        "non-decreasing function of how many hidden nodes are active. XOR needs the "
+        "opposite for some units (one hidden node firing should sometimes make the output "
+        "LESS likely to fire), which no choice of required_active, at any cardinality, can "
+        "express."
     )
 
     figure = new_figure("XOR-style target: training data (true label) vs. best student's hyperplanes")

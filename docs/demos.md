@@ -71,9 +71,13 @@ gates (see [structure](structure.md)), against an XOR-style target
 adapter object exposing the same `input_bounds`/`classify_state` interface as
 `LinearClassifierNetwork` - which is enough for it to drop straight into
 `random_alternating_training_data`/`class_balanced_disagreement_rate` unchanged, no new
-training-data or metric code needed. None of the nine configurations get close to
-converging, and prints why: the output layer's weights are always `1.0` per hidden node, so
-the output can only be a monotonically non-decreasing function of how many hidden nodes are
-active - XOR needs the opposite for some units, which no `required_active` at any cardinality
-can express. Finishes by plotting the training data (colored by true label) against the
-best-performing student's hyperplanes, to show the mismatch visually.
+training-data or metric code needed. Each configuration's line also reports its
+`train_linear_classifier_network` result's `.diagnostic` - whether that run converged,
+plateaued, or was still improving (see [structure](structure.md)) - and a summary tally
+across all nine closes the demo's own claim that none of them are close to converging,
+rather than just asserting it. It prints why: the output layer's weights are always `1.0`
+per hidden node, so the output can only be a monotonically non-decreasing function of how
+many hidden nodes are active - XOR needs the opposite for some units, which no
+`required_active` at any cardinality can express. Finishes by plotting the training data
+(colored by true label) against the best-performing student's hyperplanes, to show the
+mismatch visually.
