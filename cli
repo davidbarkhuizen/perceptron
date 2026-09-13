@@ -99,8 +99,15 @@ demo-nonrepresentable-target () {
     deactivate_venv
 }
 
+demo-backprop-xor () {
+
+    activate_venv
+    python3 -m perceptron.demos.demo_backprop_xor
+    deactivate_venv
+}
+
 usage () {
-    echo "usage: invoke [ clean | setup | test | demo | demo-cardinality-sweep | demo-unreachable-class | demo-nonrepresentable-target ]"
+    echo "usage: invoke [ clean | setup | test | demo | demo-cardinality-sweep | demo-unreachable-class | demo-nonrepresentable-target | demo-backprop-xor ]"
 }
 
 case "$option" in
@@ -132,6 +139,10 @@ case "$option" in
 
     demo-nonrepresentable-target)
         demo-nonrepresentable-target
+    ;;
+
+    demo-backprop-xor)
+        demo-backprop-xor
     ;;
 
     *)

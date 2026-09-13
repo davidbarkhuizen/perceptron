@@ -81,3 +81,19 @@ many hidden nodes are active - XOR needs the opposite for some units, which no
 `required_active` at any cardinality can express. Finishes by plotting the training data
 (colored by true label) against the best-performing student's hyperplanes, to show the
 mismatch visually.
+
+## demo: backprop XOR
+
+    . cli demo-backprop-xor
+
+Runs `perceptron/demos/demo_backprop_xor.py` - the direct counterpart to the demo above, using
+the exact same `XORTarget` (imported from `demo_nonrepresentable_target.py`, not reimplemented)
+and the exact same `random_alternating_training_data`/`train_linear_classifier_network` calls,
+but training a `BackpropClassifierNetwork` (see [structure](structure.md#backprop)) instead of a
+`LinearClassifierNetwork`. Where every configuration in the previous demo plateaus well short of
+convergence, this one reaches a training accuracy well past that ceiling, because its output
+layer is trained too - a hidden node here can push the output either way, not just
+monotonically increase how likely it is to fire. Prints the same kind of `.diagnostic` summary
+as every other training demo, then plots the training data over a probability heatmap
+(`chart.plot_classifier_probability_heatmap`) instead of decision lines, since the learned
+region isn't a union of half-planes a line can represent.

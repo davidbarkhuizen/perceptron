@@ -100,6 +100,36 @@ def plot_training_data(axes: Axes, training_data: list[tuple[tuple[float, float]
         axes.plot(x, y, marker, color=color)
 
 
+def plot_classifier_probability_heatmap(
+    axes: Axes,
+    classifier,
+    bounds: list[tuple[float, float]],
+    resolution: int = 150,
+) -> None:
+    """
+    Renders classifier's predicted probability of the positive class as a grid heatmap over
+    bounds - unlike plot_linear_classifier_network's decision lines, this works for any
+    classifier whose positive region isn't a union of half-planes (e.g.
+    BackpropClassifierNetwork). Uses predict_probability when the classifier exposes it
+    (a smooth 0..1 value), falling back to the binary classify_state otherwise, so this also
+    works, degenerately, on a plain LinearClassifierNetwork.
+    """
+
+    predict = getattr(classifier, "predict_probability", classifier.classify_state)
+
+    (x_min, x_max), (y_min, y_max) = bounds
+    x_step = (x_max - x_min) / float(resolution)
+    y_step = (y_max - y_min) / float(resolution)
+
+    # imshow expects rows top-to-bottom, so build the grid from y_max down to y_min
+    grid = [
+        [predict((x_min + col * x_step, y_max - row * y_step)) for col in range(resolution)]
+        for row in range(resolution)
+    ]
+
+    axes.imshow(grid, extent=(x_min, x_max, y_min, y_max), cmap="viridis", vmin=0.0, vmax=1.0, aspect="auto")
+
+
 def disagreement_axis_bounds(x_max: float, log: bool = False) -> list[tuple[float, float]]:
     # a disagreement rate is always in [0, 1]; on a log-scaled axis 0.0 has no position, so
     # floor it just above zero instead

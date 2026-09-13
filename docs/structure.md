@@ -5,12 +5,16 @@
 ```
 perceptron/
   model/
-    base_node.py                  AbstractNode — value() interface
-    state_node.py                 sense point holding a scalar input value
-    state_layer.py                a vector of StateNodes (network input layer)
-    association_node.py           weighted, thresholded neuron (z, activation, learning rule)
-    association_layer.py          a layer of AssociationNodes over a given input layer
-    linear_classifier_network.py  input -> hidden (association) -> output (k-of-n) layers
+    base_node.py                    AbstractNode — value() interface
+    state_node.py                   sense point holding a scalar input value
+    state_layer.py                  a vector of StateNodes (network input layer)
+    association_node.py             weighted, thresholded neuron (z, activation, learning rule)
+    association_layer.py            a layer of AssociationNodes over a given input layer
+    linear_classifier_network.py    input -> hidden (association) -> output (k-of-n) layers
+    backprop_node.py                sigmoid neuron trained by gradient descent (z, forward
+                                     cache, output/hidden delta, gradient step)
+    backprop_layer.py               a layer of BackpropNodes over a given input layer
+    backprop_classifier_network.py  input -> hidden (backprop, any depth) -> trainable output
   graphics/
     chart.py                      matplotlib helpers: figures/axes, decision-boundary and
                                    training-data plotting, and expanding plot bounds to
@@ -30,6 +34,7 @@ perceptron/
     demo_cardinality_sweep.py         trains classifiers at several cardinalities and compares convergence
     demo_unreachable_class.py         shows random_alternating_training_data's max_attempts guard tripping
     demo_nonrepresentable_target.py   trains against a target no required_active/cardinality can represent
+    demo_backprop_xor.py              trains a BackpropClassifierNetwork on the same target - and converges
 tests/                           one file per module under test, plus test_training_pipeline.py for
                                   end-to-end coverage; all headless (matplotlib `Agg` backend, no
                                   windows shown)
@@ -43,6 +48,11 @@ tests/                           one file per module under test, plus test_train
   test_chart.py                  reference_region_bounds, disagreement_axis_bounds
   test_training_pipeline.py      end-to-end training + convergence + decision-boundary plotting
                                   (mirrors what demo.py does, minus the windows)
+  test_backprop_model.py         BackpropClassifierNetwork construction, hand-computed forward/
+                                  backward pass, randomize() symmetry-breaking, snapshot/restore
+  test_backprop_training_pipeline.py  proves train_linear_classifier_network drives a
+                                  BackpropClassifierNetwork well past the linear ceiling on XOR,
+                                  unchanged
 cli                                setup / test / clean helper script
 ```
 
@@ -111,3 +121,34 @@ tight box is computable - cardinality 1-2 (never bounded), a non-AND `required_a
 classifier that isn't a `LinearClassifierNetwork` at all (both functions accept anything with
 the same `input_bounds`/`classify_state` interface, e.g. `demo_nonrepresentable_target.py`'s
 `XORTarget`).
+
+## backprop
+
+`BackpropClassifierNetwork` is an additive alternative to `LinearClassifierNetwork`, not a
+retrofit of it - `AssociationNode`'s hard step function and discrete minimum-disturbance update
+rule are fundamentally different from gradient-based learning. It composes `BackpropNode`s
+(sigmoid activation, `a = 1/(1+e^-z)`) into `BackpropLayer`s of arbitrary depth
+(`input -> hidden layer(s) -> a trainable single-node output layer`). Unlike
+`LinearClassifierNetwork`'s output layer (fixed weights of `1.0` per hidden node, so its output
+can only be a monotonically non-decreasing function of how many hidden nodes fire -
+see `demo_nonrepresentable_target.py`), every layer here is trained, including the output layer,
+so a hidden node can push the output either way. That's what lets it represent targets like XOR
+that no `required_active`/`cardinality` combination can (see `demo_backprop_xor.py`).
+
+Learning uses mean-squared-error, back-propagated by hand (no autodiff): at the output node,
+`delta = (a - y) * a * (1-a)`; at a hidden node, `delta = (Σ downstream delta * weight) *
+a * (1-a)` - the same shape at every layer, one rule applied throughout, in the same
+first-principles spirit as [theory](theory.md). Each node caches its activation via an explicit
+`forward()` pass (`value()` is a pure cache read) so a downstream node's multiple reads of an
+upstream node don't each re-pay for a fresh sigmoid evaluation. `randomize()` must give every
+node in a layer independent random weights - unlike `AssociationNode`'s harmless identical
+default weights, identical starting weights here would give every node in a layer identical
+gradients forever, collapsing it to one effective unit.
+
+`train_linear_classifier_network` (see above) trains a `BackpropClassifierNetwork` completely
+unchanged - it only ever calls `.learn()`, `.snapshot()`/`.restore()` (renamed from
+`LinearClassifierNetwork`'s original `hidden_layer_snapshot`/`restore_hidden_layer` for exactly
+this reason), and `.classify_state()`, all of which both classes implement. The two classes'
+`.snapshot()` shapes differ (flat, hidden-layer-only for `LinearClassifierNetwork`; nested,
+covering every trainable layer including the output layer for `BackpropClassifierNetwork`) but
+the training loop only ever treats the snapshot as opaque, so this is invisible to it.
