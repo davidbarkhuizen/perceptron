@@ -8,9 +8,9 @@ matplotlib.use("Agg")
 from matplotlib import pyplot
 from matplotlib.axes import Axes
 
+from perceptron.geometry import is_positive_region_bounded
 from perceptron.graphics.chart import (
     disagreement_axis_bounds,
-    is_positive_region_bounded,
     new_axes,
     new_figure,
     plot_linear_classifier_network,
