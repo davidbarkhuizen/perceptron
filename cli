@@ -134,8 +134,15 @@ demo-digit-recognition () {
     deactivate_venv
 }
 
+demo-digit-capture () {
+
+    activate_venv
+    python3 -m perceptron.demos.demo_digit_capture
+    deactivate_venv
+}
+
 usage () {
-    echo "usage: invoke [ clean | setup | test | demo | demo-cardinality-sweep | demo-unreachable-class | demo-nonrepresentable-target | demo-backprop-xor | demo-backprop-architecture-sweep | demo-backprop-circular-target | demo-backprop-vs-linear | demo-digit-recognition ]"
+    echo "usage: invoke [ clean | setup | test | demo | demo-cardinality-sweep | demo-unreachable-class | demo-nonrepresentable-target | demo-backprop-xor | demo-backprop-architecture-sweep | demo-backprop-circular-target | demo-backprop-vs-linear | demo-digit-recognition | demo-digit-capture ]"
 }
 
 case "$option" in
@@ -187,6 +194,10 @@ case "$option" in
 
     demo-digit-recognition)
         demo-digit-recognition
+    ;;
+
+    demo-digit-capture)
+        demo-digit-capture
     ;;
 
     *)
