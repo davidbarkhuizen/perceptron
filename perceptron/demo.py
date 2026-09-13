@@ -56,6 +56,12 @@ def main() -> None:
     agreement = "agree" if reference_category == student_category else "disagree"
     print(f"prediction on new point {new_state}: reference={reference_category}, student={student_category} ({agreement})")
 
+    print(
+        "convergence chart: x-axis = training iteration, y-axis = disagreement rate "
+        "(fraction of sampled points where the student's classification differs from the "
+        "reference's) - lower means the student more closely matches the reference"
+    )
+
     convergence_figure = new_figure("convergence")
 
     convergence_bounds = [
@@ -73,6 +79,13 @@ def main() -> None:
     pyplot.show(block=False)
 
     # ---------------------
+
+    print(
+        "decision-boundary chart: training data points colored by class, the reference "
+        "classifier's hyperplane(s) in green, and the trained student's in purple - the "
+        "closer the purple lines are to the green ones, the more closely the student has "
+        "learned the reference's decision boundary"
+    )
 
     training_data_figure = new_figure("perceptrons (reference, student) with training data")
     axes = new_axes(training_data_figure, student_classifier.input_bounds)
