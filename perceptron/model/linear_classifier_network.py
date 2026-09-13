@@ -7,6 +7,7 @@ from perceptron.model.state_layer import StateLayer
 class LinearClassifierNetwork:
     def __init__(self, cardinality: int, dimension: int, input_bounds: list[tuple[float, float]]) -> None:
 
+        assert cardinality >= 1
         self.cardinality = cardinality
 
         self.dimension = dimension

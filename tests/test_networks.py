@@ -1,6 +1,7 @@
 import random
 
 import matplotlib
+import pytest
 
 matplotlib.use("Agg")
 
@@ -171,3 +172,9 @@ def test_training_of_cardinality_two_linear_classifier_reduces_disagreement():
 
     assert disagreement_after < disagreement_before
     assert disagreement_after < 0.15
+
+
+def test_cardinality_must_be_at_least_one():
+
+    with pytest.raises(AssertionError):
+        LinearClassifierNetwork(0, 2, [(-1.0, 1.0), (-1.0, 1.0)])
