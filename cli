@@ -1,35 +1,37 @@
 #!/usr/bin/env bash
 
-option="$1"
+set -euo pipefail
+
+option="${1:-}"
 
 venv_root=".venv"
 os_packages="python3-tk"
 
 clean () {
 
-    sudo rm -rf .pytest_cache
-    sudo rm -rf perceptron/__pycache__
-    sudo rm -rf perceptron/demos/__pycache__
-    sudo rm -rf tests/__pycache__
+    rm -rf .pytest_cache
+    rm -rf perceptron/__pycache__
+    rm -rf perceptron/demos/__pycache__
+    rm -rf tests/__pycache__
 }
 
 install_os_packages () {
 
     echo "installing os packages ..."
-    sudo apt install $os_packages
+    sudo apt install "$os_packages"
     echo "... installed os packages"
 }
 
 create_venv () {
 
     echo "creating virtual environment @ $venv_root ..."
-    python3 -m venv $venv_root
+    python3 -m venv "$venv_root"
     echo "... created virtual environment @ $venv_root"
 }
 
 activate_venv () {
 
-    source $venv_root/bin/activate
+    source "$venv_root/bin/activate"
     echo "$(python --version) venv @ $(which python)"
 }
 
@@ -64,34 +66,34 @@ setup () {
 
 run_tests () {
 
-    source $venv_root/bin/activate
+    activate_venv
     python3 -m pytest --verbose tests/
-    deactivate
+    deactivate_venv
 }
 
 demo () {
 
-    source $venv_root/bin/activate
+    activate_venv
     python3 -m perceptron.demos.demo
-    deactivate
+    deactivate_venv
 }
 
 demo-cardinality-sweep () {
 
-    source $venv_root/bin/activate
+    activate_venv
     python3 -m perceptron.demos.demo_cardinality_sweep
-    deactivate
+    deactivate_venv
 }
 
 demo-unreachable-class () {
 
-    source $venv_root/bin/activate
+    activate_venv
     python3 -m perceptron.demos.demo_unreachable_class
-    deactivate
+    deactivate_venv
 }
 
 usage () {
-    echo "usage: invoke [ clean | install | test | demo | demo-cardinality-sweep | demo-unreachable-class ]"
+    echo "usage: invoke [ clean | setup | test | demo | demo-cardinality-sweep | demo-unreachable-class ]"
 }
 
 case "$option" in
