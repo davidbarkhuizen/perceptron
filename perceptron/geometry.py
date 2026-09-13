@@ -1,6 +1,10 @@
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 
 
+def square_bounds(l: float, dimension: int = 2) -> list[tuple[float, float]]:
+    return [(-l, l)] * dimension
+
+
 def _clip_polygon_by_halfplane(
     polygon: list[tuple[float, float]], a: float, b: float, c: float
 ) -> list[tuple[float, float]]:

@@ -24,8 +24,12 @@ perceptron/
                                    fit a classifier's bounded positive region
   geometry.py                     matplotlib-free geometry: intersecting a classifier's
                                    hidden-node half-planes to find its positive region and
-                                   test whether that region is bounded
+                                   test whether that region is bounded, plus a symmetric
+                                   input-bounds constructor
   train.py                        random training-data generation and the training loop
+  evaluate.py                     comparing/measuring classifiers: sampling a point and
+                                   classifying it with two networks, a permutation-invariant
+                                   class-balanced disagreement metric, and series smoothing
   demo.py                         standalone script that trains a classifier and plots the result
   demo_cardinality_sweep.py       trains classifiers at several cardinalities and compares convergence
   demo_unreachable_class.py       shows random_alternating_training_data's max_attempts guard tripping
