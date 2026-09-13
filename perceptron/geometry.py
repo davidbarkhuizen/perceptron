@@ -84,10 +84,9 @@ def reference_positive_region_polygon(
     )
 
     if huge is None:
-        half_widths = [(hi - lo) / 2.0 for lo, hi in classifier.input_bounds]
         # 1.0e5x the largest half-width - at the half-width of 10 every existing demo and
         # test uses, this reduces to exactly the old fixed default of 1.0e6
-        huge = 1.0e5 * max(half_widths)
+        huge = 1.0e5 * max(classifier.half_widths())
 
     polygon: list[tuple[float, float]] = [(-huge, -huge), (huge, -huge), (huge, huge), (-huge, huge)]
 

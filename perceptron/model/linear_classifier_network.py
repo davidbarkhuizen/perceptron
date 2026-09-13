@@ -72,6 +72,9 @@ class LinearClassifierNetwork:
         responsible_node = min(candidates, key=lambda node: abs(node.z()))
         responsible_node.learn(learning_rate, category)
 
+    def half_widths(self) -> list[float]:
+        return [(hi - lo) / 2.0 for lo, hi in self.input_bounds]
+
     def randomize(self) -> None:
         # each weight's range scales inversely with its own dimension's half-width, so that
         # w_i * x_i has a similar typical magnitude no matter how large or small that
@@ -85,7 +88,7 @@ class LinearClassifierNetwork:
         # cardinality=1 classifiers had both classes reachable at all). Calibrated so that at
         # half-width 10 - what every existing demo and test uses - this reduces to exactly
         # uniform(-2, 2) per weight, unchanged.
-        half_widths = [(hi - lo) / 2.0 for lo, hi in self.input_bounds]
+        half_widths = self.half_widths()
         for node in self.hidden_layer.nodes:
             node.update_input_weights(
                 [random.uniform(-20.0 / half_width, 20.0 / half_width) for half_width in half_widths]
