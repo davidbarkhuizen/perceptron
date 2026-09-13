@@ -12,15 +12,10 @@ class StateLayer:
         assert len(bounds) == dimension
 
         self.dimension: int = dimension
-        self.nodes: Sequence[StateNode] = [StateNode(bounds[i]) for i in range(dimension)]
+        self.nodes: Sequence[StateNode] = [StateNode() for _ in range(dimension)]
 
     def update_state(self, x_: tuple[float, ...]) -> None:
         assert len(x_) == self.dimension
 
         for i in range(self.dimension):
             self.nodes[i].update_value(x_[i])
-
-    def randomize(self) -> None:
-
-        for node in self.nodes:
-            node.randomize()
