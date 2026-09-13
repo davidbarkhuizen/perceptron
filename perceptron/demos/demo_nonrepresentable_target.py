@@ -61,6 +61,7 @@ def main() -> None:
 
     best_student: LinearClassifierNetwork | None = None
     best_disagreement = float("inf")
+    best_label = ""
     plateaued_count = 0
     converged_count = 0
 
@@ -82,10 +83,11 @@ def main() -> None:
         if disagreement < best_disagreement:
             best_disagreement = disagreement
             best_student = student
+            best_label = label
 
     print()
     print(
-        f"none come close to converging (best seen: {best_disagreement:.3f}): "
+        f"none come close to converging (best seen: {best_disagreement:.3f}, {best_label}): "
         f"{converged_count}/{len(configs)} configurations above reported 'converged', "
         f"{plateaued_count}/{len(configs)} 'plateaued' (more epochs already stopped helping "
         f"well before the last one), and the rest were still (slowly) improving as of the "
@@ -97,7 +99,7 @@ def main() -> None:
         "express."
     )
 
-    figure = new_figure("XOR-style target: training data (true label) vs. best student's hyperplanes")
+    figure = new_figure(f"XOR-style target: training data (true label) vs. best student's hyperplanes ({best_label})")
     axes = new_axes(figure, bounds)
     plot_training_data(axes, training_data)
     plot_linear_classifier_network(axes, best_student, color="purple", x_bounds=bounds[0])
