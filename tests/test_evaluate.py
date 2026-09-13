@@ -2,10 +2,49 @@ import random
 
 import pytest
 
-from perceptron.evaluate import class_balanced_disagreement_rate, compare_on_random_point, smoothed_series
+from perceptron.evaluate import (
+    class_balanced_disagreement_rate,
+    compare_on_random_point,
+    sample_class_balanced_states,
+    smoothed_series,
+)
 from perceptron.geometry import square_bounds
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 from perceptron.train import reachable_reference_and_training_data
+
+from helpers import classifier_with_tiny_bounded_region
+
+
+def test_sample_class_balanced_states_succeeds_within_a_tight_budget_for_a_tiny_region():
+
+    # would reliably exhaust a budget this small under naive full-input_bounds rejection
+    # sampling (median cardinality=4 bounded region covers ~1.5% of the box; this one is
+    # deliberately far smaller, at 0.01% - verified directly: naive sampling found only 1/20
+    # positive points in 5000 attempts, where sampling from a tight box around the region
+    # instead found 20/20 in 28) - succeeds here because positive-class points are drawn from
+    # a tight box around the region itself, not the whole box
+    bounds = square_bounds(10.0)
+    classifier = classifier_with_tiny_bounded_region(bounds)
+
+    positive_states, negative_states = sample_class_balanced_states(classifier, count=20, max_attempts=1000)
+
+    assert len(positive_states) == len(negative_states) == 20
+    assert all(classifier.classify_state(state) == 1.0 for state in positive_states)
+    assert all(classifier.classify_state(state) == 0.0 for state in negative_states)
+
+
+def test_sample_class_balanced_states_falls_back_to_input_bounds_when_unbounded():
+
+    # cardinality=1 is never bounded, so positive_region_bounding_box returns None - this
+    # should still work exactly as before (uniform sampling over the whole input_bounds)
+    bounds = square_bounds(10.0)
+    classifier = LinearClassifierNetwork.randomized(1, 2, bounds)
+
+    positive_states, negative_states = sample_class_balanced_states(classifier, count=10, max_attempts=20_000)
+
+    assert len(positive_states) == len(negative_states) == 10
+    assert all(classifier.classify_state(state) == 1.0 for state in positive_states)
+    assert all(classifier.classify_state(state) == 0.0 for state in negative_states)
 
 
 def test_class_balanced_disagreement_rate_is_zero_for_identical_classifier():

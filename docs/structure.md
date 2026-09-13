@@ -16,11 +16,13 @@ perceptron/
                                    training-data plotting, and expanding plot bounds to
                                    fit a classifier's bounded positive region
   geometry.py                     matplotlib-free geometry: intersecting a classifier's
-                                   hidden-node half-planes to find its positive region and
-                                   test whether that region is bounded, plus a symmetric
-                                   input-bounds constructor
+                                   hidden-node half-planes to find its positive region, test
+                                   whether that region is bounded and get a tight box around
+                                   it, plus a symmetric input-bounds constructor
   train.py                        random training-data generation and the training loop
-  evaluate.py                     comparing/measuring classifiers: sampling a point and
+  evaluate.py                     comparing/measuring classifiers: class-balanced sampling
+                                   (efficiently, using geometry.py's tight box around the
+                                   positive region when available), sampling a point and
                                    classifying it with two networks, a permutation-invariant
                                    class-balanced disagreement metric, and series smoothing
   demos/
@@ -36,7 +38,8 @@ tests/                           one file per module under test, plus test_train
   test_model.py                  LinearClassifierNetwork construction, learning rule, randomized()
   test_geometry.py               square_bounds, is_positive_region_bounded
   test_train.py                  training-data generation, reachable_reference_and_training_data
-  test_evaluate.py               class_balanced_disagreement_rate, compare_on_random_point, smoothed_series
+  test_evaluate.py               sample_class_balanced_states, class_balanced_disagreement_rate,
+                                  compare_on_random_point, smoothed_series
   test_chart.py                  reference_region_bounds, disagreement_axis_bounds
   test_training_pipeline.py      end-to-end training + convergence + decision-boundary plotting
                                   (mirrors what demo.py does, minus the windows)
@@ -94,3 +97,17 @@ a random hidden node has a similar chance of splitting the input space regardles
 large, small, or asymmetric `input_bounds` is - a fixed weight range would let the threshold
 dominate at small bounds scales, making almost every random classifier permanently one
 class.
+
+`evaluate.sample_class_balanced_states` (used by both `random_alternating_training_data` and
+`class_balanced_disagreement_rate`) draws positive-class points from a tight box around the
+classifier's own positive region (`geometry.positive_region_bounding_box`) instead of
+rejection-sampling all of `input_bounds`, when that box is computable. A classifier's positive
+region can be a tiny fraction of `input_bounds` - measured empirically: often under 1% of the
+box's area at cardinality 4 with the bounded-region requirement, as low as 0.02%, shrinking
+further as cardinality grows - so naive full-box rejection sampling can need far more attempts
+than `max_attempts` allows, wasting the whole budget on candidates a tighter box would have
+made trivial. Falls back to `input_bounds` (byte-for-byte the previous behaviour) whenever no
+tight box is computable - cardinality 1-2 (never bounded), a non-AND `required_active`, or a
+classifier that isn't a `LinearClassifierNetwork` at all (both functions accept anything with
+the same `input_bounds`/`classify_state` interface, e.g. `demo_nonrepresentable_target.py`'s
+`XORTarget`).

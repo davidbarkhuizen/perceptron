@@ -104,3 +104,51 @@ def reference_positive_region_polygon(
 
 def is_positive_region_bounded(classifier: LinearClassifierNetwork) -> bool:
     return bool(reference_positive_region_polygon(classifier))
+
+
+def positive_region_bounding_box(
+    classifier: LinearClassifierNetwork, margin_fraction: float = 0.1
+) -> list[tuple[float, float]] | None:
+    """
+    A tight axis-aligned box around classifier's positive region, expanded by
+    margin_fraction on each side and clipped to classifier.input_bounds - or None when the
+    region isn't computable this way (dimension != 2, a non-AND combination - see
+    reference_positive_region_polygon) or isn't bounded, or when clipping to input_bounds
+    leaves nothing (the region doesn't actually overlap input_bounds).
+
+    The positive region can be a tiny fraction of input_bounds - verified empirically: often
+    under 1% of the bounding box's area at cardinality 4, as low as 0.02% - so sampling
+    positive-class points uniformly from this tight box instead of the whole input_bounds
+    (see evaluate.sample_class_balanced_states) turns what can be a near-unreachable rate of
+    positive draws into a near-certain one.
+
+    classifier only needs the same duck-typed input_bounds/classify_state interface
+    train.py/evaluate.py's other functions require - dimension/required_active/cardinality
+    (LinearClassifierNetwork-specific) are optional, and their absence is treated the same as
+    not being a 2D AND-combined classifier: this function just returns None.
+    """
+
+    if not all(hasattr(classifier, attribute) for attribute in ("dimension", "required_active", "cardinality")):
+        return None
+
+    if classifier.dimension != 2 or classifier.required_active != classifier.cardinality:
+        return None
+
+    polygon = reference_positive_region_polygon(classifier)
+    if not polygon:
+        return None
+
+    region_x = [x for x, _ in polygon]
+    region_y = [y for _, y in polygon]
+    margin_x = margin_fraction * max(max(region_x) - min(region_x), 1.0e-9)
+    margin_y = margin_fraction * max(max(region_y) - min(region_y), 1.0e-9)
+
+    (input_x_min, input_x_max), (input_y_min, input_y_max) = classifier.input_bounds
+    box = [
+        (max(input_x_min, min(region_x) - margin_x), min(input_x_max, max(region_x) + margin_x)),
+        (max(input_y_min, min(region_y) - margin_y), min(input_y_max, max(region_y) + margin_y)),
+    ]
+    if any(lo >= hi for lo, hi in box):
+        return None
+
+    return box

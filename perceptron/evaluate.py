@@ -1,6 +1,48 @@
 from random import uniform
 
+from perceptron.geometry import positive_region_bounding_box
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
+
+
+def sample_class_balanced_states(
+    classifier: LinearClassifierNetwork, count: int, max_attempts: int = 20_000
+) -> tuple[list[tuple[float, ...]], list[tuple[float, ...]]]:
+    """
+    Returns (positive_states, negative_states), each exactly count states classifier
+    classifies as that class.
+
+    Positive states are drawn from a tight box around classifier's own positive region when
+    one is computable (see geometry.positive_region_bounding_box), rather than
+    classifier.input_bounds - the positive region can be a tiny fraction of input_bounds
+    (verified: often under 1% of the box's area at cardinality 4, as low as 0.02%), making
+    naive uniform rejection sampling over the whole box prohibitively inefficient or outright
+    unreachable within max_attempts. Falls back to input_bounds when no tight box is
+    computable (dimension != 2, a non-AND combination, or the region isn't bounded) - exactly
+    reproducing the previous, unoptimised behaviour for those cases.
+
+    Negative states are always drawn from input_bounds - not currently a bottleneck, since a
+    small positive region implies a large complementary negative one.
+    """
+
+    positive_bounds = positive_region_bounding_box(classifier) or classifier.input_bounds
+
+    def sample(category: float, bounds: list[tuple[float, float]]) -> list[tuple[float, ...]]:
+        collected: list[tuple[float, ...]] = []
+        attempts = 0
+        while len(collected) < count:
+            if attempts >= max_attempts:
+                raise RuntimeError(
+                    f"failed to sample {count} examples of class {category} within "
+                    f"{max_attempts} attempts - the classifier's decision boundary likely "
+                    "doesn't cross its input bounds, making this class unreachable"
+                )
+            attempts += 1
+            state = tuple(uniform(*bound) for bound in bounds)
+            if classifier.classify_state(state) == category:
+                collected.append(state)
+        return collected
+
+    return sample(1.0, positive_bounds), sample(0.0, classifier.input_bounds)
 
 
 def compare_on_random_point(
@@ -35,24 +77,9 @@ def class_balanced_disagreement_rate(
     # share of the box's area, which shrinks sharply for the positive class as cardinality
     # grows - sample an equal number of each class instead, so convergence means the same
     # thing regardless of cardinality
-    counts = {0.0: 0, 1.0: 0}
-    disagreements = {0.0: 0, 1.0: 0}
+    positive_states, negative_states = sample_class_balanced_states(reference, per_class_sample_count, max_attempts)
 
-    attempts = 0
-    while counts[0.0] < per_class_sample_count or counts[1.0] < per_class_sample_count:
-        if attempts >= max_attempts:
-            raise RuntimeError(
-                f"failed to sample {per_class_sample_count} examples of each class within "
-                f"{max_attempts} attempts - the reference classifier's decision boundary "
-                "likely doesn't cross its input bounds, making one class unreachable"
-            )
-        attempts += 1
+    positive_disagreements = sum(1 for state in positive_states if student.classify_state(state) != 1.0)
+    negative_disagreements = sum(1 for state in negative_states if student.classify_state(state) != 0.0)
 
-        state = tuple(uniform(*bounds) for bounds in reference.input_bounds)
-        reference_category = reference.classify_state(state)
-        if counts[reference_category] < per_class_sample_count:
-            counts[reference_category] += 1
-            if student.classify_state(state) != reference_category:
-                disagreements[reference_category] += 1
-
-    return (disagreements[0.0] + disagreements[1.0]) / (counts[0.0] + counts[1.0])
+    return (positive_disagreements + negative_disagreements) / (2 * per_class_sample_count)
