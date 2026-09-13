@@ -7,7 +7,11 @@ from matplotlib.axes import Axes
 
 from perceptron.graphics.chart import new_axes, new_figure, plot_linear_classifier_network, plot_training_data
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
-from perceptron.train import random_alternating_training_data, train_linear_classifier_network
+from perceptron.train import (
+    classification_disagreement_rate,
+    random_alternating_training_data,
+    train_linear_classifier_network,
+)
 
 
 def test_generation_of_random_test_data_from_reference_classifier():
@@ -69,14 +73,14 @@ def test_training_of_linear_classifier():
 
     convergence_bounds = [
         (0.0, float(training_set_size)),
-        (0.0, 2.0),
+        (0.0, 1.0),
     ]
 
     convergence_axes: Axes = new_axes(convergence_figure, convergence_bounds, scaled=False)
 
     n: list[int] = [x[0] for x in convergence_series]
-    distance: list[float] = [x[1] for x in convergence_series]
-    convergence_axes.plot(n, distance)  # , '.', color='yellow')
+    disagreement: list[float] = [x[1] for x in convergence_series]
+    convergence_axes.plot(n, disagreement)  # , '.', color='yellow')
 
     # ---------------------
 
@@ -91,3 +95,11 @@ def test_training_of_linear_classifier():
     plot_linear_classifier_network(axes, student_classifier, color="purple")
 
     pyplot.close("all")
+
+
+def test_classification_disagreement_rate_is_zero_for_identical_classifier():
+
+    classifier = LinearClassifierNetwork(2, 2, [(-5.0, 5.0), (-5.0, 5.0)])
+    classifier.randomize()
+
+    assert classification_disagreement_rate(classifier, classifier) == 0.0
