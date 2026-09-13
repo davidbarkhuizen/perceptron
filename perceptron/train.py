@@ -1,5 +1,5 @@
 from random import shuffle, uniform
-from typing import Any, Sequence
+from typing import Any
 
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 
@@ -33,7 +33,7 @@ def train_linear_classifier_network(
 ) -> list[tuple[int, float]]:
 
     iterations: int = 0
-    convergence: Sequence[tuple[int, float]] = []
+    convergence: list[tuple[int, float]] = []
 
     if reference_classifier:
         convergence.append((iterations, reference_classifier.distance(student)))

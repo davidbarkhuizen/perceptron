@@ -20,15 +20,11 @@ class LinearClassifierNetwork:
 
         self.hidden_layer = AssociationLayer(size=cardinality, input_layer=self.input_layer)
 
-        # output a_layer consists of a
-        # - a single neuron
-        #   * fully connected to all its inputs
-        #   * that activates when all its input nodes are active
-        # return sum([self.input_nodes[i].evaluate() * self.input_node_weights[i]
-
+        # the output layer is a single neuron, fully connected to the hidden layer,
+        # that activates (ANDs) when all of its input nodes are active
         self.output_layer = AssociationLayer(size=1, input_layer=self.hidden_layer)
         output_node = self.output_layer.nodes[0]
-        output_node.input_node_weights = [1.0 for _ in self.hidden_layer.nodes]
+        output_node.update_input_weights([1.0 for _ in self.hidden_layer.nodes])
         output_node.threshold = -float(self.hidden_layer.size - 1)
 
     def update_state_layer(self, x_: tuple[float, ...]) -> None:
@@ -44,7 +40,7 @@ class LinearClassifierNetwork:
         for node in self.hidden_layer.nodes:
             node.learn(learning_rate, category)
 
-    def randomize(self):
+    def randomize(self) -> None:
         for node in self.hidden_layer.nodes:
             node.update_input_weights([random.uniform(-2, 2) for _ in self.input_layer.nodes])
             node.threshold = random.uniform(-5, 5)

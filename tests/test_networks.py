@@ -45,12 +45,12 @@ def test_training_of_linear_classifier():
 
     # generate a (random) reference classifier network
     #
-    reference_classifer = LinearClassifierNetwork(classifier_cardinality, dimension, input_bounds)
-    reference_classifer.randomize()
+    reference_classifier = LinearClassifierNetwork(classifier_cardinality, dimension, input_bounds)
+    reference_classifier.randomize()
 
     # use the reference classifier to produce a set of training data
     #
-    training_data = random_alternating_training_data(training_set_size, reference_classifer)
+    training_data = random_alternating_training_data(training_set_size, reference_classifier)
 
     # generate a new random classifier network for training
     #
@@ -62,7 +62,7 @@ def test_training_of_linear_classifier():
         training_data,
         learning_rate=learning_rate,
         epochs=epoch_count,
-        reference_classifier=reference_classifer,
+        reference_classifier=reference_classifier,
     )
 
     convergence_figure = new_figure("convergence")
@@ -87,7 +87,7 @@ def test_training_of_linear_classifier():
     axes.set_ylim(input_bounds[1])
 
     plot_training_data(axes, training_data)
-    plot_linear_classifier_network(axes, reference_classifer, color="green")
+    plot_linear_classifier_network(axes, reference_classifier, color="green")
     plot_linear_classifier_network(axes, student_classifier, color="purple")
 
     pyplot.close("all")
