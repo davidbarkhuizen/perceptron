@@ -28,6 +28,20 @@ def test_class_balanced_disagreement_rate_detects_error_the_old_metric_missed():
     assert class_balanced_disagreement_rate(reference, student, per_class_sample_count=200) > 0.3
 
 
+def test_class_balanced_disagreement_rate_raises_for_an_unreachable_reference_class():
+
+    bounds = square_bounds(10.0)
+    unreachable = LinearClassifierNetwork(1, 2, bounds)
+    node = unreachable.hidden_layer.nodes[0]
+    # tiny weights + a large threshold mean the decision boundary never crosses these
+    # bounds, so one class can never be sampled
+    node.update_input_weights([0.01, 0.01])
+    node.threshold = -5.0
+
+    with pytest.raises(RuntimeError):
+        class_balanced_disagreement_rate(unreachable, unreachable, per_class_sample_count=10, max_attempts=200)
+
+
 def test_compare_on_random_point_classifies_with_both_networks():
 
     classifier, _ = reachable_reference_and_training_data(2, 2, square_bounds(5.0), 10)
