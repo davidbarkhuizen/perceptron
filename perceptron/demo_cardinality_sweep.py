@@ -78,7 +78,7 @@ def main() -> None:
         "smoothed convergence chart: x-axis = training iteration (pooled across epochs), "
         "y-axis = each cardinality's disagreement-rate series passed through a trailing "
         "moving average - makes the underlying trend easier to see through the sampling "
-        "noise from classification_disagreement_rate's small per-checkpoint sample size"
+        "noise from class_balanced_disagreement_rate's small per-class sample count"
     )
 
     smoothed_figure = new_figure("convergence by cardinality (smoothed)")

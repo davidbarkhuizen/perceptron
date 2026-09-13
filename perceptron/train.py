@@ -68,19 +68,38 @@ def smoothed_series(values: list[float], window: int = 31) -> list[float]:
     return smoothed
 
 
-def classification_disagreement_rate(
+def class_balanced_disagreement_rate(
     reference: LinearClassifierNetwork,
     student: LinearClassifierNetwork,
-    sample_count: int = 30,
+    per_class_sample_count: int = 10,
+    max_attempts: int = 20_000,
 ) -> float:
 
-    disagreements = 0
-    for _ in range(sample_count):
-        state = tuple(uniform(*bounds) for bounds in reference.input_bounds)
-        if reference.classify_state(state) != student.classify_state(state):
-            disagreements += 1
+    # sampling uniformly over the bounding box would weight disagreement by each class's
+    # share of the box's area, which shrinks sharply for the positive class as cardinality
+    # grows - sample an equal number of each class instead, so convergence means the same
+    # thing regardless of cardinality
+    counts = {0.0: 0, 1.0: 0}
+    disagreements = {0.0: 0, 1.0: 0}
 
-    return disagreements / sample_count
+    attempts = 0
+    while counts[0.0] < per_class_sample_count or counts[1.0] < per_class_sample_count:
+        if attempts >= max_attempts:
+            raise RuntimeError(
+                f"failed to sample {per_class_sample_count} examples of each class within "
+                f"{max_attempts} attempts - the reference classifier's decision boundary "
+                "likely doesn't cross its input bounds, making one class unreachable"
+            )
+        attempts += 1
+
+        state = tuple(uniform(*bounds) for bounds in reference.input_bounds)
+        reference_category = reference.classify_state(state)
+        if counts[reference_category] < per_class_sample_count:
+            counts[reference_category] += 1
+            if student.classify_state(state) != reference_category:
+                disagreements[reference_category] += 1
+
+    return (disagreements[0.0] + disagreements[1.0]) / (counts[0.0] + counts[1.0])
 
 
 def train_linear_classifier_network(
@@ -95,7 +114,7 @@ def train_linear_classifier_network(
     convergence: list[tuple[int, float]] = []
 
     if reference_classifier:
-        convergence.append((iterations, classification_disagreement_rate(reference_classifier, student)))
+        convergence.append((iterations, class_balanced_disagreement_rate(reference_classifier, student)))
 
     for _ in range(epochs):
         for datum in training_data:
@@ -104,6 +123,6 @@ def train_linear_classifier_network(
             iterations += 1
 
             if reference_classifier:
-                convergence.append((iterations, classification_disagreement_rate(reference_classifier, student)))
+                convergence.append((iterations, class_balanced_disagreement_rate(reference_classifier, student)))
 
     return convergence
