@@ -8,7 +8,8 @@ matplotlib.use("Agg")
 from matplotlib import pyplot
 from matplotlib.axes import Axes
 
-from perceptron.geometry import is_positive_region_bounded
+from perceptron.evaluate import class_balanced_disagreement_rate, compare_on_random_point, smoothed_series
+from perceptron.geometry import is_positive_region_bounded, square_bounds
 from perceptron.graphics.chart import (
     disagreement_axis_bounds,
     new_axes,
@@ -19,12 +20,8 @@ from perceptron.graphics.chart import (
 )
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 from perceptron.train import (
-    class_balanced_disagreement_rate,
-    compare_on_random_point,
     random_alternating_training_data,
     reachable_reference_and_training_data,
-    smoothed_series,
-    square_bounds,
     train_linear_classifier_network,
 )
 

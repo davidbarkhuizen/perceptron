@@ -5,7 +5,8 @@ matplotlib.use("TkAgg")
 from matplotlib import pyplot
 from matplotlib.axes import Axes
 
-from perceptron.geometry import is_positive_region_bounded
+from perceptron.evaluate import compare_on_random_point, smoothed_series
+from perceptron.geometry import is_positive_region_bounded, square_bounds
 from perceptron.graphics.chart import (
     disagreement_axis_bounds,
     new_axes,
@@ -15,13 +16,7 @@ from perceptron.graphics.chart import (
     reference_region_bounds,
 )
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
-from perceptron.train import (
-    compare_on_random_point,
-    reachable_reference_and_training_data,
-    smoothed_series,
-    square_bounds,
-    train_linear_classifier_network,
-)
+from perceptron.train import reachable_reference_and_training_data, train_linear_classifier_network
 
 
 def main() -> None:
