@@ -22,6 +22,7 @@ perceptron/
     chart.py                      matplotlib helpers: figures/axes, decision-boundary and
                                    training-data plotting
   train.py                        random training-data generation and the training loop
+  demo.py                         standalone script that trains a classifier and plots the result
 tests/
   test_networks.py                exercises training-data generation and training convergence,
                                    rendering live matplotlib charts (interactive, not headless)
@@ -64,3 +65,12 @@ prompt to repeat the run.
 
 `. cli clean` removes `__pycache__`/`.pytest_cache` directories (used automatically before
 `. cli test`).
+
+## demo
+
+    . cli demo
+
+Runs `perceptron/demo.py`, which replicates `test_training_of_linear_classifier` outside
+of pytest: trains a classifier against a random reference classifier and pops up the same
+convergence curve and decision-boundary charts. Unlike the test, it isn't time-boxed — the
+windows stay open until you close them.
