@@ -26,6 +26,23 @@ def test_dimension_must_match_bounds_length():
         LinearClassifierNetwork(1, 2, [(-1.0, 1.0)])
 
 
+def test_hidden_layer_snapshot_and_restore_round_trip():
+
+    network = LinearClassifierNetwork.randomized(3, 2, square_bounds(10.0))
+    before = network.hidden_layer_snapshot()
+
+    # perturb every hidden node so restoring is actually exercised, not a no-op
+    for node in network.hidden_layer.nodes:
+        node.update_input_weights([w + 1.0 for w in node.input_node_weights])
+        node.threshold += 1.0
+
+    assert network.hidden_layer_snapshot() != before
+
+    network.restore_hidden_layer(before)
+
+    assert network.hidden_layer_snapshot() == before
+
+
 def test_randomized_returns_an_already_randomized_classifier():
 
     bounds = square_bounds(10.0)
@@ -228,9 +245,6 @@ def test_learn_updates_only_the_single_closest_to_flipping_node():
     learning_rate = 0.25
     state = (2.0, 3.0)
 
-    def snapshot(network: LinearClassifierNetwork) -> list[tuple[list[float], float]]:
-        return [(list(node.input_node_weights), node.threshold) for node in network.hidden_layer.nodes]
-
     # false negative: two inactive nodes (z <= 0); the closer-to-flipping one (threshold
     # -0.5, |z|=0.5) should be updated, not the farther one (threshold -5.0, |z|=5.0) - and
     # the already-active third node must be untouched
@@ -257,6 +271,6 @@ def test_learn_updates_only_the_single_closest_to_flipping_node():
     # already correct: all three active and category=1 means the output already matches -
     # no hidden node should change at all
     network = network_with_hidden_thresholds(dimension, bounds, [3.0, 0.4, 6.0])
-    before = snapshot(network)
+    before = network.hidden_layer_snapshot()
     network.learn(learning_rate, state, 1)
-    assert snapshot(network) == before
+    assert network.hidden_layer_snapshot() == before
