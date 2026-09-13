@@ -5,7 +5,7 @@ matplotlib.use("TkAgg")
 from matplotlib import pyplot
 from matplotlib.axes import Axes
 
-from perceptron.graphics.chart import new_axes, new_figure
+from perceptron.graphics.chart import disagreement_axis_bounds, new_axes, new_figure
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 from perceptron.train import (
     compare_on_random_point,
@@ -82,7 +82,7 @@ def main() -> None:
     )
 
     smoothed_figure = new_figure("convergence by cardinality (smoothed)")
-    smoothed_axes = new_axes(smoothed_figure, [(0.0, x_max), (0.0, 1.0)], scaled=False)
+    smoothed_axes = new_axes(smoothed_figure, disagreement_axis_bounds(x_max), scaled=False)
     _plot_convergence(smoothed_axes, smoothed_results)
 
     print(
@@ -93,7 +93,7 @@ def main() -> None:
     )
 
     smoothed_log_figure = new_figure("convergence by cardinality (smoothed, log scale)")
-    smoothed_log_axes = new_axes(smoothed_log_figure, [(0.0, x_max), (1e-3, 1.0)], scaled=False)
+    smoothed_log_axes = new_axes(smoothed_log_figure, disagreement_axis_bounds(x_max, log=True), scaled=False)
     smoothed_log_axes.set_yscale("log")
     _plot_convergence(smoothed_log_axes, smoothed_results)
 

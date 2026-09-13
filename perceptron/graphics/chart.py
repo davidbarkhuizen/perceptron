@@ -148,6 +148,12 @@ def plot_training_data(axes: Axes, training_data: list[tuple[tuple[float, float]
         axes.plot(x, y, marker, color=color)
 
 
+def disagreement_axis_bounds(x_max: float, log: bool = False) -> list[tuple[float, float]]:
+    # a disagreement rate is always in [0, 1]; on a log-scaled axis 0.0 has no position, so
+    # floor it just above zero instead
+    return [(0.0, x_max), (1.0e-3, 1.0) if log else (0.0, 1.0)]
+
+
 def new_figure(label: str) -> Figure:
     figure = pyplot.figure(label)
     figure.patch.set_facecolor("xkcd:black")
