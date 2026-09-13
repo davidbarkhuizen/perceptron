@@ -1,3 +1,5 @@
+import pytest
+
 from perceptron.geometry import is_positive_region_bounded, reference_positive_region_polygon, square_bounds
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 
@@ -42,3 +44,19 @@ def test_is_positive_region_bounded_false_for_a_genuinely_empty_region():
 
     assert reference_positive_region_polygon(classifier) == []
     assert is_positive_region_bounded(classifier) is False
+
+
+def test_reference_positive_region_polygon_rejects_a_non_and_classifier():
+
+    # the intersection-of-half-planes computed here is only actually the classifier's
+    # positive region under AND (required_active == cardinality) - for any other
+    # required_active the true region is a union of such intersections, which this function
+    # doesn't compute, so it must refuse rather than silently return a wrong polygon
+    bounds = square_bounds(10.0)
+    classifier = LinearClassifierNetwork(2, 2, bounds, required_active=1)
+
+    with pytest.raises(AssertionError):
+        reference_positive_region_polygon(classifier)
+
+    with pytest.raises(AssertionError):
+        is_positive_region_bounded(classifier)
