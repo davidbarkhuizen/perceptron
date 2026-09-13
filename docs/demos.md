@@ -114,3 +114,16 @@ every sweep demo in this codebase: which architecture comes out ahead varies not
 runs, since plain fixed-learning-rate gradient descent is sensitive to where random
 initialization happens to land - this demo shows that variability rather than asserting depth
 or width is definitively better.
+
+## demo: backprop circular target
+
+    . cli demo-backprop-circular-target
+
+Runs `perceptron/demos/demo_backprop_circular_target.py`. Every other demo's target boundary,
+representable or not, is built from straight edges - `LinearClassifierNetwork`'s positive
+region is always a polygon (an intersection of half-planes, see
+`geometry.reference_positive_region_polygon`), so it can only ever facet a curve with more and
+shorter edges, never actually curve. This target is a disk (radius 4, centered on the origin) -
+a genuinely curved boundary. Trains a single-hidden-layer `BackpropClassifierNetwork` (measured:
+reaches ~0.99 training accuracy) and plots the learned probability heatmap against the training
+data, visibly showing a smooth, rounded decision boundary rather than a faceted polygon.

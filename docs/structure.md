@@ -37,6 +37,8 @@ perceptron/
     demo_backprop_xor.py              trains a BackpropClassifierNetwork on the same target - and converges
     demo_backprop_architecture_sweep.py  compares single- vs two-hidden-layer BackpropClassifierNetworks
                                        at matched node budgets, on a harder-than-XOR striped target
+    demo_backprop_circular_target.py  trains against a circular target - a genuinely curved
+                                       boundary, unlike any LinearClassifierNetwork's polygon
 tests/                           one file per module under test, plus test_training_pipeline.py for
                                   end-to-end coverage; all headless (matplotlib `Agg` backend, no
                                   windows shown)
