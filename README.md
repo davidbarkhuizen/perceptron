@@ -15,7 +15,7 @@ perceptron/
     base_node.py                  AbstractNode — value() interface
     state_node.py                 sense point holding a scalar input value
     state_layer.py                a vector of StateNodes (network input layer)
-    association_node.py           weighted, thresholded neuron (z, activation, learning rule, distance)
+    association_node.py           weighted, thresholded neuron (z, activation, learning rule)
     association_layer.py          a layer of AssociationNodes over a given input layer
     linear_classifier_network.py  input -> hidden (association) -> output (AND) layers
   graphics/

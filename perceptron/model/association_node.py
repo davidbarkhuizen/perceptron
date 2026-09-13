@@ -1,6 +1,3 @@
-from __future__ import annotations
-
-from math import sqrt
 from typing import Sequence
 
 from perceptron.model.base_node import AbstractNode
@@ -59,31 +56,3 @@ class AssociationNode(AbstractNode):
                 for weight, node in zip(self.input_node_weights, self.input_nodes)
             ]
         )
-
-    def normalised_distance(self, other: AssociationNode) -> float:
-
-        input_node_count = len(self.input_node_weights)
-        assert input_node_count == len(other.input_node_weights)
-
-        alpha = [
-            self.threshold,
-            *[self.input_node_weights[i] for i in range(input_node_count)],
-        ]
-
-        beta = [
-            other.threshold,
-            *[other.input_node_weights[i] for i in range(input_node_count)],
-        ]
-
-        def normalise(vector: list[float]) -> list[float]:
-            length = sqrt(sum([x**2 for x in vector]))
-            return [x / length for x in vector]
-
-        def distance(aleph: list[float], beth: list[float]) -> float:
-            assert len(aleph) == len(beth)
-            if len(aleph) == 0:
-                raise ValueError("undefined distance, len(aleph) == 0")
-
-            return sqrt(sum([(aleph[i] - beth[i]) ** 2 for i in range(len(aleph))]))
-
-        return distance(normalise(alpha), normalise(beta))
