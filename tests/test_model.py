@@ -14,6 +14,13 @@ from perceptron.train import (
 from helpers import network_with_hidden_thresholds
 
 
+def test_half_widths_of_asymmetric_bounds():
+
+    network = LinearClassifierNetwork(1, 2, [(-10.0, 10.0), (-2.0, 8.0)])
+
+    assert network.half_widths() == [10.0, 5.0]
+
+
 def test_cardinality_must_be_at_least_one():
 
     with pytest.raises(AssertionError):
