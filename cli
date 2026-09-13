@@ -11,8 +11,6 @@ clean () {
     sudo rm -rf perceptron/__pycache__
     sudo rm -rf perceptron/demos/__pycache__
     sudo rm -rf tests/__pycache__
-
-    sudo find . -exec touch {} +
 }
 
 install_os_packages () {
