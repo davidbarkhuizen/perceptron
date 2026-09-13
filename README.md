@@ -22,6 +22,9 @@ perceptron/
     chart.py                      matplotlib helpers: figures/axes, decision-boundary and
                                    training-data plotting, and expanding plot bounds to
                                    fit a classifier's bounded positive region
+  geometry.py                     matplotlib-free geometry: intersecting a classifier's
+                                   hidden-node half-planes to find its positive region and
+                                   test whether that region is bounded
   train.py                        random training-data generation and the training loop
   demo.py                         standalone script that trains a classifier and plots the result
   demo_cardinality_sweep.py       trains classifiers at several cardinalities and compares convergence
@@ -91,7 +94,7 @@ rule described above; since a higher cardinality shrinks the reference's positiv
 it uses `train.reachable_reference_and_training_data` (also used by the cardinality-sweep
 demo) to regenerate the reference rather than risk failing on one unlucky `randomize()`. A
 2D convex region needs at least 3 half-planes to be bounded at all, so at `cardinality=4`
-the demo also passes `chart.is_positive_region_bounded` as that helper's `is_valid` filter,
+the demo also passes `geometry.is_positive_region_bounded` as that helper's `is_valid` filter,
 rejecting (and regenerating) any reference whose positive region isn't a bounded, closed
 shape — bounded regions are rare (~10% of random draws at this cardinality), but rejecting
 on it is a cheap geometry check with no sampling, so a large attempt budget is still fast.
