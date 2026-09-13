@@ -34,9 +34,18 @@ perceptron/
     demo.py                       standalone script that trains a classifier and plots the result
     demo_cardinality_sweep.py     trains classifiers at several cardinalities and compares convergence
     demo_unreachable_class.py     shows random_alternating_training_data's max_attempts guard tripping
-tests/
-  test_networks.py                exercises training-data generation and training convergence;
-                                   headless (matplotlib `Agg` backend, no windows shown)
+tests/                           one file per module under test, plus test_training_pipeline.py for
+                                  end-to-end coverage; all headless (matplotlib `Agg` backend, no
+                                  windows shown)
+  helpers.py                     shared test fixtures (e.g. a classifier with a known, hand-built
+                                  bounded positive region)
+  test_model.py                  LinearClassifierNetwork construction, learning rule, randomized()
+  test_geometry.py               square_bounds, is_positive_region_bounded
+  test_train.py                  training-data generation, reachable_reference_and_training_data
+  test_evaluate.py               class_balanced_disagreement_rate, compare_on_random_point, smoothed_series
+  test_chart.py                  reference_region_bounds, disagreement_axis_bounds
+  test_training_pipeline.py      end-to-end training + convergence + decision-boundary plotting
+                                  (mirrors what demo.py does, minus the windows)
 docs/
   theory.md                       Rosenblatt perceptron theory and reference material
   findings/                       standalone write-ups of notable issues found during review
@@ -76,9 +85,10 @@ dependencies (`matplotlib`, `pytest`) from `requirements.txt`.
 
     . cli test
 
-Runs `tests/test_networks.py` under pytest. The tests are headless: they build the same
-convergence-curve and decision-boundary charts as `. cli demo`, using matplotlib's `Agg`
-backend, but never open a window — so they run unattended, e.g. in CI.
+Runs everything under `tests/` with pytest, grouped one file per module under test (see the
+structure above), plus `test_training_pipeline.py` for end-to-end coverage - it builds the
+same convergence-curve and decision-boundary charts as `. cli demo`, using matplotlib's `Agg`
+backend, but never opens a window — so all of it runs unattended, e.g. in CI.
 
 `. cli clean` removes `__pycache__`/`.pytest_cache` directories (used automatically before
 `. cli test`).
