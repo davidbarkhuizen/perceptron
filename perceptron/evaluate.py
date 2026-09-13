@@ -29,6 +29,8 @@ def class_balanced_disagreement_rate(
     max_attempts: int = 20_000,
 ) -> float:
 
+    assert per_class_sample_count >= 1, f"per_class_sample_count must be at least 1; got {per_class_sample_count}"
+
     # sampling uniformly over the bounding box would weight disagreement by each class's
     # share of the box's area, which shrinks sharply for the positive class as cardinality
     # grows - sample an equal number of each class instead, so convergence means the same
