@@ -30,9 +30,10 @@ perceptron/
   evaluate.py                     comparing/measuring classifiers: sampling a point and
                                    classifying it with two networks, a permutation-invariant
                                    class-balanced disagreement metric, and series smoothing
-  demo.py                         standalone script that trains a classifier and plots the result
-  demo_cardinality_sweep.py       trains classifiers at several cardinalities and compares convergence
-  demo_unreachable_class.py       shows random_alternating_training_data's max_attempts guard tripping
+  demos/
+    demo.py                       standalone script that trains a classifier and plots the result
+    demo_cardinality_sweep.py     trains classifiers at several cardinalities and compares convergence
+    demo_unreachable_class.py     shows random_alternating_training_data's max_attempts guard tripping
 tests/
   test_networks.py                exercises training-data generation and training convergence;
                                    headless (matplotlib `Agg` backend, no windows shown)
@@ -86,7 +87,7 @@ backend, but never open a window — so they run unattended, e.g. in CI.
 
     . cli demo
 
-Runs `perceptron/demo.py`, which replicates `test_training_of_linear_classifier` outside
+Runs `perceptron/demos/demo.py`, which replicates `test_training_of_linear_classifier` outside
 of pytest: trains a classifier against a random reference classifier and pops up three
 windows — the convergence curve on a linear scale, the same curve on a log scale (better for
 seeing how fast it converges, since disagreement tends to drop roughly exponentially — see
@@ -112,7 +113,7 @@ bounded region stays visible instead of being cropped at the training bounds.
 
     . cli demo-cardinality-sweep
 
-Runs `perceptron/demo_cardinality_sweep.py`, which trains independent reference/student
+Runs `perceptron/demos/demo_cardinality_sweep.py`, which trains independent reference/student
 pairs at `cardinality = 1, 2, 3, 4` and overlays their disagreement-rate convergence curves
 on two charts, each built from the series smoothed with a trailing moving average (to see
 the trend through the sampling noise from `class_balanced_disagreement_rate`'s small
@@ -130,7 +131,7 @@ reference (up to 20 times) rather than failing the whole sweep on one unlucky dr
 
     . cli demo-unreachable-class
 
-Runs `perceptron/demo_unreachable_class.py`, a headless, console-only demo of
+Runs `perceptron/demos/demo_unreachable_class.py`, a headless, console-only demo of
 `random_alternating_training_data`'s safety guard: it first generates training data from a
 normal, randomly initialised classifier (retrying if an unlucky `randomize()` happens to make
 one class unreachable within the bounds — this alone can occasionally happen), then
