@@ -20,7 +20,8 @@ perceptron/
     linear_classifier_network.py  input -> hidden (association) -> output (AND) layers
   graphics/
     chart.py                      matplotlib helpers: figures/axes, decision-boundary and
-                                   training-data plotting
+                                   training-data plotting, and expanding plot bounds to
+                                   fit a classifier's bounded positive region
   train.py                        random training-data generation and the training loop
   demo.py                         standalone script that trains a classifier and plots the result
   demo_cardinality_sweep.py       trains classifiers at several cardinalities and compares convergence
@@ -90,7 +91,11 @@ it uses `train.reachable_reference_and_training_data` (also used by the cardinal
 demo) to regenerate the reference rather than risk failing on one unlucky `randomize()`. It
 also prints the trained student's classification of a fresh point (never seen during
 training) alongside the reference's, to show the trained classifier actually being used to
-predict, not just compared to the reference by eye on a chart.
+predict, not just compared to the reference by eye on a chart. The decision-boundary
+chart's bounds are widened as needed, via `chart.reference_region_bounds`, so that if the
+reference's positive region (the intersection of its hyperplanes) happens to be bounded —
+which with `cardinality=4` it sometimes, but not always, is — the whole region stays
+visible instead of being cropped at the training bounds.
 
 ## demo: cardinality sweep
 
