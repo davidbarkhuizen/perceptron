@@ -24,9 +24,10 @@ perceptron/
                                    classifying it with two networks, a permutation-invariant
                                    class-balanced disagreement metric, and series smoothing
   demos/
-    demo.py                       standalone script that trains a classifier and plots the result
-    demo_cardinality_sweep.py     trains classifiers at several cardinalities and compares convergence
-    demo_unreachable_class.py     shows random_alternating_training_data's max_attempts guard tripping
+    demo.py                           standalone script that trains a classifier and plots the result
+    demo_cardinality_sweep.py         trains classifiers at several cardinalities and compares convergence
+    demo_unreachable_class.py         shows random_alternating_training_data's max_attempts guard tripping
+    demo_nonrepresentable_target.py   trains against a target no required_active/cardinality can represent
 tests/                           one file per module under test, plus test_training_pipeline.py for
                                   end-to-end coverage; all headless (matplotlib `Agg` backend, no
                                   windows shown)

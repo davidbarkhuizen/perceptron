@@ -9,5 +9,5 @@ classic perceptron learning rule.
 
 - [structure](docs/structure.md) — module layout, and how `LinearClassifierNetwork` composes
 - [setup](docs/setup.md) — requirements, install, and running the tests
-- [demos](docs/demos.md) — the three demo scripts and what each one shows
+- [demos](docs/demos.md) — the demo scripts and what each one shows
 - [theory](docs/theory.md) — Rosenblatt's perceptron theory, and reference material
