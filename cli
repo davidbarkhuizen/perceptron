@@ -66,20 +66,7 @@ setup () {
 test () {
 
     source $venv_root/bin/activate
-
-    x=1
-    while [ $x == 1 ]
-    do
-        python3 -m pytest --verbose tests/test_networks.py
-
-        echo "repeat? y/n"
-        read repeat
-
-        if [ "$repeat" != "y" ]; then
-            x=0
-        fi
-    done
-
+    python3 -m pytest --verbose tests/test_networks.py
     deactivate
 }
 
