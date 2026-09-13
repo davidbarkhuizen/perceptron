@@ -17,7 +17,7 @@ from perceptron.graphics.chart import (
 )
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 from perceptron.train import (
-    classification_disagreement_rate,
+    class_balanced_disagreement_rate,
     random_alternating_training_data,
     reachable_reference_and_training_data,
     smoothed_series,
@@ -123,12 +123,26 @@ def test_training_of_linear_classifier():
     pyplot.close("all")
 
 
-def test_classification_disagreement_rate_is_zero_for_identical_classifier():
+def test_class_balanced_disagreement_rate_is_zero_for_identical_classifier():
 
-    classifier = LinearClassifierNetwork(2, 2, [(-5.0, 5.0), (-5.0, 5.0)])
-    classifier.randomize()
+    classifier, _ = reachable_reference_and_training_data(2, 2, [(-5.0, 5.0), (-5.0, 5.0)], 10)
 
-    assert classification_disagreement_rate(classifier, classifier) == 0.0
+    assert class_balanced_disagreement_rate(classifier, classifier) == 0.0
+
+
+def test_class_balanced_disagreement_rate_detects_error_the_old_metric_missed():
+
+    random.seed(1)
+
+    cardinality, dimension, l = 4, 2, 10.0
+    bounds = [(-l, l), (-l, l)]
+
+    reference = LinearClassifierNetwork(cardinality, dimension, bounds)
+    reference.randomize()
+    student = LinearClassifierNetwork(cardinality, dimension, bounds)
+    student.randomize()
+
+    assert class_balanced_disagreement_rate(reference, student, per_class_sample_count=200) > 0.3
 
 
 def test_reachable_reference_and_training_data_returns_class_balanced_data():
@@ -238,9 +252,9 @@ def test_training_of_cardinality_two_linear_classifier_reduces_disagreement():
     student = LinearClassifierNetwork(cardinality, dimension, bounds)
     student.randomize()
 
-    disagreement_before = classification_disagreement_rate(reference, student, sample_count=1000)
+    disagreement_before = class_balanced_disagreement_rate(reference, student, per_class_sample_count=500)
     train_linear_classifier_network(student, training_data, learning_rate=0.25, epochs=5)
-    disagreement_after = classification_disagreement_rate(reference, student, sample_count=1000)
+    disagreement_after = class_balanced_disagreement_rate(reference, student, per_class_sample_count=500)
 
     assert disagreement_after < disagreement_before
     assert disagreement_after < 0.15

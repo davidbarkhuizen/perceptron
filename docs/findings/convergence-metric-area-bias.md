@@ -121,6 +121,20 @@ already has, for the same reason (a reference classifier can make one class unre
 within its bounds). With this change, "good convergence" means the same thing regardless of
 cardinality, instead of an increasingly lenient, area-diluted standard.
 
+## Resolution
+
+Implemented as designed above: `classification_disagreement_rate()` was removed and replaced
+with `class_balanced_disagreement_rate()` in `perceptron/train.py`, used everywhere the old
+function was (`train_linear_classifier_network`'s convergence tracking, and both demos
+transitively through it). One deviation from the sketch above: `per_class_sample_count`
+defaults to `10`, not `15` - chosen from measured per-checkpoint timing across cardinality
+1-4, to keep the per-checkpoint cost close to the old metric's at low cardinality while
+staying well under a millisecond even at cardinality 4. A regression test
+(`test_class_balanced_disagreement_rate_detects_error_the_old_metric_missed`) locks in a
+concrete, seeded scenario where the old metric reported 0.110 (looked nearly converged) and
+the new one correctly reports 0.525 (near coin-flip) - verified this test fails against the
+old implementation and passes against the new one.
+
 ## Status
 
-Open - assessed and documented, not yet implemented.
+Fixed.

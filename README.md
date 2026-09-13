@@ -105,8 +105,8 @@ visible instead of being cropped at the training bounds.
 Runs `perceptron/demo_cardinality_sweep.py`, which trains independent reference/student
 pairs at `cardinality = 1, 2, 3, 4` and overlays their disagreement-rate convergence curves
 on two charts, each built from the series smoothed with a trailing moving average (to see
-the trend through the sampling noise from `classification_disagreement_rate`'s small
-per-checkpoint sample size) — one linear-scale, one log-scale (better for comparing how fast
+the trend through the sampling noise from `class_balanced_disagreement_rate`'s small
+per-class sample count) — one linear-scale, one log-scale (better for comparing how fast
 each cardinality's disagreement rate drops, since it does so roughly exponentially) — and
 printing each cardinality's before/after disagreement and a prediction-agreement check. A
 disagreement rate of exactly 0.0 has no position on a log axis, so a fully-converged

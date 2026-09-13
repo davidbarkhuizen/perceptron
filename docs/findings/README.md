@@ -7,4 +7,4 @@ acted on.
 
 | Finding | Status |
 |---|---|
-| [The Convergence Disagreement Metric Is Area-Biased Across Cardinality](convergence-metric-area-bias.md) | Open |
+| [The Convergence Disagreement Metric Is Area-Biased Across Cardinality](convergence-metric-area-bias.md) | Fixed |
