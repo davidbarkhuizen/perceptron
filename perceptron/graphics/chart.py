@@ -6,11 +6,14 @@ from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 
 
 def plot_linear_classifier_network(
-    axes: Axes, classifier: LinearClassifierNetwork, plotting_resolution: int = 100, color: str = "purple"
+    axes: Axes,
+    classifier: LinearClassifierNetwork,
+    plotting_resolution: int = 100,
+    color: str = "purple",
+    x_bounds: tuple[float, float] | None = None,
 ):
 
-    x_min = classifier.input_bounds[0][0]
-    x_max = classifier.input_bounds[0][1]
+    x_min, x_max = x_bounds if x_bounds else classifier.input_bounds[0]
 
     x_interval_size = x_max - x_min
     x_step_size = x_interval_size / float(plotting_resolution)
@@ -26,6 +29,84 @@ def plot_linear_classifier_network(
         line_graph = lines.Line2D(x_, y_, color=color)
 
         axes.add_line(line_graph)
+
+
+def _clip_polygon_by_halfplane(
+    polygon: list[tuple[float, float]], a: float, b: float, c: float
+) -> list[tuple[float, float]]:
+
+    # Sutherland-Hodgman clipping against the half-plane a*x + b*y + c > 0 (the same
+    # inequality AssociationNode.z() > 0 tests for a hidden node's weights/threshold)
+    def signed_distance(point: tuple[float, float]) -> float:
+        return a * point[0] + b * point[1] + c
+
+    output: list[tuple[float, float]] = []
+
+    for i in range(len(polygon)):
+        current = polygon[i]
+        previous = polygon[i - 1]
+
+        current_distance = signed_distance(current)
+        previous_distance = signed_distance(previous)
+
+        current_inside = current_distance > 0.0
+        previous_inside = previous_distance > 0.0
+
+        if current_inside != previous_inside:
+            t = previous_distance / (previous_distance - current_distance)
+            output.append(
+                (
+                    previous[0] + t * (current[0] - previous[0]),
+                    previous[1] + t * (current[1] - previous[1]),
+                )
+            )
+
+        if current_inside:
+            output.append(current)
+
+    return output
+
+
+def reference_region_bounds(
+    classifier: LinearClassifierNetwork,
+    fallback_bounds: list[tuple[float, float]],
+    margin_fraction: float = 0.1,
+) -> list[tuple[float, float]]:
+    """
+    The classifier's positive region is the intersection of its hidden nodes' half-planes,
+    which may be bounded (closed, e.g. a triangle or other convex polygon) or unbounded
+    (e.g. any single half-plane, or several whose intersection still extends to infinity).
+
+    Returns fallback_bounds expanded just enough to fully contain that region when it's
+    bounded; returns fallback_bounds unchanged when it's unbounded (or empty).
+    """
+
+    huge = 1.0e6
+    polygon: list[tuple[float, float]] = [(-huge, -huge), (huge, -huge), (huge, huge), (-huge, huge)]
+
+    for node in classifier.hidden_layer.nodes:
+        a, b, c = node.input_node_weights[0], node.input_node_weights[1], node.threshold
+        polygon = _clip_polygon_by_halfplane(polygon, a, b, c)
+        if not polygon:
+            return fallback_bounds
+
+    if any(abs(x) >= huge * 0.99 or abs(y) >= huge * 0.99 for x, y in polygon):
+        return fallback_bounds
+
+    region_x = [x for x, _ in polygon]
+    region_y = [y for _, y in polygon]
+    region_x_min, region_x_max = min(region_x), max(region_x)
+    region_y_min, region_y_max = min(region_y), max(region_y)
+
+    margin_x = margin_fraction * max(region_x_max - region_x_min, 1.0e-9)
+    margin_y = margin_fraction * max(region_y_max - region_y_min, 1.0e-9)
+
+    (fallback_x_min, fallback_x_max), (fallback_y_min, fallback_y_max) = fallback_bounds
+
+    return [
+        (min(fallback_x_min, region_x_min - margin_x), max(fallback_x_max, region_x_max + margin_x)),
+        (min(fallback_y_min, region_y_min - margin_y), max(fallback_y_max, region_y_max + margin_y)),
+    ]
 
 
 def plot_training_data(axes: Axes, training_data: list[tuple[tuple[float, float], float]]):

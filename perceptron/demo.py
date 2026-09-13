@@ -7,7 +7,13 @@ matplotlib.use("TkAgg")
 from matplotlib import pyplot
 from matplotlib.axes import Axes
 
-from perceptron.graphics.chart import new_axes, new_figure, plot_linear_classifier_network, plot_training_data
+from perceptron.graphics.chart import (
+    new_axes,
+    new_figure,
+    plot_linear_classifier_network,
+    plot_training_data,
+    reference_region_bounds,
+)
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 from perceptron.train import reachable_reference_and_training_data, smoothed_series, train_linear_classifier_network
 
@@ -105,18 +111,19 @@ def main() -> None:
         "decision-boundary chart: training data points colored by class, the reference "
         "classifier's hyperplane(s) in green, and the trained student's in purple - the "
         "closer the purple lines are to the green ones, the more closely the student has "
-        "learned the reference's decision boundary"
+        "learned the reference's decision boundary. If the reference's positive region "
+        "(the intersection of its hyperplanes) is bounded, the plot bounds are expanded as "
+        "needed to keep that whole region visible"
     )
 
-    training_data_figure = new_figure("perceptrons (reference, student) with training data")
-    axes = new_axes(training_data_figure, student_classifier.input_bounds)
+    plot_bounds = reference_region_bounds(reference_classifier, input_bounds)
 
-    axes.set_xlim(input_bounds[0])
-    axes.set_ylim(input_bounds[1])
+    training_data_figure = new_figure("perceptrons (reference, student) with training data")
+    axes = new_axes(training_data_figure, plot_bounds)
 
     plot_training_data(axes, training_data)
-    plot_linear_classifier_network(axes, reference_classifier, color="green")
-    plot_linear_classifier_network(axes, student_classifier, color="purple")
+    plot_linear_classifier_network(axes, reference_classifier, color="green", x_bounds=plot_bounds[0])
+    plot_linear_classifier_network(axes, student_classifier, color="purple", x_bounds=plot_bounds[0])
 
     pyplot.show()
 

@@ -8,7 +8,13 @@ matplotlib.use("Agg")
 from matplotlib import pyplot
 from matplotlib.axes import Axes
 
-from perceptron.graphics.chart import new_axes, new_figure, plot_linear_classifier_network, plot_training_data
+from perceptron.graphics.chart import (
+    new_axes,
+    new_figure,
+    plot_linear_classifier_network,
+    plot_training_data,
+    reference_region_bounds,
+)
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 from perceptron.train import (
     classification_disagreement_rate,
@@ -137,6 +143,36 @@ def test_reachable_reference_and_training_data_returns_class_balanced_data():
     assert reference.cardinality == cardinality
     assert len(training_data) == training_set_size
     assert all(len(state) == dimension for state, _ in training_data)
+
+
+def test_reference_region_bounds_expands_to_include_a_bounded_region():
+
+    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+    classifier = LinearClassifierNetwork(4, 2, bounds)
+
+    # positive region is exactly the square [-1, 1] x [-1, 1]:
+    # x > -1, x < 1, y > -1, y < 1
+    for node, (weights, threshold) in zip(
+        classifier.hidden_layer.nodes,
+        [([1.0, 0.0], 1.0), ([-1.0, 0.0], 1.0), ([0.0, 1.0], 1.0), ([0.0, -1.0], 1.0)],
+    ):
+        node.update_input_weights(weights)
+        node.threshold = threshold
+
+    small_fallback = [(-0.5, 0.5), (-0.5, 0.5)]
+    (x_min, x_max), (y_min, y_max) = reference_region_bounds(classifier, small_fallback)
+
+    assert x_min < -1.0 and x_max > 1.0
+    assert y_min < -1.0 and y_max > 1.0
+
+
+def test_reference_region_bounds_leaves_fallback_unchanged_when_unbounded():
+
+    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+    classifier = LinearClassifierNetwork(1, 2, bounds)
+    classifier.randomize()
+
+    assert reference_region_bounds(classifier, bounds) == bounds
 
 
 def test_smoothed_series_with_window_one_is_identity():
