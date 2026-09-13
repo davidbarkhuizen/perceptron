@@ -36,7 +36,7 @@ perceptron/
     demo_nonrepresentable_target.py   trains against a target no required_active/cardinality can represent
     demo_backprop_xor.py              trains a BackpropClassifierNetwork on the same target - and converges
     demo_backprop_architecture_sweep.py  compares single- vs two-hidden-layer BackpropClassifierNetworks
-                                       at matched node budgets, on a harder-than-XOR striped target
+                                          at matched node budgets, on a harder-than-XOR striped target
     demo_backprop_circular_target.py  trains against a circular target - a genuinely curved
                                        boundary, unlike any LinearClassifierNetwork's polygon
     demo_backprop_vs_linear.py        parity check: both models on the same easy, linearly-
@@ -47,18 +47,22 @@ tests/                           one file per module under test, plus test_train
   helpers.py                     shared test fixtures (e.g. a classifier with a known, hand-built
                                   bounded positive region)
   test_model.py                  LinearClassifierNetwork construction, learning rule, randomized()
-  test_geometry.py               square_bounds, is_positive_region_bounded
-  test_train.py                  training-data generation, reachable_reference_and_training_data
+  test_geometry.py               square_bounds, is_positive_region_bounded,
+                                  reference_positive_region_polygon, positive_region_bounding_box
+  test_train.py                  training-data generation, reachable_reference_and_training_data,
+                                  train_linear_classifier_network's pocket-tracking diagnostic
+                                  (converged/plateaued/still_improving)
   test_evaluate.py               sample_class_balanced_states, class_balanced_disagreement_rate,
                                   compare_on_random_point, smoothed_series
-  test_chart.py                  reference_region_bounds, disagreement_axis_bounds
+  test_chart.py                  reference_region_bounds, disagreement_axis_bounds,
+                                  plot_training_data, plot_linear_classifier_network
   test_training_pipeline.py      end-to-end training + convergence + decision-boundary plotting
                                   (mirrors what demo.py does, minus the windows)
   test_backprop_model.py         BackpropClassifierNetwork construction, hand-computed forward/
                                   backward pass, randomize() symmetry-breaking, snapshot/restore
   test_backprop_training_pipeline.py  proves train_linear_classifier_network drives a
-                                  BackpropClassifierNetwork well past the linear ceiling on XOR,
-                                  unchanged
+                                       BackpropClassifierNetwork well past the linear ceiling on XOR,
+                                       unchanged
 cli                                setup / test / clean helper script
 ```
 
