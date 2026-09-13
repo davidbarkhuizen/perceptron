@@ -10,6 +10,8 @@ from perceptron.train import (
     train_linear_classifier_network,
 )
 
+from helpers import classifier_with_tiny_bounded_region
+
 
 def _training_accuracy(student, training_data):
     return sum(1 for state, category in training_data if student.classify_state(state) == category) / len(
@@ -86,6 +88,21 @@ def test_random_alternating_training_data_raises_for_an_unreachable_class():
         random_alternating_training_data(200, unreachable, max_attempts=200)
 
 
+def test_random_alternating_training_data_succeeds_within_a_tight_budget_for_a_tiny_region():
+
+    # same fix as evaluate.sample_class_balanced_states (which this delegates to): naive
+    # full-input_bounds rejection sampling would reliably exhaust a budget this small for a
+    # region this tiny (0.01% of the box's area)
+    bounds = square_bounds(10.0)
+    classifier = classifier_with_tiny_bounded_region(bounds)
+
+    training_data = random_alternating_training_data(40, classifier, max_attempts=1000)
+
+    assert len(training_data) == 40
+    assert sum(1 for _, category in training_data if category == 1.0) == 20
+    assert sum(1 for _, category in training_data if category == 0.0) == 20
+
+
 def test_reachable_reference_and_training_data_raises_when_no_reference_is_ever_valid():
 
     with pytest.raises(RuntimeError):
@@ -98,8 +115,8 @@ def test_train_linear_classifier_network_keeps_the_best_epoch_not_the_last():
 
     # this exact setup (seed, target, cardinality, required_active, epoch count) doesn't
     # converge - per-epoch training accuracy measured directly (without pocket tracking):
-    # 0.736, 0.714, 0.818, 0.796, 0.818, 0.827, 0.810, 0.786, 0.773, 0.801 for epochs 0-9.
-    # The raw last epoch (0.801) is worse than the best one seen (epoch 5, 0.827) - confirms
+    # 0.623, 0.710, 0.807, 0.845, 0.830, 0.816, 0.801, 0.843, 0.827, 0.829 for epochs 0-9.
+    # The raw last epoch (0.829) is worse than the best one seen (epoch 3, 0.845) - confirms
     # the student is left at the best epoch's accuracy, not whatever the last one landed on.
     random.seed(0)
 
@@ -119,17 +136,17 @@ def test_train_linear_classifier_network_keeps_the_best_epoch_not_the_last():
     student = LinearClassifierNetwork.randomized(3, 2, bounds, required_active=2)
     result = train_linear_classifier_network(student, training_data, learning_rate=0.25, epochs=10)
 
-    assert _training_accuracy(student, training_data) == pytest.approx(0.827)
+    assert _training_accuracy(student, training_data) == pytest.approx(0.845)
 
     # the same non-convergence is visible in the diagnostic without needing to eyeball a
-    # chart: the best epoch (index 5, accuracy 0.827) wasn't the last one (index 9), so this
+    # chart: the best epoch (index 3, accuracy 0.845) wasn't the last one (index 9), so this
     # is a plateau, not still-improving or converged
     diagnostic = result.diagnostic
     assert diagnostic.epoch_training_accuracies == [
-        pytest.approx(a) for a in [0.736, 0.714, 0.818, 0.796, 0.818, 0.827, 0.810, 0.786, 0.773, 0.801]
+        pytest.approx(a) for a in [0.623, 0.710, 0.807, 0.845, 0.830, 0.816, 0.801, 0.843, 0.827, 0.829]
     ]
-    assert diagnostic.best_epoch_index == 5
-    assert diagnostic.best_training_accuracy == pytest.approx(0.827)
+    assert diagnostic.best_epoch_index == 3
+    assert diagnostic.best_training_accuracy == pytest.approx(0.845)
     assert diagnostic.plateaued is True
     assert diagnostic.converged is False
     assert diagnostic.still_improving is False
@@ -139,7 +156,7 @@ def test_train_linear_classifier_network_pocket_tracking_is_a_no_op_when_it_conv
 
     # when training does converge, the best epoch and the last epoch coincide, so pocket
     # tracking shouldn't change the well-established convergence behavior at all
-    random.seed(0)
+    random.seed(6)
 
     bounds = square_bounds(10.0)
     reference, training_data = reachable_reference_and_training_data(1, 2, bounds, 400)

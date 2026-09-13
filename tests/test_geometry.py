@@ -1,6 +1,11 @@
 import pytest
 
-from perceptron.geometry import is_positive_region_bounded, reference_positive_region_polygon, square_bounds
+from perceptron.geometry import (
+    is_positive_region_bounded,
+    positive_region_bounding_box,
+    reference_positive_region_polygon,
+    square_bounds,
+)
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 
 from helpers import classifier_with_bounded_square_region
@@ -108,3 +113,58 @@ def test_is_positive_region_bounded_true_for_a_large_scale_bounded_region():
         node.threshold = threshold
 
     assert is_positive_region_bounded(classifier) is True
+
+
+def test_positive_region_bounding_box_is_tight_around_a_known_bounded_square():
+
+    # positive region is exactly [-1, 1] x [-1, 1] - the tight box (with a small margin)
+    # should stay far smaller than the full input_bounds, not just echo it back
+    bounds = square_bounds(10.0)
+    classifier = classifier_with_bounded_square_region(bounds)
+
+    box = positive_region_bounding_box(classifier)
+
+    assert box is not None
+    (x_min, x_max), (y_min, y_max) = box
+    assert -1.5 < x_min < -1.0 and 1.0 < x_max < 1.5
+    assert -1.5 < y_min < -1.0 and 1.0 < y_max < 1.5
+
+
+def test_positive_region_bounding_box_none_when_unbounded():
+
+    bounds = square_bounds(10.0)
+    classifier = LinearClassifierNetwork.randomized(1, 2, bounds)
+
+    assert positive_region_bounding_box(classifier) is None
+
+
+def test_positive_region_bounding_box_none_for_a_non_and_classifier():
+
+    bounds = square_bounds(10.0)
+    classifier = LinearClassifierNetwork(2, 2, bounds, required_active=1)
+
+    assert positive_region_bounding_box(classifier) is None
+
+
+def test_positive_region_bounding_box_none_for_a_non_2d_classifier():
+
+    bounds = [(-10.0, 10.0)] * 3
+    classifier = LinearClassifierNetwork.randomized(1, 3, bounds)
+
+    assert positive_region_bounding_box(classifier) is None
+
+
+def test_positive_region_bounding_box_none_for_a_duck_typed_target_without_geometry_attributes():
+
+    # train.py/evaluate.py's functions accept any object exposing input_bounds/classify_state
+    # (see e.g. demo_nonrepresentable_target.py's XORTarget) - dimension/required_active/
+    # cardinality are LinearClassifierNetwork-specific and optional; their absence must fall
+    # back to None (and thus to full-input_bounds sampling), not raise AttributeError
+    class BoundsOnly:
+        def __init__(self, bounds):
+            self.input_bounds = bounds
+
+        def classify_state(self, state):
+            return 1.0
+
+    assert positive_region_bounding_box(BoundsOnly(square_bounds(10.0))) is None

@@ -1,7 +1,7 @@
-from random import shuffle, uniform
-from typing import Any, Callable
+from random import shuffle
+from typing import Callable
 
-from perceptron.evaluate import class_balanced_disagreement_rate
+from perceptron.evaluate import class_balanced_disagreement_rate, sample_class_balanced_states
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 
 
@@ -9,28 +9,15 @@ def random_alternating_training_data(
     size: int, classifier: LinearClassifierNetwork, max_attempts: int = 100_000
 ) -> list[tuple[tuple[float, ...], float]]:
 
-    states: dict[float, list[Any]] = {0.0: [], 1.0: []}
-
     k: int = size // 2
 
-    attempts = 0
-    while len(states[0]) < k or len(states[1]) < k:
-        if attempts >= max_attempts:
-            raise RuntimeError(
-                f"failed to sample {k} examples of each class within {max_attempts} attempts "
-                f"(got {len(states[0])} of class 0, {len(states[1])} of class 1) - "
-                "the classifier's decision boundary likely doesn't cross its input bounds, "
-                "making one class unreachable"
-            )
-        attempts += 1
+    # see evaluate.sample_class_balanced_states - draws positive-class states from a tight
+    # box around classifier's own positive region when one is computable, rather than
+    # rejection-sampling classifier.input_bounds in full, since that region can be a tiny,
+    # near-unreachable fraction of input_bounds at higher cardinality
+    positive_states, negative_states = sample_class_balanced_states(classifier, k, max_attempts)
 
-        input = tuple(uniform(*bounds) for bounds in classifier.input_bounds)
-        state: float = classifier.classify_state(input)
-
-        if len(states[state]) < k:
-            states[state].append((input, state))
-
-    mixed = states[0] + states[1]
+    mixed = [(state, 1.0) for state in positive_states] + [(state, 0.0) for state in negative_states]
     shuffle(mixed)
     return mixed
 
