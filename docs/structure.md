@@ -52,9 +52,10 @@ cli                                setup / test / clean helper script
   `required_active` defaults to `cardinality` (AND: every hidden node must agree); passing 1
   gives OR (any one is enough), and anything in between gives a general k-of-n gate, in the
   spirit of a MADALINE-style committee machine. `geometry.py`'s positive-region functions
-  only support the AND case (`required_active == cardinality`) - the true positive region
-  under any other gate is a union of intersections, not a single intersection, and those
-  functions raise rather than silently return a wrong answer if called on one.
+  only support the AND case (`required_active == cardinality`) and `dimension == 2` - the
+  true positive region under any other gate is a union of intersections, not a single
+  intersection, and a higher dimension needs more than just the first two weights it reads -
+  and those functions raise rather than silently return a wrong answer if called on one.
 
 Each `AssociationNode` updates via the perceptron learning rule
 (`w += learning_rate * (reference - actual) * input`), and `train.py` drives this over a

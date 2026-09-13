@@ -42,7 +42,7 @@ def _clip_polygon_by_halfplane(
 
 
 def reference_positive_region_polygon(
-    classifier: LinearClassifierNetwork, huge: float = 1.0e6
+    classifier: LinearClassifierNetwork, huge: float | None = None
 ) -> list[tuple[float, float]]:
     """
     The classifier's positive region is the intersection of its hidden nodes' half-planes,
@@ -58,13 +58,36 @@ def reference_positive_region_polygon(
     the true positive region is a union of such intersections, which this function does not
     compute; calling it on one would silently return a wrong polygon, so it's rejected
     outright instead.
+
+    Also only valid for dimension == 2 - the polygon-clipping below only ever reads each
+    hidden node's first two weights, so a classifier with more dimensions would otherwise be
+    silently projected onto the first two and could report a completely wrong answer (e.g. a
+    genuinely unbounded higher-dimensional region, like an infinite prism, reported as
+    bounded because the dimensions extending it to infinity were never even looked at).
+
+    huge defaults to a value derived from classifier.input_bounds (large enough that the
+    initial clipping square's corners can never coincide with a real, bounded region's
+    vertices) rather than a fixed constant - a fixed "large enough" absolute constant would
+    itself be wrong at a large enough input_bounds scale, incorrectly reporting a genuinely
+    bounded but large region as unbounded once its vertices approach that fixed constant.
     """
+
+    assert classifier.dimension == 2, (
+        "reference_positive_region_polygon only supports 2D classifiers - it only reads "
+        f"each hidden node's first two weights; got dimension={classifier.dimension}"
+    )
 
     assert classifier.required_active == classifier.cardinality, (
         "reference_positive_region_polygon only supports AND-combined classifiers "
         f"(required_active == cardinality); got required_active={classifier.required_active} "
         f"with cardinality={classifier.cardinality}"
     )
+
+    if huge is None:
+        half_widths = [(hi - lo) / 2.0 for lo, hi in classifier.input_bounds]
+        # 1.0e5x the largest half-width - at the half-width of 10 every existing demo and
+        # test uses, this reduces to exactly the old fixed default of 1.0e6
+        huge = 1.0e5 * max(half_widths)
 
     polygon: list[tuple[float, float]] = [(-huge, -huge), (huge, -huge), (huge, huge), (-huge, huge)]
 
