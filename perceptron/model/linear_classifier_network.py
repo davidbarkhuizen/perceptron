@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import random
 
 from perceptron.model.association_layer import AssociationLayer
@@ -56,13 +54,3 @@ class LinearClassifierNetwork:
         for node in self.hidden_layer.nodes:
             node.update_input_weights([random.uniform(-2, 2) for _ in self.input_layer.nodes])
             node.threshold = random.uniform(-5, 5)
-
-    def distance(self, other: LinearClassifierNetwork) -> float:
-        assert len(self.hidden_layer.nodes) == len(other.hidden_layer.nodes)
-
-        node_distances = [
-            self_node.normalised_distance(other_node)
-            for self_node, other_node in zip(self.hidden_layer.nodes, other.hidden_layer.nodes)
-        ]
-
-        return sum(node_distances) / len(node_distances)
