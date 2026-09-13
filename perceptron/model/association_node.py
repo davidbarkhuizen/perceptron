@@ -38,7 +38,7 @@ class AssociationNode(AbstractNode):
     def value(self) -> float:
         return 1.0 if self.z() > 0.0 else 0.0
 
-    def learn(self, learning_rate: float, reference_value: float):
+    def learn(self, learning_rate: float, reference_value: float) -> None:
 
         current_value = self.value()
         correctly_categorised = current_value == reference_value

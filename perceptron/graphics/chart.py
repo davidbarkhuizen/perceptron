@@ -74,6 +74,7 @@ def new_axes(figure: Figure, bounds: list[tuple[float, float]] | None = None, sc
     axes.spines["right"].set_color("white")
 
     axes.xaxis.label.set_color("white")
+    axes.yaxis.label.set_color("white")
     axes.tick_params(axis="x", colors="white")
     axes.tick_params(axis="y", colors="white")
 
