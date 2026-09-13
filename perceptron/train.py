@@ -70,16 +70,6 @@ def _training_accuracy(
     return correct / len(training_data)
 
 
-def _snapshot_hidden_layer(student: LinearClassifierNetwork) -> list[tuple[list[float], float]]:
-    return [(list(node.input_node_weights), node.threshold) for node in student.hidden_layer.nodes]
-
-
-def _restore_hidden_layer(student: LinearClassifierNetwork, snapshot: list[tuple[list[float], float]]) -> None:
-    for node, (weights, threshold) in zip(student.hidden_layer.nodes, snapshot):
-        node.update_input_weights(weights)
-        node.threshold = threshold
-
-
 def train_linear_classifier_network(
     student: LinearClassifierNetwork,
     training_data: list[tuple[tuple[float, ...], float]],
@@ -110,7 +100,7 @@ def train_linear_classifier_network(
     if reference_classifier:
         convergence.append((iterations, class_balanced_disagreement_rate(reference_classifier, student)))
 
-    best_snapshot = _snapshot_hidden_layer(student)
+    best_snapshot = student.hidden_layer_snapshot()
     best_training_accuracy = _training_accuracy(student, training_data)
 
     for _ in range(epochs):
@@ -125,8 +115,8 @@ def train_linear_classifier_network(
         training_accuracy = _training_accuracy(student, training_data)
         if training_accuracy > best_training_accuracy:
             best_training_accuracy = training_accuracy
-            best_snapshot = _snapshot_hidden_layer(student)
+            best_snapshot = student.hidden_layer_snapshot()
 
-    _restore_hidden_layer(student, best_snapshot)
+    student.restore_hidden_layer(best_snapshot)
 
     return convergence

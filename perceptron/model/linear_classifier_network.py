@@ -103,3 +103,11 @@ class LinearClassifierNetwork:
         network = cls(cardinality, dimension, input_bounds, required_active)
         network.randomize()
         return network
+
+    def hidden_layer_snapshot(self) -> list[tuple[list[float], float]]:
+        return [(list(node.input_node_weights), node.threshold) for node in self.hidden_layer.nodes]
+
+    def restore_hidden_layer(self, snapshot: list[tuple[list[float], float]]) -> None:
+        for node, (weights, threshold) in zip(self.hidden_layer.nodes, snapshot):
+            node.update_input_weights(weights)
+            node.threshold = threshold
