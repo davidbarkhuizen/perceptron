@@ -38,9 +38,14 @@ cli                                setup / test / clean helper script
 - a single-node **output layer** that ANDs the hidden layer's activations (via weights of 1
   and a threshold of `-(cardinality - 1)`).
 
-Each `AssociationNode` learns independently via the perceptron update rule
+Each `AssociationNode` updates via the perceptron learning rule
 (`w += learning_rate * (reference - actual) * input`), and `train.py` drives this over a
-shuffled, class-balanced set of training examples generated from a reference classifier.
+shuffled, class-balanced set of training examples generated from a reference classifier. On
+a misclassification, `LinearClassifierNetwork.learn()` doesn't update every hidden node —
+it picks the single node closest to flipping (smallest `|z()|`) among those responsible for
+the error, a minimum-disturbance rule in the spirit of Widrow's MADALINE, needed once
+`cardinality > 1` so hidden nodes can specialize into different half-planes instead of all
+converging to the same one.
 
 ## requirements
 
@@ -73,4 +78,5 @@ backend, but never open a window — so they run unattended, e.g. in CI.
 Runs `perceptron/demo.py`, which replicates `test_training_of_linear_classifier` outside
 of pytest: trains a classifier against a random reference classifier and pops up the same
 convergence curve and decision-boundary charts. Unlike the test, it isn't time-boxed — the
-windows stay open until you close them.
+windows stay open until you close them. It uses `cardinality=2` (two hyperplanes ANDed
+together) to also showcase the minimum-disturbance multi-unit learning rule described above.
