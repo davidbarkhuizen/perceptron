@@ -84,8 +84,15 @@ demo-cardinality-sweep () {
     deactivate
 }
 
+demo-unreachable-class () {
+
+    source $venv_root/bin/activate
+    python3 -m perceptron.demo_unreachable_class
+    deactivate
+}
+
 usage () {
-    echo "usage: invoke [ clean | install | test | demo | demo-cardinality-sweep ]"
+    echo "usage: invoke [ clean | install | test | demo | demo-cardinality-sweep | demo-unreachable-class ]"
 }
 
 case "$option" in
@@ -109,6 +116,10 @@ case "$option" in
 
     demo-cardinality-sweep)
         demo-cardinality-sweep
+    ;;
+
+    demo-unreachable-class)
+        demo-unreachable-class
     ;;
 
     *)
