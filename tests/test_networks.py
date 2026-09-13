@@ -9,6 +9,7 @@ from matplotlib import pyplot
 from matplotlib.axes import Axes
 
 from perceptron.graphics.chart import (
+    is_positive_region_bounded,
     new_axes,
     new_figure,
     plot_linear_classifier_network,
@@ -181,6 +182,45 @@ def test_reference_region_bounds_leaves_fallback_unchanged_when_unbounded():
     classifier.randomize()
 
     assert reference_region_bounds(classifier, bounds) == bounds
+
+
+def test_is_positive_region_bounded_true_for_a_known_bounded_square():
+
+    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+    classifier = LinearClassifierNetwork(4, 2, bounds)
+
+    # positive region is exactly the square [-1, 1] x [-1, 1]
+    for node, (weights, threshold) in zip(
+        classifier.hidden_layer.nodes,
+        [([1.0, 0.0], 1.0), ([-1.0, 0.0], 1.0), ([0.0, 1.0], 1.0), ([0.0, -1.0], 1.0)],
+    ):
+        node.update_input_weights(weights)
+        node.threshold = threshold
+
+    assert is_positive_region_bounded(classifier) is True
+
+
+def test_is_positive_region_bounded_false_for_cardinality_one():
+
+    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+    classifier = LinearClassifierNetwork(1, 2, bounds)
+    classifier.randomize()
+
+    # a single half-plane can never be a bounded region
+    assert is_positive_region_bounded(classifier) is False
+
+
+def test_reachable_reference_and_training_data_respects_is_valid():
+
+    cardinality = 4
+    dimension = 2
+    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+
+    reference, _ = reachable_reference_and_training_data(
+        cardinality, dimension, bounds, 200, regeneration_attempts=200, is_valid=is_positive_region_bounded
+    )
+
+    assert is_positive_region_bounded(reference) is True
 
 
 def test_smoothed_series_with_window_one_is_identity():

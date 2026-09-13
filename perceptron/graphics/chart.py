@@ -67,30 +67,49 @@ def _clip_polygon_by_halfplane(
     return output
 
 
-def reference_region_bounds(
-    classifier: LinearClassifierNetwork,
-    fallback_bounds: list[tuple[float, float]],
-    margin_fraction: float = 0.1,
+def _reference_positive_region_polygon(
+    classifier: LinearClassifierNetwork, huge: float = 1.0e6
 ) -> list[tuple[float, float]]:
     """
     The classifier's positive region is the intersection of its hidden nodes' half-planes,
     which may be bounded (closed, e.g. a triangle or other convex polygon) or unbounded
     (e.g. any single half-plane, or several whose intersection still extends to infinity).
 
-    Returns fallback_bounds expanded just enough to fully contain that region when it's
-    bounded; returns fallback_bounds unchanged when it's unbounded (or empty).
+    Returns the region's polygon vertices when it's bounded; an empty list when it's
+    unbounded or empty.
     """
 
-    huge = 1.0e6
     polygon: list[tuple[float, float]] = [(-huge, -huge), (huge, -huge), (huge, huge), (-huge, huge)]
 
     for node in classifier.hidden_layer.nodes:
         a, b, c = node.input_node_weights[0], node.input_node_weights[1], node.threshold
         polygon = _clip_polygon_by_halfplane(polygon, a, b, c)
         if not polygon:
-            return fallback_bounds
+            return []
 
     if any(abs(x) >= huge * 0.99 or abs(y) >= huge * 0.99 for x, y in polygon):
+        return []
+
+    return polygon
+
+
+def is_positive_region_bounded(classifier: LinearClassifierNetwork) -> bool:
+    return bool(_reference_positive_region_polygon(classifier))
+
+
+def reference_region_bounds(
+    classifier: LinearClassifierNetwork,
+    fallback_bounds: list[tuple[float, float]],
+    margin_fraction: float = 0.1,
+) -> list[tuple[float, float]]:
+    """
+    Returns fallback_bounds expanded just enough to fully contain the classifier's positive
+    region when that region is bounded (see _reference_positive_region_polygon); returns
+    fallback_bounds unchanged when it's unbounded (or empty).
+    """
+
+    polygon = _reference_positive_region_polygon(classifier)
+    if not polygon:
         return fallback_bounds
 
     region_x = [x for x, _ in polygon]

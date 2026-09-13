@@ -8,6 +8,7 @@ from matplotlib import pyplot
 from matplotlib.axes import Axes
 
 from perceptron.graphics.chart import (
+    is_positive_region_bounded,
     new_axes,
     new_figure,
     plot_linear_classifier_network,
@@ -34,10 +35,24 @@ def main() -> None:
 
     # generate a (random) reference classifier network and use it to produce a set of
     # training data - a higher cardinality shrinks the reference's positive region, so this
-    # regenerates the reference rather than failing on one unlucky randomize()
+    # regenerates the reference rather than failing on one unlucky randomize(). A 2D convex
+    # region needs at least 3 half-planes to be bounded at all (cardinality 1-2 never are),
+    # so once that's possible, only accept a reference whose region actually is bounded -
+    # the demo always showcases the bounded-region case when one is achievable
     #
+    require_bounded_region = classifier_cardinality >= 3
+
+    # a bounded region is rare (randomly-oriented half-planes only enclose a finite area
+    # ~10% of the time at cardinality=4), but rejecting on it is cheap - it's a pure geometry
+    # check with no sampling - so a much larger attempt budget than the reachability retry
+    # alone would need is still fast in practice
     reference_classifier, training_data = reachable_reference_and_training_data(
-        classifier_cardinality, dimension, input_bounds, training_set_size
+        classifier_cardinality,
+        dimension,
+        input_bounds,
+        training_set_size,
+        regeneration_attempts=200 if require_bounded_region else 20,
+        is_valid=is_positive_region_bounded if require_bounded_region else None,
     )
 
     # generate a new random classifier network for training
@@ -111,9 +126,9 @@ def main() -> None:
         "decision-boundary chart: training data points colored by class, the reference "
         "classifier's hyperplane(s) in green, and the trained student's in purple - the "
         "closer the purple lines are to the green ones, the more closely the student has "
-        "learned the reference's decision boundary. If the reference's positive region "
-        "(the intersection of its hyperplanes) is bounded, the plot bounds are expanded as "
-        "needed to keep that whole region visible"
+        "learned the reference's decision boundary. The reference was chosen so its "
+        "positive region (the intersection of its hyperplanes) is a bounded, closed shape, "
+        "and the plot bounds are expanded as needed to keep that whole region visible"
     )
 
     plot_bounds = reference_region_bounds(reference_classifier, input_bounds)
