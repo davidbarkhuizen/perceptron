@@ -9,6 +9,7 @@ from matplotlib import pyplot
 from matplotlib.axes import Axes
 
 from perceptron.graphics.chart import (
+    disagreement_axis_bounds,
     is_positive_region_bounded,
     new_axes,
     new_figure,
@@ -105,10 +106,7 @@ def test_training_of_linear_classifier():
 
     convergence_figure = new_figure("convergence")
 
-    convergence_bounds = [
-        (0.0, float(training_set_size)),
-        (0.0, 1.0),
-    ]
+    convergence_bounds = disagreement_axis_bounds(float(training_set_size))
 
     convergence_axes: Axes = new_axes(convergence_figure, convergence_bounds, scaled=False)
 
@@ -194,6 +192,12 @@ def test_reference_region_bounds_leaves_fallback_unchanged_when_unbounded():
     classifier = LinearClassifierNetwork.randomized(1, 2, bounds)
 
     assert reference_region_bounds(classifier, bounds) == bounds
+
+
+def test_disagreement_axis_bounds():
+
+    assert disagreement_axis_bounds(500.0) == [(0.0, 500.0), (0.0, 1.0)]
+    assert disagreement_axis_bounds(500.0, log=True) == [(0.0, 500.0), (1.0e-3, 1.0)]
 
 
 def test_is_positive_region_bounded_true_for_a_known_bounded_square():

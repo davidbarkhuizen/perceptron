@@ -6,6 +6,7 @@ from matplotlib import pyplot
 from matplotlib.axes import Axes
 
 from perceptron.graphics.chart import (
+    disagreement_axis_bounds,
     is_positive_region_bounded,
     new_axes,
     new_figure,
@@ -90,10 +91,7 @@ def main() -> None:
 
     linear_convergence_figure = new_figure("convergence (linear scale)")
 
-    linear_convergence_bounds = [
-        (0.0, float(training_set_size)),
-        (0.0, 1.0),
-    ]
+    linear_convergence_bounds = disagreement_axis_bounds(float(training_set_size))
 
     linear_convergence_axes: Axes = new_axes(linear_convergence_figure, linear_convergence_bounds, scaled=False)
     linear_convergence_axes.plot(n, disagreement)
@@ -110,10 +108,7 @@ def main() -> None:
 
     log_convergence_figure = new_figure("convergence (log scale)")
 
-    log_convergence_bounds = [
-        (0.0, float(training_set_size)),
-        (1e-3, 1.0),
-    ]
+    log_convergence_bounds = disagreement_axis_bounds(float(training_set_size), log=True)
 
     log_convergence_axes: Axes = new_axes(log_convergence_figure, log_convergence_bounds, scaled=False)
     log_convergence_axes.set_yscale("log")
