@@ -34,6 +34,29 @@ def random_alternating_training_data(
     return mixed
 
 
+def reachable_reference_and_training_data(
+    cardinality: int,
+    dimension: int,
+    bounds: list[tuple[float, float]],
+    training_set_size: int,
+    regeneration_attempts: int = 20,
+    max_attempts: int = 20_000,
+) -> tuple[LinearClassifierNetwork, list[tuple[tuple[float, ...], float]]]:
+
+    # higher cardinality shrinks the reference's positive region (intersection of more
+    # half-planes), so some random reference classifiers make one class unreachable within
+    # these bounds - regenerate the reference rather than failing on one unlucky draw
+    for _ in range(regeneration_attempts):
+        reference = LinearClassifierNetwork(cardinality, dimension, bounds)
+        reference.randomize()
+        try:
+            return reference, random_alternating_training_data(training_set_size, reference, max_attempts=max_attempts)
+        except RuntimeError:
+            continue
+
+    raise RuntimeError(f"no workable cardinality={cardinality} reference classifier found within these bounds")
+
+
 def smoothed_series(values: list[float], window: int = 31) -> list[float]:
 
     # trailing moving average - only ever looks backward, so it stays a fair comparison
