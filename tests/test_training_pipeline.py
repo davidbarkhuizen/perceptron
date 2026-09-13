@@ -63,7 +63,7 @@ def test_training_of_linear_classifier():
 
     n: list[int] = [x[0] for x in convergence_series]
     disagreement: list[float] = [x[1] for x in convergence_series]
-    convergence_axes.plot(n, disagreement)  # , '.', color='yellow')
+    convergence_axes.plot(n, disagreement)
 
     # ---------------------
 
