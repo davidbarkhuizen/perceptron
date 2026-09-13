@@ -39,6 +39,8 @@ perceptron/
                                        at matched node budgets, on a harder-than-XOR striped target
     demo_backprop_circular_target.py  trains against a circular target - a genuinely curved
                                        boundary, unlike any LinearClassifierNetwork's polygon
+    demo_backprop_vs_linear.py        parity check: both models on the same easy, linearly-
+                                       separable target
 tests/                           one file per module under test, plus test_training_pipeline.py for
                                   end-to-end coverage; all headless (matplotlib `Agg` backend, no
                                   windows shown)

@@ -127,3 +127,17 @@ shorter edges, never actually curve. This target is a disk (radius 4, centered o
 a genuinely curved boundary. Trains a single-hidden-layer `BackpropClassifierNetwork` (measured:
 reaches ~0.99 training accuracy) and plots the learned probability heatmap against the training
 data, visibly showing a smooth, rounded decision boundary rather than a faceted polygon.
+
+## demo: backprop vs. linear
+
+    . cli demo-backprop-vs-linear
+
+Runs `perceptron/demos/demo_backprop_vs_linear.py`. Every other backprop demo picks a target no
+`LinearClassifierNetwork` can represent well (XOR, stripes, a circle); this one is the opposite
+check - a single half-plane (`cardinality=1`), the easiest possible target and squarely within
+`LinearClassifierNetwork`'s own representational sweet spot. Trains a `LinearClassifierNetwork`
+and a `BackpropClassifierNetwork` on the exact same reference and training data (measured: both
+reach ~0.995-0.999 training accuracy), then plots the reference's boundary (green), the linear
+student's boundary (purple), and the backprop student's boundary as a probability heatmap
+underneath, all overlaid - a parity check showing backprop learns just as well here, not only on
+the harder targets the other backprop demos focus on.
