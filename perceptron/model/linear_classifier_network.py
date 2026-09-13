@@ -37,8 +37,20 @@ class LinearClassifierNetwork:
     def learn(self, learning_rate: float, state: tuple[float, ...], category: int) -> None:
 
         self.update_state_layer(state)
-        for node in self.hidden_layer.nodes:
-            node.learn(learning_rate, category)
+
+        output = self.output_layer.nodes[0].value()
+        if output == category:
+            return
+
+        if category == 1:
+            # false negative: AND needs every hidden node active; at least one isn't.
+            candidates = [node for node in self.hidden_layer.nodes if node.value() == 0.0]
+        else:
+            # false positive: AND fired, so every hidden node is currently active.
+            candidates = [node for node in self.hidden_layer.nodes if node.value() == 1.0]
+
+        responsible_node = min(candidates, key=lambda node: abs(node.z()))
+        responsible_node.learn(learning_rate, category)
 
     def randomize(self) -> None:
         for node in self.hidden_layer.nodes:
