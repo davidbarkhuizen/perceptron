@@ -36,10 +36,9 @@ def test_generation_of_random_test_data_from_reference_classifier():
     y_min, y_max = -l, l
     input_bounds = [(x_min, x_max), (y_min, y_max)]
 
-    classifier = LinearClassifierNetwork(classifier_cardinality, dimension, input_bounds)
-    classifier.randomize()
-
-    training_data = random_alternating_training_data(training_set_size, classifier)
+    _, training_data = reachable_reference_and_training_data(
+        classifier_cardinality, dimension, input_bounds, training_set_size
+    )
 
     assert len(training_data) == training_set_size
 
@@ -50,10 +49,7 @@ def test_generation_of_random_test_data_for_non_2d_classifier():
     training_set_size: int = 50
     input_bounds = [(-7.0, 7.0)] * dimension
 
-    classifier = LinearClassifierNetwork(1, dimension, input_bounds)
-    classifier.randomize()
-
-    training_data = random_alternating_training_data(training_set_size, classifier)
+    _, training_data = reachable_reference_and_training_data(1, dimension, input_bounds, training_set_size)
 
     assert len(training_data) == training_set_size
     assert all(len(state) == dimension for state, _ in training_data)
@@ -73,14 +69,12 @@ def test_training_of_linear_classifier():
     y_min, y_max = -l, l
     input_bounds = [(x_min, x_max), (y_min, y_max)]
 
-    # generate a (random) reference classifier network
+    # generate a (random) reference classifier network and use it to produce a set of
+    # training data
     #
-    reference_classifier = LinearClassifierNetwork(classifier_cardinality, dimension, input_bounds)
-    reference_classifier.randomize()
-
-    # use the reference classifier to produce a set of training data
-    #
-    training_data = random_alternating_training_data(training_set_size, reference_classifier)
+    reference_classifier, training_data = reachable_reference_and_training_data(
+        classifier_cardinality, dimension, input_bounds, training_set_size
+    )
 
     # generate a new random classifier network for training
     #
