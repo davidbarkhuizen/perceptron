@@ -32,7 +32,7 @@ class LinearClassifierNetwork:
         self.update_state_layer(state)
         return self.output_layer.nodes[0].value()
 
-    def learn(self, learning_rate: float, state: tuple[float, ...], category: int) -> None:
+    def learn(self, learning_rate: float, state: tuple[float, ...], category: float) -> None:
 
         self.update_state_layer(state)
 

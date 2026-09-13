@@ -6,7 +6,7 @@ from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 
 def random_alternating_training_data(
     size: int, classifier: LinearClassifierNetwork, max_attempts: int = 100_000
-) -> list[tuple[tuple[float, float], int]]:
+) -> list[tuple[tuple[float, float], float]]:
 
     states: dict[float, list[Any]] = {0.0: [], 1.0: []}
 
@@ -51,7 +51,7 @@ def classification_disagreement_rate(
 
 def train_linear_classifier_network(
     student: LinearClassifierNetwork,
-    training_data: list[tuple[tuple[float, float], int]],
+    training_data: list[tuple[tuple[float, float], float]],
     learning_rate: float = 0.25,
     epochs: int = 1,
     reference_classifier: LinearClassifierNetwork | None = None,

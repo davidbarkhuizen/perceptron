@@ -28,7 +28,7 @@ def plot_linear_classifier_network(
         axes.add_line(line_graph)
 
 
-def plot_training_data(axes: Axes, training_data: list[tuple[tuple[float, float], int]]):
+def plot_training_data(axes: Axes, training_data: list[tuple[tuple[float, float], float]]):
 
     markers = [".", "x"]
     colors = ["blue", "yellow"]
