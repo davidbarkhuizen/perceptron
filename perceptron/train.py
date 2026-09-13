@@ -63,6 +63,23 @@ def reachable_reference_and_training_data(
     raise RuntimeError(f"no workable cardinality={cardinality} reference classifier found within these bounds")
 
 
+def _training_accuracy(
+    student: LinearClassifierNetwork, training_data: list[tuple[tuple[float, ...], float]]
+) -> float:
+    correct = sum(1 for state, category in training_data if student.classify_state(state) == category)
+    return correct / len(training_data)
+
+
+def _snapshot_hidden_layer(student: LinearClassifierNetwork) -> list[tuple[list[float], float]]:
+    return [(list(node.input_node_weights), node.threshold) for node in student.hidden_layer.nodes]
+
+
+def _restore_hidden_layer(student: LinearClassifierNetwork, snapshot: list[tuple[list[float], float]]) -> None:
+    for node, (weights, threshold) in zip(student.hidden_layer.nodes, snapshot):
+        node.update_input_weights(weights)
+        node.threshold = threshold
+
+
 def train_linear_classifier_network(
     student: LinearClassifierNetwork,
     training_data: list[tuple[tuple[float, ...], float]],
@@ -70,12 +87,31 @@ def train_linear_classifier_network(
     epochs: int = 1,
     reference_classifier: LinearClassifierNetwork | None = None,
 ) -> list[tuple[int, float]]:
+    """
+    Trains student in place over training_data for the given number of epochs.
+
+    There's no guarantee this converges (see docs/structure.md) - training accuracy can
+    oscillate rather than settle, especially once the target isn't exactly representable at
+    student's cardinality/required_active. So rather than leaving student wherever the last
+    epoch happened to land, it's left at whichever epoch's end had the best training-data
+    accuracy seen (a pocket-algorithm-style "keep the best, not the latest" snapshot) - a
+    strict improvement when training does converge (the best epoch is then the last one, so
+    this is a no-op), and a real difference when it doesn't.
+
+    Returns the disagreement-rate series against reference_classifier, sampled before
+    training and after every single learning step, when reference_classifier is given (used
+    for plotting a convergence curve) - this reflects the raw, unrolled-back trajectory
+    actually taken during training, not the final pocketed student.
+    """
 
     iterations: int = 0
     convergence: list[tuple[int, float]] = []
 
     if reference_classifier:
         convergence.append((iterations, class_balanced_disagreement_rate(reference_classifier, student)))
+
+    best_snapshot = _snapshot_hidden_layer(student)
+    best_training_accuracy = _training_accuracy(student, training_data)
 
     for _ in range(epochs):
         for datum in training_data:
@@ -85,5 +121,12 @@ def train_linear_classifier_network(
 
             if reference_classifier:
                 convergence.append((iterations, class_balanced_disagreement_rate(reference_classifier, student)))
+
+        training_accuracy = _training_accuracy(student, training_data)
+        if training_accuracy > best_training_accuracy:
+            best_training_accuracy = training_accuracy
+            best_snapshot = _snapshot_hidden_layer(student)
+
+    _restore_hidden_layer(student, best_snapshot)
 
     return convergence
