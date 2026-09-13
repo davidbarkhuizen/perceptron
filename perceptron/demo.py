@@ -1,5 +1,3 @@
-from random import uniform
-
 import matplotlib
 
 matplotlib.use("TkAgg")
@@ -16,7 +14,12 @@ from perceptron.graphics.chart import (
     reference_region_bounds,
 )
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
-from perceptron.train import reachable_reference_and_training_data, smoothed_series, train_linear_classifier_network
+from perceptron.train import (
+    compare_on_random_point,
+    reachable_reference_and_training_data,
+    smoothed_series,
+    train_linear_classifier_network,
+)
 
 
 def main() -> None:
@@ -70,9 +73,9 @@ def main() -> None:
 
     # use the trained student to classify a fresh point, never seen during training
     #
-    new_state = tuple(uniform(*bounds) for bounds in input_bounds)
-    reference_category = reference_classifier.classify_state(new_state)
-    student_category = student_classifier.classify_state(new_state)
+    new_state, reference_category, student_category = compare_on_random_point(
+        reference_classifier, student_classifier
+    )
     agreement = "agree" if reference_category == student_category else "disagree"
     print(f"prediction on new point {new_state}: reference={reference_category}, student={student_category} ({agreement})")
 

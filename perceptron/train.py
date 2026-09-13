@@ -63,6 +63,14 @@ def reachable_reference_and_training_data(
     raise RuntimeError(f"no workable cardinality={cardinality} reference classifier found within these bounds")
 
 
+def compare_on_random_point(
+    reference: LinearClassifierNetwork, student: LinearClassifierNetwork
+) -> tuple[tuple[float, ...], float, float]:
+
+    state = tuple(uniform(*bounds) for bounds in reference.input_bounds)
+    return state, reference.classify_state(state), student.classify_state(state)
+
+
 def smoothed_series(values: list[float], window: int = 31) -> list[float]:
 
     # trailing moving average - only ever looks backward, so it stays a fair comparison
