@@ -5,7 +5,7 @@ first principles: state (input) nodes, association (weighted, thresholded) nodes
 layers, wired into a single-hidden-layer linear classifier network, trained with the
 classic perceptron learning rule.
 
-See [`docs/theory.md`](docs/theory.md) for the underlying theory and references.
+See [theory](#theory) below for the underlying theory and references.
 
 ## structure
 
@@ -46,9 +46,6 @@ tests/                           one file per module under test, plus test_train
   test_chart.py                  reference_region_bounds, disagreement_axis_bounds
   test_training_pipeline.py      end-to-end training + convergence + decision-boundary plotting
                                   (mirrors what demo.py does, minus the windows)
-docs/
-  theory.md                       Rosenblatt perceptron theory and reference material
-  findings/                       standalone write-ups of notable issues found during review
 cli                                setup / test / clean helper script
 ```
 
@@ -66,7 +63,11 @@ a misclassification, `LinearClassifierNetwork.learn()` doesn't update every hidd
 it picks the single node closest to flipping (smallest `|z()|`) among those responsible for
 the error, a minimum-disturbance rule in the spirit of Widrow's MADALINE, needed once
 `cardinality > 1` so hidden nodes can specialize into different half-planes instead of all
-converging to the same one.
+converging to the same one. Unlike the single-neuron case (see [theory](#theory) below), this
+has no convergence guarantee analogous to Rosenblatt's theorem — there's no proof it finds a
+matching set of hyperplanes in finite steps, or at all, for an arbitrary target polytope. In
+practice it converges well for modest cardinality (see `tests/test_training_pipeline.py`'s
+cardinality=2 case), but that's an empirical observation, not a theorem.
 
 ## requirements
 
@@ -149,7 +150,42 @@ deliberately constructs a classifier with tiny weights and a large threshold, wh
 boundary never crosses its bounds, and shows the resulting `RuntimeError` being raised and
 caught instead of hanging forever.
 
-## findings
+## theory
 
-Notable issues discovered during review of this codebase, each documented as a standalone
-write-up rather than fixed inline: see [`docs/findings/`](docs/findings/README.md).
+### external references
+
+- Shree Nayar, Computer Science Dept, School of Engineering & Applied Sciences, Columbia
+  University — https://fpcv.cs.columbia.edu/
+- First Principles of Computer Vision Course —
+  https://fpcv.cs.columbia.edu/, https://www.youtube.com/@firstprinciplesofcomputerv3258
+- Perceptron | Neural Networks — https://www.youtube.com/watch?v=OFbnpY_k7js
+
+### example configuration (NAND gate)
+
+    w = [-2, 2]
+    b = 3
+
+### summary of perceptron theory, per Rosenblatt (1958)
+
+Given:
+
+- input `x_`: a vector of `n` inputs, `x1 .. xn`
+- input weights `w_`: a vector, one weight per input, `w1 .. wn`
+- bias `b` (activation threshold): a scalar
+
+the activation function `f` is
+
+    f(w_.x_) = 0  iff  w_.x_ <= -b
+    f(w_.x_) = 1  iff  w_.x_ >  -b
+
+Defining `z = w_.x_ + b`, the activation `a` is a function of `z`:
+
+    a = f(z) = 0  iff  z <= 0
+    a = f(z) = 1  iff  z >  0
+
+i.e. the perceptron neuron's activation function is a step function.
+
+For a single neuron, Rosenblatt's perceptron convergence theorem guarantees the update rule
+above finds a separating hyperplane in a finite number of steps, provided the training data
+is linearly separable. See the [structure](#structure) section above for how this composes
+into `LinearClassifierNetwork` and what changes once `cardinality > 1`.
