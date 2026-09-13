@@ -27,6 +27,19 @@ from perceptron.train import (
 )
 
 
+def _classifier_with_bounded_square_region(bounds: list[tuple[float, float]]) -> LinearClassifierNetwork:
+
+    # positive region is exactly the square [-1, 1] x [-1, 1]: x > -1, x < 1, y > -1, y < 1
+    classifier = LinearClassifierNetwork(4, 2, bounds)
+    for node, (weights, threshold) in zip(
+        classifier.hidden_layer.nodes,
+        [([1.0, 0.0], 1.0), ([-1.0, 0.0], 1.0), ([0.0, 1.0], 1.0), ([0.0, -1.0], 1.0)],
+    ):
+        node.update_input_weights(weights)
+        node.threshold = threshold
+    return classifier
+
+
 def test_generation_of_random_test_data_from_reference_classifier():
 
     classifier_cardinality = 1
@@ -166,16 +179,7 @@ def test_reachable_reference_and_training_data_returns_class_balanced_data():
 def test_reference_region_bounds_expands_to_include_a_bounded_region():
 
     bounds = [(-10.0, 10.0), (-10.0, 10.0)]
-    classifier = LinearClassifierNetwork(4, 2, bounds)
-
-    # positive region is exactly the square [-1, 1] x [-1, 1]:
-    # x > -1, x < 1, y > -1, y < 1
-    for node, (weights, threshold) in zip(
-        classifier.hidden_layer.nodes,
-        [([1.0, 0.0], 1.0), ([-1.0, 0.0], 1.0), ([0.0, 1.0], 1.0), ([0.0, -1.0], 1.0)],
-    ):
-        node.update_input_weights(weights)
-        node.threshold = threshold
+    classifier = _classifier_with_bounded_square_region(bounds)
 
     small_fallback = [(-0.5, 0.5), (-0.5, 0.5)]
     (x_min, x_max), (y_min, y_max) = reference_region_bounds(classifier, small_fallback)
@@ -195,15 +199,7 @@ def test_reference_region_bounds_leaves_fallback_unchanged_when_unbounded():
 def test_is_positive_region_bounded_true_for_a_known_bounded_square():
 
     bounds = [(-10.0, 10.0), (-10.0, 10.0)]
-    classifier = LinearClassifierNetwork(4, 2, bounds)
-
-    # positive region is exactly the square [-1, 1] x [-1, 1]
-    for node, (weights, threshold) in zip(
-        classifier.hidden_layer.nodes,
-        [([1.0, 0.0], 1.0), ([-1.0, 0.0], 1.0), ([0.0, 1.0], 1.0), ([0.0, -1.0], 1.0)],
-    ):
-        node.update_input_weights(weights)
-        node.threshold = threshold
+    classifier = _classifier_with_bounded_square_region(bounds)
 
     assert is_positive_region_bounded(classifier) is True
 
