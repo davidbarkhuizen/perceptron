@@ -89,14 +89,17 @@ time-boxed — the windows stay open until you close them. It uses `cardinality=
 hyperplanes ANDed together) to also showcase the minimum-disturbance multi-unit learning
 rule described above; since a higher cardinality shrinks the reference's positive region,
 it uses `train.reachable_reference_and_training_data` (also used by the cardinality-sweep
-demo) to regenerate the reference rather than risk failing on one unlucky `randomize()`. It
-also prints the trained student's classification of a fresh point (never seen during
+demo) to regenerate the reference rather than risk failing on one unlucky `randomize()`. A
+2D convex region needs at least 3 half-planes to be bounded at all, so at `cardinality=4`
+the demo also passes `chart.is_positive_region_bounded` as that helper's `is_valid` filter,
+rejecting (and regenerating) any reference whose positive region isn't a bounded, closed
+shape — bounded regions are rare (~10% of random draws at this cardinality), but rejecting
+on it is a cheap geometry check with no sampling, so a large attempt budget is still fast.
+It also prints the trained student's classification of a fresh point (never seen during
 training) alongside the reference's, to show the trained classifier actually being used to
 predict, not just compared to the reference by eye on a chart. The decision-boundary
-chart's bounds are widened as needed, via `chart.reference_region_bounds`, so that if the
-reference's positive region (the intersection of its hyperplanes) happens to be bounded —
-which with `cardinality=4` it sometimes, but not always, is — the whole region stays
-visible instead of being cropped at the training bounds.
+chart's bounds are widened as needed, via `chart.reference_region_bounds`, so the whole
+bounded region stays visible instead of being cropped at the training bounds.
 
 ## demo: cardinality sweep
 

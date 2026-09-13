@@ -1,5 +1,5 @@
 from random import shuffle, uniform
-from typing import Any
+from typing import Any, Callable
 
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 
@@ -41,14 +41,20 @@ def reachable_reference_and_training_data(
     training_set_size: int,
     regeneration_attempts: int = 20,
     max_attempts: int = 20_000,
+    is_valid: Callable[[LinearClassifierNetwork], bool] | None = None,
 ) -> tuple[LinearClassifierNetwork, list[tuple[tuple[float, ...], float]]]:
 
     # higher cardinality shrinks the reference's positive region (intersection of more
     # half-planes), so some random reference classifiers make one class unreachable within
-    # these bounds - regenerate the reference rather than failing on one unlucky draw
+    # these bounds - regenerate the reference rather than failing on one unlucky draw.
+    # is_valid, when given, is checked before the (more expensive) reachability sampling
+    # below, so a caller can reject a candidate on cheap criteria (e.g. "region must be
+    # bounded") without paying for training-data generation on a rejected candidate
     for _ in range(regeneration_attempts):
         reference = LinearClassifierNetwork(cardinality, dimension, bounds)
         reference.randomize()
+        if is_valid is not None and not is_valid(reference):
+            continue
         try:
             return reference, random_alternating_training_data(training_set_size, reference, max_attempts=max_attempts)
         except RuntimeError:
