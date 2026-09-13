@@ -10,6 +10,12 @@ def test_cardinality_must_be_at_least_one():
         LinearClassifierNetwork(0, 2, [(-1.0, 1.0), (-1.0, 1.0)])
 
 
+def test_dimension_must_match_bounds_length():
+
+    with pytest.raises(AssertionError):
+        LinearClassifierNetwork(1, 2, [(-1.0, 1.0)])
+
+
 def test_randomized_returns_an_already_randomized_classifier():
 
     bounds = square_bounds(10.0)
@@ -48,3 +54,102 @@ def test_learn_reduces_to_single_node_update_for_cardinality_one():
 
         assert node.input_node_weights == expected_node.input_node_weights
         assert node.threshold == expected_node.threshold
+
+
+def test_learn_matches_the_perceptron_update_rule_by_hand():
+
+    # test_learn_reduces_to_single_node_update_for_cardinality_one checks that
+    # network.learn() dispatches to the same node.learn() call an equivalent standalone
+    # node would receive - but both sides of that comparison go through the same update
+    # rule, so it can't catch a bug in the rule's arithmetic itself. This pins that
+    # arithmetic (w += learning_rate * (reference - actual) * input) against hand-computed
+    # expected values instead.
+
+    dimension = 2
+    bounds = square_bounds(10.0)
+    learning_rate = 0.25
+
+    # false negative: a fresh network (weights=[1, 1], threshold=0) is inactive at this
+    # state (z = 1*3 + 1*-4 + 0 = -1 <= 0), but category=1 wants it active, so d = 1 - 0 = 1
+    network = LinearClassifierNetwork(1, dimension, bounds)
+    network.learn(learning_rate, (3.0, -4.0), 1)
+    node = network.hidden_layer.nodes[0]
+    assert node.input_node_weights == [1.75, 0.0]
+    assert node.threshold == 0.25
+
+    # false positive: a fresh network is active at this state (z = 1*3 + 1*4 + 0 = 7 > 0),
+    # but category=0 wants it inactive, so d = 0 - 1 = -1
+    network = LinearClassifierNetwork(1, dimension, bounds)
+    network.learn(learning_rate, (3.0, 4.0), 0)
+    node = network.hidden_layer.nodes[0]
+    assert node.input_node_weights == [0.25, 0.0]
+    assert node.threshold == -0.25
+
+
+def test_association_node_activates_strictly_above_zero():
+
+    # per the activation function (see docs/theory.md), z <= 0 must classify as inactive,
+    # not just z < 0 - a fresh network (weights=[1, 1], threshold=0) puts z exactly on the
+    # decision boundary at this state (z = 1*1 + 1*-1 + 0 = 0)
+    network = LinearClassifierNetwork(1, 2, square_bounds(10.0))
+    network.update_state_layer((1.0, -1.0))
+    node = network.hidden_layer.nodes[0]
+
+    assert node.z() == 0.0
+    assert node.value() == 0.0
+
+
+def test_learn_updates_only_the_single_closest_to_flipping_node():
+
+    # the minimum-disturbance rule is only exercised elsewhere by statistical convergence
+    # tests (disagreement trends down over many iterations), which could still pass even if
+    # the "closest to flipping" selection were subtly wrong. This pins the selection itself:
+    # given known z() values, only the smallest-|z| node among the responsible ones should
+    # change, and every other node must be left exactly as it was.
+
+    dimension = 2
+    bounds = square_bounds(10.0)
+    learning_rate = 0.25
+    state = (2.0, 3.0)
+
+    def network_with_hidden_thresholds(thresholds: list[float]) -> LinearClassifierNetwork:
+        # zero input weights make each node's z() equal to its threshold alone, regardless
+        # of state - so the thresholds directly pick each node's z()
+        network = LinearClassifierNetwork(len(thresholds), dimension, bounds)
+        for node, threshold in zip(network.hidden_layer.nodes, thresholds):
+            node.update_input_weights([0.0, 0.0])
+            node.threshold = threshold
+        return network
+
+    def snapshot(network: LinearClassifierNetwork) -> list[tuple[list[float], float]]:
+        return [(list(node.input_node_weights), node.threshold) for node in network.hidden_layer.nodes]
+
+    # false negative: two inactive nodes (z <= 0); the closer-to-flipping one (threshold
+    # -0.5, |z|=0.5) should be updated, not the farther one (threshold -5.0, |z|=5.0) - and
+    # the already-active third node must be untouched
+    network = network_with_hidden_thresholds([-5.0, -0.5, 2.0])
+    far, near, active = network.hidden_layer.nodes
+    network.learn(learning_rate, state, 1)
+
+    assert near.input_node_weights == [0.5, 0.75]
+    assert near.threshold == -0.25
+    assert (list(far.input_node_weights), far.threshold) == ([0.0, 0.0], -5.0)
+    assert (list(active.input_node_weights), active.threshold) == ([0.0, 0.0], 2.0)
+
+    # false positive: all three nodes active; the closest-to-flipping one (threshold 0.4,
+    # |z|=0.4) should be updated, not the other two
+    network = network_with_hidden_thresholds([3.0, 0.4, 6.0])
+    far, near, farther = network.hidden_layer.nodes
+    network.learn(learning_rate, state, 0)
+
+    assert near.input_node_weights == [-0.5, -0.75]
+    assert near.threshold == pytest.approx(0.15)
+    assert (list(far.input_node_weights), far.threshold) == ([0.0, 0.0], 3.0)
+    assert (list(farther.input_node_weights), farther.threshold) == ([0.0, 0.0], 6.0)
+
+    # already correct: all three active and category=1 means the output already matches -
+    # no hidden node should change at all
+    network = network_with_hidden_thresholds([3.0, 0.4, 6.0])
+    before = snapshot(network)
+    network.learn(learning_rate, state, 1)
+    assert snapshot(network) == before
