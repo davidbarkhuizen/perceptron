@@ -23,6 +23,7 @@ perceptron/
                                    training-data plotting
   train.py                        random training-data generation and the training loop
   demo.py                         standalone script that trains a classifier and plots the result
+  demo_cardinality_sweep.py       trains classifiers at several cardinalities and compares convergence
 tests/
   test_networks.py                exercises training-data generation and training convergence;
                                    headless (matplotlib `Agg` backend, no windows shown)
@@ -83,3 +84,15 @@ together) to also showcase the minimum-disturbance multi-unit learning rule desc
 It also prints the trained student's classification of a fresh point (never seen during
 training) alongside the reference's, to show the trained classifier actually being used to
 predict, not just compared to the reference by eye on a chart.
+
+## demo: cardinality sweep
+
+    . cli demo-cardinality-sweep
+
+Runs `perceptron/demo_cardinality_sweep.py`, which trains independent reference/student
+pairs at `cardinality = 1, 2, 3, 4` and overlays their disagreement-rate convergence curves
+on one chart, printing each cardinality's before/after disagreement and a prediction-agreement
+check. Since a higher cardinality shrinks the reference's positive region (the intersection of
+more half-planes), some randomly generated reference classifiers make one class unreachable
+within the given bounds — the demo regenerates the reference (up to 20 times) rather than
+failing the whole sweep on one unlucky draw.
