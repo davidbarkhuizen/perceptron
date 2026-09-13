@@ -5,6 +5,7 @@ import matplotlib
 matplotlib.use("TkAgg")
 
 from matplotlib import pyplot
+from matplotlib.axes import Axes
 
 from perceptron.graphics.chart import new_axes, new_figure
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
@@ -34,6 +35,17 @@ def _reference_and_training_data(
     raise RuntimeError(f"no workable cardinality={cardinality} reference classifier found within these bounds")
 
 
+def _plot_convergence(axes: Axes, results: list[tuple[int, str, list[int], list[float]]]) -> None:
+
+    for cardinality, color, n, disagreement in results:
+        axes.plot(n, disagreement, color=color, label=f"cardinality={cardinality}")
+
+    legend = axes.legend()
+    legend.get_frame().set_facecolor("black")
+    for text in legend.get_texts():
+        text.set_color("white")
+
+
 def main() -> None:
 
     cardinalities = [1, 2, 3, 4]
@@ -47,8 +59,7 @@ def main() -> None:
     training_set_size: int = 600
     epoch_count: int = 5
 
-    figure = new_figure("convergence by cardinality")
-    axes = new_axes(figure, [(0.0, float(training_set_size * epoch_count)), (0.0, 1.0)], scaled=False)
+    results: list[tuple[int, str, list[int], list[float]]] = []
 
     for cardinality, color in zip(cardinalities, colors):
         reference, training_data = _reference_and_training_data(cardinality, dimension, bounds, training_set_size)
@@ -66,7 +77,7 @@ def main() -> None:
 
         n = [x[0] for x in convergence_series]
         disagreement = [x[1] for x in convergence_series]
-        axes.plot(n, disagreement, color=color, label=f"cardinality={cardinality}")
+        results.append((cardinality, color, n, disagreement))
 
         new_state = tuple(uniform(*b) for b in bounds)
         reference_category = reference.classify_state(new_state)
@@ -78,10 +89,18 @@ def main() -> None:
             f"student={student_category} ({agreement})"
         )
 
-    legend = axes.legend()
-    legend.get_frame().set_facecolor("black")
-    for text in legend.get_texts():
-        text.set_color("white")
+    x_max = float(training_set_size * epoch_count)
+
+    linear_figure = new_figure("convergence by cardinality")
+    linear_axes = new_axes(linear_figure, [(0.0, x_max), (0.0, 1.0)], scaled=False)
+    _plot_convergence(linear_axes, results)
+
+    # a disagreement rate of exactly 0.0 has no position on a log axis, so a fully-converged
+    # cardinality's curve simply stops appearing once it hits zero rather than being floored
+    log_figure = new_figure("convergence by cardinality (log scale)")
+    log_axes = new_axes(log_figure, [(0.0, x_max), (1e-3, 1.0)], scaled=False)
+    log_axes.set_yscale("log")
+    _plot_convergence(log_axes, results)
 
     pyplot.show()
 
