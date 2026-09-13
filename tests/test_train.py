@@ -1,5 +1,8 @@
+import pytest
+
 from perceptron.geometry import is_positive_region_bounded, square_bounds
-from perceptron.train import reachable_reference_and_training_data
+from perceptron.model.linear_classifier_network import LinearClassifierNetwork
+from perceptron.train import random_alternating_training_data, reachable_reference_and_training_data
 
 
 def test_generation_of_random_test_data_from_reference_classifier():
@@ -55,3 +58,25 @@ def test_reachable_reference_and_training_data_respects_is_valid():
     )
 
     assert is_positive_region_bounded(reference) is True
+
+
+def test_random_alternating_training_data_raises_for_an_unreachable_class():
+
+    bounds = square_bounds(10.0)
+    unreachable = LinearClassifierNetwork(1, 2, bounds)
+    node = unreachable.hidden_layer.nodes[0]
+    # tiny weights + a large threshold mean the decision boundary never crosses these
+    # bounds, so one class can never be sampled
+    node.update_input_weights([0.01, 0.01])
+    node.threshold = -5.0
+
+    with pytest.raises(RuntimeError):
+        random_alternating_training_data(200, unreachable, max_attempts=200)
+
+
+def test_reachable_reference_and_training_data_raises_when_no_reference_is_ever_valid():
+
+    with pytest.raises(RuntimeError):
+        reachable_reference_and_training_data(
+            1, 2, square_bounds(10.0), 50, regeneration_attempts=5, is_valid=lambda classifier: False
+        )
