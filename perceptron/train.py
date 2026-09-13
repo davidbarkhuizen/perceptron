@@ -137,7 +137,7 @@ def train_linear_classifier_network(
     if reference_classifier:
         convergence.append((iterations, class_balanced_disagreement_rate(reference_classifier, student)))
 
-    best_snapshot = student.hidden_layer_snapshot()
+    best_snapshot = student.snapshot()
     best_training_accuracy = _training_accuracy(student, training_data)
     best_epoch_index = -1  # -1: the untrained starting point was never beaten
     epoch_training_accuracies: list[float] = []
@@ -156,9 +156,9 @@ def train_linear_classifier_network(
         if training_accuracy > best_training_accuracy:
             best_training_accuracy = training_accuracy
             best_epoch_index = epoch_index
-            best_snapshot = student.hidden_layer_snapshot()
+            best_snapshot = student.snapshot()
 
-    student.restore_hidden_layer(best_snapshot)
+    student.restore(best_snapshot)
 
     result = ConvergenceSeries(convergence)
     result.diagnostic = TrainingDiagnostic(epoch_training_accuracies, best_epoch_index, best_training_accuracy)

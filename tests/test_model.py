@@ -49,18 +49,18 @@ def test_input_bounds_must_all_have_positive_width():
 def test_hidden_layer_snapshot_and_restore_round_trip():
 
     network = LinearClassifierNetwork.randomized(3, 2, square_bounds(10.0))
-    before = network.hidden_layer_snapshot()
+    before = network.snapshot()
 
     # perturb every hidden node so restoring is actually exercised, not a no-op
     for node in network.hidden_layer.nodes:
         node.update_input_weights([w + 1.0 for w in node.input_node_weights])
         node.threshold += 1.0
 
-    assert network.hidden_layer_snapshot() != before
+    assert network.snapshot() != before
 
-    network.restore_hidden_layer(before)
+    network.restore(before)
 
-    assert network.hidden_layer_snapshot() == before
+    assert network.snapshot() == before
 
 
 def test_randomized_returns_an_already_randomized_classifier():
@@ -291,6 +291,6 @@ def test_learn_updates_only_the_single_closest_to_flipping_node():
     # already correct: all three active and category=1 means the output already matches -
     # no hidden node should change at all
     network = network_with_hidden_thresholds(dimension, bounds, [3.0, 0.4, 6.0])
-    before = network.hidden_layer_snapshot()
+    before = network.snapshot()
     network.learn(learning_rate, state, 1)
-    assert network.hidden_layer_snapshot() == before
+    assert network.snapshot() == before
