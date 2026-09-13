@@ -74,6 +74,13 @@ matching set of hyperplanes in finite steps, or at all, for an arbitrary target 
 practice it converges well for modest cardinality (see `tests/test_training_pipeline.py`'s
 cardinality=2 case), but that's an empirical observation, not a theorem.
 
+Because of that, `train.train_linear_classifier_network` uses a pocket-algorithm-style
+"keep the best, not the latest" rule: training accuracy on `training_data` is measured after
+every epoch, and the student is left at whichever epoch's weights scored best, not
+necessarily the raw last epoch's - a no-op when training does converge (the best epoch is
+then the last one), and a real difference when it doesn't (see
+[demos](demos.md#demo-non-representable-target)).
+
 `LinearClassifierNetwork.randomize()` scales each hidden node's weight range inversely with
 its own dimension's `input_bounds` half-width (and leaves the threshold range fixed) so that
 a random hidden node has a similar chance of splitting the input space regardless of how
