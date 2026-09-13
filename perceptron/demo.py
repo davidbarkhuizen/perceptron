@@ -12,7 +12,7 @@ from perceptron.train import random_alternating_training_data, train_linear_clas
 
 def main() -> None:
 
-    classifier_cardinality: int = 1
+    classifier_cardinality: int = 2
     dimension: int = 2
     l: float = 10.0
 
