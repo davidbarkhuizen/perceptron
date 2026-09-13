@@ -1,3 +1,5 @@
+import random
+
 import matplotlib
 
 matplotlib.use("Agg")
@@ -103,3 +105,54 @@ def test_classification_disagreement_rate_is_zero_for_identical_classifier():
     classifier.randomize()
 
     assert classification_disagreement_rate(classifier, classifier) == 0.0
+
+
+def test_learn_reduces_to_single_node_update_for_cardinality_one():
+
+    dimension = 2
+    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+    learning_rate = 0.25
+
+    for category in (0, 1):
+        network = LinearClassifierNetwork(1, dimension, bounds)
+        network.randomize()
+        node = network.hidden_layer.nodes[0]
+        weights_before = list(node.input_node_weights)
+        threshold_before = node.threshold
+
+        state = (3.0, -4.0)
+        network.learn(learning_rate, state, category)
+
+        expected_network = LinearClassifierNetwork(1, dimension, bounds)
+        expected_node = expected_network.hidden_layer.nodes[0]
+        expected_node.update_input_weights(weights_before)
+        expected_node.threshold = threshold_before
+        expected_network.update_state_layer(state)
+        expected_node.learn(learning_rate, category)
+
+        assert node.input_node_weights == expected_node.input_node_weights
+        assert node.threshold == expected_node.threshold
+
+
+def test_training_of_cardinality_two_linear_classifier_reduces_disagreement():
+
+    random.seed(0)
+
+    cardinality: int = 2
+    dimension: int = 2
+    l: float = 10.0
+    bounds = [(-l, l), (-l, l)]
+
+    reference = LinearClassifierNetwork(cardinality, dimension, bounds)
+    reference.randomize()
+    training_data = random_alternating_training_data(400, reference)
+
+    student = LinearClassifierNetwork(cardinality, dimension, bounds)
+    student.randomize()
+
+    disagreement_before = classification_disagreement_rate(reference, student, sample_count=1000)
+    train_linear_classifier_network(student, training_data, learning_rate=0.25, epochs=5)
+    disagreement_after = classification_disagreement_rate(reference, student, sample_count=1000)
+
+    assert disagreement_after < disagreement_before
+    assert disagreement_after < 0.15
