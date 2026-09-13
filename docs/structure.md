@@ -79,7 +79,13 @@ Because of that, `train.train_linear_classifier_network` uses a pocket-algorithm
 every epoch, and the student is left at whichever epoch's weights scored best, not
 necessarily the raw last epoch's - a no-op when training does converge (the best epoch is
 then the last one), and a real difference when it doesn't (see
-[demos](demos.md#demo-non-representable-target)).
+[demos](demos.md#demo-non-representable-target)). It returns a `ConvergenceSeries` - the
+same list of `(iteration, disagreement_rate)` pairs it's always returned, so every existing
+use keeps working unchanged, plus a `.diagnostic` (a `TrainingDiagnostic`) that answers,
+without needing to eyeball a chart, whether that run `.converged` (every training example
+correctly classified), `.plateaued` (the best epoch wasn't the last one - more epochs
+already stopped helping), or was `.still_improving` (the last epoch was still the best one
+seen, just not there yet).
 
 `LinearClassifierNetwork.randomize()` scales each hidden node's weight range inversely with
 its own dimension's `input_bounds` half-width (and leaves the threshold range fixed) so that

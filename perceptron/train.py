@@ -70,13 +70,58 @@ def _training_accuracy(
     return correct / len(training_data)
 
 
+class TrainingDiagnostic:
+    """
+    Summarizes how a train_linear_classifier_network() run's training-data accuracy
+    trajectory behaved, since there's no guarantee it converges (see docs/structure.md) and
+    eyeballing a chart is otherwise the only way to tell converged from plateaued from still
+    improving.
+    """
+
+    def __init__(
+        self, epoch_training_accuracies: list[float], best_epoch_index: int, best_training_accuracy: float
+    ) -> None:
+        self.epoch_training_accuracies = epoch_training_accuracies
+        # best_epoch_index is -1 (rather than an index into epoch_training_accuracies) when
+        # no epoch ever beat the untrained starting point's own accuracy
+        self.best_epoch_index = best_epoch_index
+        self.best_training_accuracy = best_training_accuracy
+
+    @property
+    def converged(self) -> bool:
+        # every training example correctly classified
+        return self.best_training_accuracy >= 1.0
+
+    @property
+    def plateaued(self) -> bool:
+        # the best epoch wasn't the last one - later epochs never improved on it
+        return not self.converged and self.best_epoch_index < len(self.epoch_training_accuracies) - 1
+
+    @property
+    def still_improving(self) -> bool:
+        # the last epoch was still the best one seen, but training hasn't converged yet -
+        # more epochs might help
+        return not self.converged and not self.plateaued
+
+
+class ConvergenceSeries(list):
+    """
+    Exactly the list of (iteration, disagreement_rate) pairs train_linear_classifier_network
+    has always returned - every existing use (indexing, iterating, len(), list
+    comprehensions) keeps working unchanged - plus a `.diagnostic` (a TrainingDiagnostic) for
+    callers that want to know whether training converged, plateaued, or was still improving.
+    """
+
+    diagnostic: TrainingDiagnostic
+
+
 def train_linear_classifier_network(
     student: LinearClassifierNetwork,
     training_data: list[tuple[tuple[float, ...], float]],
     learning_rate: float = 0.25,
     epochs: int = 1,
     reference_classifier: LinearClassifierNetwork | None = None,
-) -> list[tuple[int, float]]:
+) -> ConvergenceSeries:
     """
     Trains student in place over training_data for the given number of epochs.
 
@@ -86,12 +131,15 @@ def train_linear_classifier_network(
     epoch happened to land, it's left at whichever epoch's end had the best training-data
     accuracy seen (a pocket-algorithm-style "keep the best, not the latest" snapshot) - a
     strict improvement when training does converge (the best epoch is then the last one, so
-    this is a no-op), and a real difference when it doesn't.
+    this is a no-op), and a real difference when it doesn't. See the returned
+    ConvergenceSeries's .diagnostic for whether this run converged, plateaued, or was still
+    improving.
 
-    Returns the disagreement-rate series against reference_classifier, sampled before
-    training and after every single learning step, when reference_classifier is given (used
-    for plotting a convergence curve) - this reflects the raw, unrolled-back trajectory
-    actually taken during training, not the final pocketed student.
+    The returned series itself holds the disagreement-rate series against
+    reference_classifier, sampled before training and after every single learning step, when
+    reference_classifier is given (used for plotting a convergence curve) - this reflects the
+    raw, unrolled-back trajectory actually taken during training, not the final pocketed
+    student.
     """
 
     iterations: int = 0
@@ -102,8 +150,10 @@ def train_linear_classifier_network(
 
     best_snapshot = student.hidden_layer_snapshot()
     best_training_accuracy = _training_accuracy(student, training_data)
+    best_epoch_index = -1  # -1: the untrained starting point was never beaten
+    epoch_training_accuracies: list[float] = []
 
-    for _ in range(epochs):
+    for epoch_index in range(epochs):
         for datum in training_data:
             (reference_state, reference_category) = datum
             student.learn(learning_rate, reference_state, reference_category)
@@ -113,10 +163,14 @@ def train_linear_classifier_network(
                 convergence.append((iterations, class_balanced_disagreement_rate(reference_classifier, student)))
 
         training_accuracy = _training_accuracy(student, training_data)
+        epoch_training_accuracies.append(training_accuracy)
         if training_accuracy > best_training_accuracy:
             best_training_accuracy = training_accuracy
+            best_epoch_index = epoch_index
             best_snapshot = student.hidden_layer_snapshot()
 
     student.restore_hidden_layer(best_snapshot)
 
-    return convergence
+    result = ConvergenceSeries(convergence)
+    result.diagnostic = TrainingDiagnostic(epoch_training_accuracies, best_epoch_index, best_training_accuracy)
+    return result

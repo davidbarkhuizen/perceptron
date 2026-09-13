@@ -117,9 +117,22 @@ def test_train_linear_classifier_network_keeps_the_best_epoch_not_the_last():
     training_data = random_alternating_training_data(1000, XORTarget(bounds))
 
     student = LinearClassifierNetwork.randomized(3, 2, bounds, required_active=2)
-    train_linear_classifier_network(student, training_data, learning_rate=0.25, epochs=10)
+    result = train_linear_classifier_network(student, training_data, learning_rate=0.25, epochs=10)
 
     assert _training_accuracy(student, training_data) == pytest.approx(0.827)
+
+    # the same non-convergence is visible in the diagnostic without needing to eyeball a
+    # chart: the best epoch (index 5, accuracy 0.827) wasn't the last one (index 9), so this
+    # is a plateau, not still-improving or converged
+    diagnostic = result.diagnostic
+    assert diagnostic.epoch_training_accuracies == [
+        pytest.approx(a) for a in [0.736, 0.714, 0.818, 0.796, 0.818, 0.827, 0.810, 0.786, 0.773, 0.801]
+    ]
+    assert diagnostic.best_epoch_index == 5
+    assert diagnostic.best_training_accuracy == pytest.approx(0.827)
+    assert diagnostic.plateaued is True
+    assert diagnostic.converged is False
+    assert diagnostic.still_improving is False
 
 
 def test_train_linear_classifier_network_pocket_tracking_is_a_no_op_when_it_converges():
@@ -132,6 +145,35 @@ def test_train_linear_classifier_network_pocket_tracking_is_a_no_op_when_it_conv
     reference, training_data = reachable_reference_and_training_data(1, 2, bounds, 400)
     student = LinearClassifierNetwork.randomized(1, 2, bounds)
 
-    train_linear_classifier_network(student, training_data, learning_rate=0.25, epochs=5)
+    result = train_linear_classifier_network(student, training_data, learning_rate=0.25, epochs=5)
 
     assert _training_accuracy(student, training_data) >= 0.99
+
+    # hasn't hit exact convergence within 5 epochs yet, but the last epoch is still the best
+    # one seen - this is "still improving", not a plateau
+    diagnostic = result.diagnostic
+    assert diagnostic.best_epoch_index == len(diagnostic.epoch_training_accuracies) - 1
+    assert diagnostic.still_improving is True
+    assert diagnostic.converged is False
+    assert diagnostic.plateaued is False
+
+
+def test_train_linear_classifier_network_diagnostic_reports_converged():
+
+    random.seed(0)
+
+    bounds = square_bounds(10.0)
+    reference, training_data = reachable_reference_and_training_data(1, 2, bounds, 400)
+    student = LinearClassifierNetwork.randomized(1, 2, bounds)
+
+    # the same setup as the "still improving" case above, just given enough epochs to
+    # actually reach 1.0 training accuracy (measured: epoch 16 of 20)
+    result = train_linear_classifier_network(student, training_data, learning_rate=0.25, epochs=20)
+
+    assert _training_accuracy(student, training_data) == 1.0
+
+    diagnostic = result.diagnostic
+    assert diagnostic.best_training_accuracy == 1.0
+    assert diagnostic.converged is True
+    assert diagnostic.plateaued is False
+    assert diagnostic.still_improving is False
