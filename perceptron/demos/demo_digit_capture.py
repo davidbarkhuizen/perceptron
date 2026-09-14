@@ -1,23 +1,23 @@
 import sys
 import tkinter as tk
 
-from perceptron.digit_capture import GRID_SIZE, pixel_to_tile, tile_grid_to_state
+from perceptron.digit_capture import GRID_SIZE, apply_brush_stroke, intensity_to_color, pixel_to_tile, tile_grid_to_state
 from perceptron.model.multiclass_backprop_classifier_network import MultiClassBackpropClassifierNetwork
 
 MODEL_PATH = "data/digits/trained_model.json"
 TILE_SIZE = 35
-ON_COLOR = "white"
-OFF_COLOR = "black"
+OFF_COLOR = "#000000"
 
 
 class DigitCaptureApp:
     """
     An 8x8 mouse-painted tile grid, classified live by a MultiClassBackpropClassifierNetwork
-    loaded from disk (see demo_digit_recognition.py, which trains and saves it). Binary tiles
-    only for now (each fully on or off) - the bundled training data (data/digits/digits.csv) is
-    actually graded 0-16 per pixel (NIST's own preprocessing averages each cell), so this is a
-    deliberate first cut, not a claim that binary painting matches the training distribution
-    exactly; grayscale/graded painting is a planned follow-up.
+    loaded from disk (see demo_digit_recognition.py, which trains and saves it). Tiles hold a
+    graded [0.0, 1.0] intensity, not just on/off - each paint stroke sets the touched tile to
+    full intensity and softly lights its neighbors too (see digit_capture.apply_brush_stroke),
+    approximating the soft, anti-aliased edges the bundled training data's own preprocessing
+    produced, rather than the hard single-tile edges a purely binary toggle would give the
+    model - a distribution the model was never trained on.
     """
 
     def __init__(self, root: tk.Tk, classifier: MultiClassBackpropClassifierNetwork) -> None:
@@ -53,17 +53,19 @@ class DigitCaptureApp:
             self._paint_tile(row, col)
 
     def _paint_tile(self, row: int, col: int) -> None:
-        if self.grid[row][col] == 1.0:
-            return
-        self.grid[row][col] = 1.0
-        self.canvas.itemconfig(self.tile_ids[row][col], fill=ON_COLOR)
+        self.grid = apply_brush_stroke(self.grid, row, col)
+        self._render_grid()
         self._classify_and_update()
 
-    def clear(self) -> None:
+    def _render_grid(self) -> None:
         for row in range(GRID_SIZE):
             for col in range(GRID_SIZE):
-                self.grid[row][col] = 0.0
-                self.canvas.itemconfig(self.tile_ids[row][col], fill=OFF_COLOR)
+                color = intensity_to_color(self.grid[row][col])
+                self.canvas.itemconfig(self.tile_ids[row][col], fill=color)
+
+    def clear(self) -> None:
+        self.grid = [[0.0] * GRID_SIZE for _ in range(GRID_SIZE)]
+        self._render_grid()
         self.prediction_label.config(text="draw a digit")
 
     def _classify_and_update(self) -> None:
