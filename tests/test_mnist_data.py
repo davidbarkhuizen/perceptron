@@ -1,11 +1,36 @@
 import pytest
 
-from perceptron.mnist_data import IMAGE_SIZE, load_mnist_dataset
+from perceptron.mnist_data import (
+    IMAGE_SIZE,
+    RECORD_SIZE,
+    convert_parquet_to_binary,
+    load_mnist_dataset,
+    load_mnist_labels,
+    load_mnist_records_at_indices,
+)
+
+
+def test_convert_parquet_to_binary_produces_a_correctly_shaped_file(tmp_path):
+
+    binary_path = str(tmp_path / "converted.bin")
+
+    convert_parquet_to_binary("data/mnist/mnist-train.parquet", binary_path, limit=5)
+
+    import os
+
+    assert os.path.getsize(binary_path) == 5 * RECORD_SIZE
+
+    dataset = load_mnist_dataset(binary_path)
+    labels = [label for _, label in dataset]
+    # the standard MNIST training set's well-known first-few labels - confirms the conversion
+    # (parquet -> PNG decode -> flat binary) round-trips real data correctly, not just the
+    # right byte count
+    assert labels == [5, 0, 4, 1, 9]
 
 
 def test_load_mnist_dataset_shape_and_normalization():
 
-    dataset = load_mnist_dataset("data/mnist/mnist-train.parquet", limit=20)
+    dataset = load_mnist_dataset("data/mnist/mnist-train.bin", limit=20)
 
     assert len(dataset) == 20
     assert all(len(state) == IMAGE_SIZE * IMAGE_SIZE for state, _ in dataset)
@@ -17,7 +42,7 @@ def test_load_mnist_dataset_decodes_a_known_real_sample_correctly():
 
     # the standard MNIST training set's well-known first-few labels (5, 0, 4, 1, 9, ...) - a
     # sanity check this is genuinely the real dataset, not corrupted or reordered
-    dataset = load_mnist_dataset("data/mnist/mnist-train.parquet", limit=5)
+    dataset = load_mnist_dataset("data/mnist/mnist-train.bin", limit=5)
     labels = [label for _, label in dataset]
     assert labels == [5, 0, 4, 1, 9]
 
@@ -40,7 +65,7 @@ def test_load_mnist_dataset_decodes_a_known_real_sample_correctly():
 
 def test_load_mnist_dataset_test_split_shape():
 
-    dataset = load_mnist_dataset("data/mnist/mnist-test.parquet", limit=10)
+    dataset = load_mnist_dataset("data/mnist/mnist-test.bin", limit=10)
 
     assert len(dataset) == 10
     assert all(len(state) == IMAGE_SIZE * IMAGE_SIZE for state, _ in dataset)
@@ -50,6 +75,47 @@ def test_load_mnist_dataset_without_limit_reads_the_full_file():
 
     # the test split is the smaller of the two bundled files (10000 rows) - still exercises
     # "no limit" without paying the much larger training file's full decode cost
-    dataset = load_mnist_dataset("data/mnist/mnist-test.parquet")
+    dataset = load_mnist_dataset("data/mnist/mnist-test.bin")
 
     assert len(dataset) == 10000
+
+
+def test_load_mnist_dataset_rejects_a_file_whose_size_is_not_a_record_multiple(tmp_path):
+
+    bad_path = str(tmp_path / "truncated.bin")
+    with open(bad_path, "wb") as f:
+        f.write(b"\x00" * (RECORD_SIZE + 1))
+
+    with pytest.raises(AssertionError):
+        load_mnist_dataset(bad_path)
+
+
+def test_load_mnist_labels_matches_load_mnist_dataset_labels():
+
+    dataset = load_mnist_dataset("data/mnist/mnist-train.bin", limit=50)
+    expected_labels = [label for _, label in dataset]
+
+    labels = load_mnist_labels("data/mnist/mnist-train.bin")
+
+    assert labels[:50] == expected_labels
+    assert len(labels) == 60000
+
+
+def test_load_mnist_records_at_indices_matches_load_mnist_dataset():
+
+    full = load_mnist_dataset("data/mnist/mnist-train.bin", limit=20)
+    indices = [1, 5, 10, 15]
+
+    records = load_mnist_records_at_indices("data/mnist/mnist-train.bin", indices)
+
+    assert records == [full[index] for index in indices]
+
+
+def test_load_mnist_records_at_indices_respects_a_non_sorted_index_order():
+
+    full = load_mnist_dataset("data/mnist/mnist-train.bin", limit=20)
+    indices = [15, 1, 10, 5]
+
+    records = load_mnist_records_at_indices("data/mnist/mnist-train.bin", indices)
+
+    assert records == [full[index] for index in indices]

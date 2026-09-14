@@ -1,9 +1,8 @@
 import struct
 import zlib
 
-import pyarrow.parquet as pq
-
 IMAGE_SIZE = 28
+RECORD_SIZE = IMAGE_SIZE * IMAGE_SIZE + 1  # IMAGE_SIZE*IMAGE_SIZE pixel bytes + 1 label byte
 
 
 def _decode_grayscale_png(data: bytes) -> list[int]:
@@ -12,7 +11,7 @@ def _decode_grayscale_png(data: bytes) -> list[int]:
     actually contain (confirmed via inspection): 8-bit grayscale, no interlacing, no palette.
     Uses only the stdlib zlib/struct modules - parsing PNG's chunk structure and un-filtering
     its scanlines is a small, well-specified algorithm, unlike parsing parquet itself (see
-    the pyarrow dependency note in docs/structure.md's "MNIST" section).
+    convert_parquet_to_binary's docstring).
 
     Returns a flat, row-major list of IMAGE_SIZE*IMAGE_SIZE pixel values (0-255).
     """
@@ -76,27 +75,102 @@ def _decode_grayscale_png(data: bytes) -> list[int]:
     return pixels
 
 
-def load_mnist_dataset(path: str, limit: int | None = None) -> list[tuple[tuple[float, ...], int]]:
+def convert_parquet_to_binary(parquet_path: str, binary_path: str, limit: int | None = None) -> None:
     """
-    Parses one of the bundled MNIST parquet files (data/mnist/mnist-train.parquet or
-    mnist-test.parquet - a HuggingFace-style export: an `image` struct column of PNG-encoded
-    bytes, a `label` int64 column). Decodes each PNG, flattens row-major, normalizes each pixel
-    to [0.0, 1.0] (divide by 255) - the same shape/normalization convention
-    digits_data.load_digits_dataset already established for the smaller bundled dataset.
+    One-time conversion from a bundled MNIST parquet file (a HuggingFace-style export: an
+    `image` struct column of PNG-encoded bytes, a `label` int64 column) to a flat,
+    dependency-free binary format: IMAGE_SIZE*IMAGE_SIZE raw pixel bytes (0-255) followed by 1
+    label byte, per example, back to back, no header.
 
-    limit caps how many rows are read (from the start of the file) - the real files are 60000/
-    10000 rows, too many to decode in every test run; demo_mnist_recognition.py calls this with
-    limit=None to use the real, full dataset.
+    pyarrow is imported locally, inside this function, not at module level - so merely
+    importing this module (to call load_mnist_dataset) never pulls pyarrow into a process that
+    doesn't need it. That's not a style preference: it's the actual, measured fix for a real
+    multiprocessing memory-exhaustion failure (see docs/research-and-analysis.md) - pyarrow's
+    own import footprint, inherited by every forked worker process regardless of whether that
+    worker ever touches it, turned out to be several times larger than the training data itself.
+    Mirrors exactly how digits_data.py's bundled CSV was extracted once from scikit-learn
+    without scikit-learn ever becoming a runtime dependency - pyarrow only belongs to this one
+    offline conversion step, never to actual training.
     """
 
-    table = pq.read_table(path)
+    import pyarrow.parquet as pq
+
+    table = pq.read_table(parquet_path)
     rows = table.slice(0, limit).to_pylist() if limit is not None else table.to_pylist()
 
+    with open(binary_path, "wb") as f:
+        for row in rows:
+            pixels = _decode_grayscale_png(row["image"]["bytes"])
+            assert len(pixels) == IMAGE_SIZE * IMAGE_SIZE, f"expected a {IMAGE_SIZE}x{IMAGE_SIZE} image; got {len(pixels)} pixels"
+            f.write(bytes(pixels))
+            f.write(bytes([row["label"]]))
+
+
+def load_mnist_dataset(path: str, limit: int | None = None) -> list[tuple[tuple[float, ...], int]]:
+    """
+    Loads the lightweight binary format convert_parquet_to_binary produces - no pyarrow, no PNG
+    decoding, just raw bytes read directly off disk and normalized to [0.0, 1.0] (divide by
+    255) - the same shape/normalization convention digits_data.load_digits_dataset already
+    established for the smaller bundled dataset.
+
+    limit caps how many records are read (from the start of the file) - the real files are
+    60000/10000 records, too many to load in every test run. Reads only the needed bytes
+    directly (RECORD_SIZE * limit), not the whole file - a true partial read, not just a
+    post-hoc slice of everything.
+    """
+
+    with open(path, "rb") as f:
+        data = f.read(limit * RECORD_SIZE) if limit is not None else f.read()
+
+    assert len(data) % RECORD_SIZE == 0, f"file size is not a multiple of RECORD_SIZE ({RECORD_SIZE}); got {len(data)} bytes"
+
     dataset: list[tuple[tuple[float, ...], int]] = []
-    for row in rows:
-        pixels = _decode_grayscale_png(row["image"]["bytes"])
-        assert len(pixels) == IMAGE_SIZE * IMAGE_SIZE, f"expected a {IMAGE_SIZE}x{IMAGE_SIZE} image; got {len(pixels)} pixels"
-        state = tuple(value / 255.0 for value in pixels)
-        dataset.append((state, row["label"]))
+    for offset in range(0, len(data), RECORD_SIZE):
+        record = data[offset : offset + RECORD_SIZE]
+        state = tuple(pixel / 255.0 for pixel in record[:-1])
+        label = record[-1]
+        dataset.append((state, label))
+
+    return dataset
+
+
+def load_mnist_labels(path: str) -> list[int]:
+    """
+    Reads only every record's label byte - no pixel decoding, no per-pixel float objects. Used
+    to make class-balancing decisions (which examples to draw for which class) cheaply, without
+    ever materializing the full dataset's pixel data as Python objects - see
+    load_mnist_records_at_indices, and docs/research-and-analysis.md's "parallelizing MNIST
+    training" entry for why this matters: materializing all 60000 examples as decoded
+    (tuple-of-784-floats, label) pairs, even just once in the main process, was measured to cost
+    several GB once duplicated into a multiprocessing worker - not because of any particular
+    library, but because 47 million individual boxed Python float objects is simply a lot of
+    memory, however they got there.
+    """
+
+    with open(path, "rb") as f:
+        data = f.read()
+
+    assert len(data) % RECORD_SIZE == 0, f"file size is not a multiple of RECORD_SIZE ({RECORD_SIZE}); got {len(data)} bytes"
+
+    return [data[offset + IMAGE_SIZE * IMAGE_SIZE] for offset in range(0, len(data), RECORD_SIZE)]
+
+
+def load_mnist_records_at_indices(path: str, indices: list[int]) -> list[tuple[tuple[float, ...], int]]:
+    """
+    Reads and decodes only the specific records at indices, via direct seek - not the whole
+    file. This is what lets a multiprocessing worker build just its own small, class-balanced
+    slice of the data without any process (main or worker) ever holding the full dataset
+    decoded in memory at once - see load_mnist_labels and
+    docs/research-and-analysis.md's "parallelizing MNIST training" entry. Not necessarily called
+    in index order - callers needing a specific order should sort/shuffle the result themselves.
+    """
+
+    dataset: list[tuple[tuple[float, ...], int]] = []
+    with open(path, "rb") as f:
+        for index in indices:
+            f.seek(index * RECORD_SIZE)
+            record = f.read(RECORD_SIZE)
+            state = tuple(pixel / 255.0 for pixel in record[:-1])
+            dataset.append((state, record[-1]))
 
     return dataset

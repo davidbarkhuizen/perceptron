@@ -1,8 +1,17 @@
+import pickle
 import random
 
 import pytest
 
-from perceptron.ensemble_train import build_balanced_binary_dataset, train_ensemble_parallel
+from perceptron.ensemble_train import (
+    _available_memory_bytes,
+    _estimate_bytes_per_example,
+    _select_worker_count,
+    build_balanced_binary_dataset,
+    select_balanced_indices,
+    train_ensemble_parallel,
+    train_ensemble_parallel_from_indices,
+)
 
 
 def _synthetic_dataset(counts: dict[int, int]) -> list[tuple[tuple[float, ...], int]]:
@@ -12,6 +21,20 @@ def _synthetic_dataset(counts: dict[int, int]) -> list[tuple[tuple[float, ...], 
         for i in range(count):
             dataset.append(((float(label), float(i)), label))
     return dataset
+
+
+def write_test_records(path: str, records: list[tuple[tuple[float, ...], int]]) -> None:
+    # a minimal, picklable-file-backed stand-in for a real on-disk dataset format (like
+    # mnist_data.py's binary format) - module-level, not a closure, so the matching loader below
+    # can be passed to multiprocessing workers
+    with open(path, "wb") as f:
+        pickle.dump(records, f)
+
+
+def load_test_records_at_indices(path: str, indices: list[int]) -> list[tuple[tuple[float, ...], int]]:
+    with open(path, "rb") as f:
+        records = pickle.load(f)
+    return [records[index] for index in indices]
 
 
 def test_positives_are_exactly_every_example_of_the_target_label():
@@ -103,6 +126,40 @@ def test_rejects_an_out_of_range_target_label():
         build_balanced_binary_dataset(dataset, target_label=4, class_count=4, rng=random.Random(0))
 
 
+def test_build_balanced_binary_dataset_matches_select_balanced_indices():
+
+    # build_balanced_binary_dataset is now a thin wrapper around select_balanced_indices - this
+    # confirms the refactor didn't change behavior: the same states/categories come out, just
+    # looked up from the index-based result rather than computed a second, independent way
+    dataset = _synthetic_dataset({0: 6, 1: 10, 2: 10, 3: 10})
+    labels = [label for _, label in dataset]
+
+    index_result = select_balanced_indices(labels, target_label=0, class_count=4, rng=random.Random(0))
+    expected = [(dataset[index][0], category) for index, category in index_result]
+
+    direct_result = build_balanced_binary_dataset(dataset, target_label=0, class_count=4, rng=random.Random(0))
+
+    assert direct_result == expected
+
+
+def test_select_balanced_indices_positives_are_exactly_every_index_of_the_target_label():
+
+    labels = [0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2]  # label 0 at indices 0, 4, 8, 12
+
+    result = select_balanced_indices(labels, target_label=0, class_count=4, rng=random.Random(0))
+
+    positive_indices = {index for index, category in result if category == 1.0}
+    assert positive_indices == {0, 4, 8, 12}
+
+
+def test_select_balanced_indices_rejects_an_out_of_range_target_label():
+
+    labels = [0, 1, 2, 3]
+
+    with pytest.raises(AssertionError):
+        select_balanced_indices(labels, target_label=4, class_count=4, rng=random.Random(0))
+
+
 def _synthetic_multiclass_dataset() -> list[tuple[tuple[float, float], int]]:
     # three well-separated 2D clusters - small, but genuinely learnable (unlike the label-only
     # synthetic dataset above, these states actually carry signal), so training this for real
@@ -175,3 +232,160 @@ def test_train_ensemble_parallel_is_reproducible_under_a_fixed_seed():
     )
 
     assert ensemble_a.snapshot() == ensemble_b.snapshot()
+
+
+def test_train_ensemble_parallel_from_indices_produces_a_working_ensemble(tmp_path):
+
+    dataset = _synthetic_multiclass_dataset()
+    labels = [label for _, label in dataset]
+    path = str(tmp_path / "records.pkl")
+    write_test_records(path, dataset)
+    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+
+    ensemble, diagnostics = train_ensemble_parallel_from_indices(
+        path, load_test_records_at_indices, labels, class_count=3, layer_sizes=[4], dimension=2,
+        input_bounds=bounds, learning_rate=0.5, epochs=5, worker_count=2, seed=0,
+    )
+
+    assert ensemble.class_count == 3
+    assert set(diagnostics.keys()) == {0, 1, 2}
+    assert ensemble.classify_state((-5.0, -5.0)) == 0
+    assert ensemble.classify_state((5.0, 5.0)) == 1
+    assert ensemble.classify_state((5.0, -5.0)) == 2
+
+
+def test_train_ensemble_parallel_from_indices_matches_the_fully_decoded_path(tmp_path):
+
+    # same data, same seed, same everything - the index-based path should train to exactly the
+    # same result as the fully-decoded path, since select_balanced_indices' choices and
+    # per-worker seeding are identical either way, only *how* each worker gets its examples
+    # differs
+    dataset = _synthetic_multiclass_dataset()
+    labels = [label for _, label in dataset]
+    path = str(tmp_path / "records.pkl")
+    write_test_records(path, dataset)
+    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+
+    indexed_ensemble, _ = train_ensemble_parallel_from_indices(
+        path, load_test_records_at_indices, labels, class_count=3, layer_sizes=[4], dimension=2,
+        input_bounds=bounds, learning_rate=0.5, epochs=3, worker_count=2, seed=7,
+    )
+    direct_ensemble, _ = train_ensemble_parallel(
+        dataset, class_count=3, layer_sizes=[4], dimension=2, input_bounds=bounds,
+        learning_rate=0.5, epochs=3, worker_count=2, seed=7,
+    )
+
+    assert indexed_ensemble.snapshot() == direct_ensemble.snapshot()
+
+
+def test_available_memory_bytes_returns_a_real_positive_value_on_linux():
+
+    # this dev environment is Linux (see cli's install_os_packages), so /proc/meminfo should
+    # genuinely exist and parse to a plausible value, not just "doesn't crash"
+    available = _available_memory_bytes()
+
+    assert available is not None
+    assert available > 0
+
+
+def test_estimate_bytes_per_example_matches_a_direct_pickle_measurement():
+
+    import pickle
+
+    dataset = [((float(i), float(i) * 2), i % 3) for i in range(200)]
+
+    estimated = _estimate_bytes_per_example(dataset, sample_size=50)
+
+    direct = len(pickle.dumps(dataset[:50])) / 50
+    assert estimated == pytest.approx(direct)
+
+
+def test_estimate_bytes_per_example_handles_a_dataset_smaller_than_the_sample_size():
+
+    dataset = [((1.0, 2.0), 0), ((3.0, 4.0), 1)]
+
+    estimated = _estimate_bytes_per_example(dataset, sample_size=50)
+
+    assert estimated > 0
+
+
+def test_estimate_bytes_per_example_rejects_an_empty_dataset():
+
+    with pytest.raises(AssertionError):
+        _estimate_bytes_per_example([], sample_size=50)
+
+
+def test_select_worker_count_is_limited_by_available_memory(monkeypatch):
+
+    # 100MB available, budget half of it (50MB) for workers, each estimated at
+    # 1000 examples * 1000 bytes/example * 2.0x safety multiplier = 2,000,000 bytes/worker ->
+    # floor(50_000_000 / 2_000_000) = 25 workers by memory alone - but cpu_count/class_count
+    # below are set high enough not to bind, isolating the memory limit specifically
+    monkeypatch.setattr("perceptron.ensemble_train._available_memory_bytes", lambda: 100_000_000)
+    monkeypatch.setattr("os.cpu_count", lambda: 64)
+
+    worker_count = _select_worker_count(
+        class_count=64, estimated_examples_per_classifier=1000, bytes_per_example=1000.0, requested_worker_count=None
+    )
+
+    assert worker_count == 25
+
+
+def test_select_worker_count_is_limited_by_cpu_count_when_memory_is_abundant(monkeypatch):
+
+    monkeypatch.setattr("perceptron.ensemble_train._available_memory_bytes", lambda: 10_000_000_000)
+    monkeypatch.setattr("os.cpu_count", lambda: 4)
+
+    worker_count = _select_worker_count(
+        class_count=64, estimated_examples_per_classifier=1000, bytes_per_example=1000.0, requested_worker_count=None
+    )
+
+    assert worker_count == 4
+
+
+def test_select_worker_count_is_limited_by_class_count(monkeypatch):
+
+    monkeypatch.setattr("perceptron.ensemble_train._available_memory_bytes", lambda: 10_000_000_000)
+    monkeypatch.setattr("os.cpu_count", lambda: 64)
+
+    worker_count = _select_worker_count(
+        class_count=3, estimated_examples_per_classifier=1000, bytes_per_example=1000.0, requested_worker_count=None
+    )
+
+    assert worker_count == 3
+
+
+def test_select_worker_count_respects_an_explicit_lower_request(monkeypatch):
+
+    monkeypatch.setattr("perceptron.ensemble_train._available_memory_bytes", lambda: 10_000_000_000)
+    monkeypatch.setattr("os.cpu_count", lambda: 64)
+
+    worker_count = _select_worker_count(
+        class_count=64, estimated_examples_per_classifier=1000, bytes_per_example=1000.0, requested_worker_count=2
+    )
+
+    assert worker_count == 2
+
+
+def test_select_worker_count_never_goes_below_one_even_under_severe_memory_pressure(monkeypatch):
+
+    monkeypatch.setattr("perceptron.ensemble_train._available_memory_bytes", lambda: 1)
+    monkeypatch.setattr("os.cpu_count", lambda: 64)
+
+    worker_count = _select_worker_count(
+        class_count=64, estimated_examples_per_classifier=1_000_000, bytes_per_example=1000.0, requested_worker_count=None
+    )
+
+    assert worker_count == 1
+
+
+def test_select_worker_count_falls_back_to_cpu_and_class_count_when_memory_is_undetectable(monkeypatch):
+
+    monkeypatch.setattr("perceptron.ensemble_train._available_memory_bytes", lambda: None)
+    monkeypatch.setattr("os.cpu_count", lambda: 4)
+
+    worker_count = _select_worker_count(
+        class_count=64, estimated_examples_per_classifier=1000, bytes_per_example=1000.0, requested_worker_count=None
+    )
+
+    assert worker_count == 4
