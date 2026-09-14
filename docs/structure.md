@@ -18,6 +18,9 @@ perceptron/
     multiclass_backprop_classifier_network.py  one-vs-rest multi-class sibling of
                                      backprop_classifier_network.py (class_count-node output,
                                      fan-in-aware init, save()/load() persistence)
+    ensemble_backprop_classifier_network.py  class_count completely independent
+                                     BackpropClassifierNetworks (no shared hidden layer), argmax
+                                     over each one's own predict_probability at inference
   graphics/
     chart.py                      matplotlib helpers: figures/axes, decision-boundary and
                                    training-data plotting, and expanding plot bounds to
@@ -44,6 +47,22 @@ perceptron/
                                    reproduces the reference work's own 32x32-to-8x8
                                    block-counting downsample, and flattens the resulting 8x8
                                    grid into the same state shape digits_data.py produces
+  mnist_data.py                   loads the real MNIST dataset: a one-time convert_parquet_to_binary
+                                   conversion (pyarrow imported locally, only for that conversion)
+                                   to a flat, header-less binary format, then label-only
+                                   (load_mnist_labels) and indexed-record (load_mnist_records_at_indices,
+                                   direct seek - decodes only what's asked for) readers that
+                                   together let ensemble training avoid ever fully decoding the
+                                   dataset in any one process (see research-and-analysis.md)
+  ensemble_train.py                builds each class's balanced binary dataset from label data
+                                   alone (select_balanced_indices/build_balanced_binary_dataset),
+                                   then trains all class_count classifiers as fully independent
+                                   multiprocessing jobs with no synchronization between them -
+                                   train_ensemble_parallel (small datasets, fully in memory) and
+                                   train_ensemble_parallel_from_indices (large datasets - each
+                                   worker loads only its own selected records, itself); a
+                                   memory-aware worker count (_select_worker_count) caps the pool
+                                   by available memory as well as CPU count
   demos/
     demo.py                           standalone script that trains a classifier and plots the result
     demo_cardinality_sweep.py         trains classifiers at several cardinalities and compares convergence
@@ -63,6 +82,10 @@ perceptron/
                                        downsampled to 8x8 the same way the reference work's own
                                        preprocessing did, classified live by the trained model
                                        saved above (see the "multi-class" section above)
+    demo_mnist_recognition.py         real MNIST (28x28, 60000/10000) recognition via
+                                       EnsembleBackpropClassifierNetwork - 10 independently,
+                                       parallel-trained one-vs-rest classifiers (see "multi-class"
+                                       below and research-and-analysis.md)
 data/
   digits/
     digits.csv                      bundled 8x8 digits dataset (1797 rows, 64 pixels + a
@@ -256,3 +279,15 @@ fixed by `digit_capture.paint_brush_stroke`, which stamps a `CAPTURE_BRUSH_RADIU
 per stroke instead of one cell. That radius (2, a 5x5 stamp) was chosen empirically: wide enough
 to reach near-full block intensity, but not so wide it fills in a real digit's negative space -
 e.g. an unfilled "0"'s hole, which a radius of 3+ visibly started doing in testing.
+
+`demo_mnist_recognition.py` trains on the real, full-scale MNIST dataset (28x28, 60000 train /
+10000 test images) rather than the small bundled UCI set, using
+`EnsembleBackpropClassifierNetwork` instead of `MultiClassBackpropClassifierNetwork` - 10
+completely independent `BackpropClassifierNetwork`s, one per digit, each trained on its own
+class-balanced binary dataset (`ensemble_train.build_balanced_binary_dataset`) with no shared
+hidden layer and no synchronization of any kind between them, dispatched as parallel
+`multiprocessing` jobs (`ensemble_train.train_ensemble_parallel_from_indices`). This design, and
+the real memory-exhaustion bug hit (and fixed) while building it at full scale, is written up in
+[research and analysis](research-and-analysis.md#parallelizing-mnist-training). Measured on this
+machine: ~31 minutes wall-clock for the full 60000-image, 10-class training run, 89.4% held-out
+test accuracy.

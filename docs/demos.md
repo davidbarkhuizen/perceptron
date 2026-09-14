@@ -185,3 +185,27 @@ added to stamp a wider, more realistically pen-stroke-thick mark per event.
 Unlike every other demo, this one needs a display and mouse input - it's not part of the
 automated test suite (`tests/test_digit_capture.py` covers only the pure grid-flattening/
 coordinate-mapping/downsampling/brush logic behind it, not the tkinter UI itself).
+
+## demo: MNIST recognition
+
+    . cli demo-mnist-recognition
+
+Runs `perceptron/demos/demo_mnist_recognition.py` - the same shape as the digit-recognition demo
+above, but on the real, full-scale MNIST dataset (28x28 pixel images, 60000 train / 10000 test)
+instead of the small bundled UCI set, and using `EnsembleBackpropClassifierNetwork` (see
+[structure](structure.md#multi-class)) instead of `MultiClassBackpropClassifierNetwork`: 10
+completely independent `BackpropClassifierNetwork`s, one per digit, each trained on its own
+small, class-balanced binary dataset, with no shared hidden layer and no synchronization between
+them at all - trained as 10 parallel `multiprocessing` jobs
+(`ensemble_train.train_ensemble_parallel_from_indices`), memory-aware worker count included. The
+design behind this, and a real memory-exhaustion failure hit (and genuinely fixed, not just
+worked around) while building it at full scale, are written up in
+[research and analysis](research-and-analysis.md#parallelizing-mnist-training). One-time setup:
+converts the supplied `data/mnist/mnist-{train,test}.parquet` files to a flat binary format
+(`mnist_data.convert_parquet_to_binary`) the first time it's run, so training itself never needs
+`pyarrow`. Measured on this machine: ~31 minutes wall-clock for the full training run, memory
+stable throughout, 89.4% held-out test accuracy, no digit's confusion-matrix row or column
+collapsed. Saves the trained model to `data/mnist/trained_model.json` (gitignored, same as the
+digit-recognition demo's), printing how to reload it without retraining. Plots the same chart set
+as the digit-recognition demo: a per-digit training-accuracy-by-epoch curve, a confusion matrix,
+and a grid of sample test predictions.
