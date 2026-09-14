@@ -156,6 +156,11 @@ cython_debug/
 # MultiClassBackpropClassifierNetwork.save()/demo_digit_recognition.py)
 data/digits/trained_model.json
 
+# MNIST source data and its trained-model export - supplied locally, not committed (large
+# binary data; see perceptron/mnist_data.py)
+data/mnist/*.parquet
+data/mnist/trained_model.json
+
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
