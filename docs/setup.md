@@ -13,7 +13,7 @@
     . cli setup
 
 This installs `python3-tk` via `apt`, creates a `.venv`, and installs the Python
-dependencies (`matplotlib`, `pytest`) from `requirements.txt`.
+dependencies (`matplotlib`, `pytest`, `pyarrow`) from `requirements.txt`.
 
 ## test
 
