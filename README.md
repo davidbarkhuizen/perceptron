@@ -14,3 +14,5 @@ retrofit - so it can represent targets (like XOR) the discrete model structurall
 - [setup](docs/setup.md) — requirements, install, and running the tests
 - [demos](docs/demos.md) — the demo scripts and what each one shows
 - [theory](docs/theory.md) — Rosenblatt's perceptron theory, and reference material
+- [research and analysis](docs/research-and-analysis.md) — investigations behind a design
+  decision, with the measurements that drove it
