@@ -39,10 +39,11 @@ perceptron/
                                    evaluate.py's functions are two-class- and geometry-specific
                                    and don't generalize to this
   digit_capture.py                pure helpers for the interactive digit-capture tool: maps a
-                                   mouse pixel coordinate to a tile, genuinely reproduces the
-                                   reference work's own 32x32-to-8x8 block-counting downsample,
-                                   and flattens the resulting 8x8 grid into the same state shape
-                                   digits_data.py produces
+                                   mouse pixel coordinate to a tile, stamps a realistically
+                                   pen-thick brush stroke (not a single mouse-cell), genuinely
+                                   reproduces the reference work's own 32x32-to-8x8
+                                   block-counting downsample, and flattens the resulting 8x8
+                                   grid into the same state shape digits_data.py produces
   demos/
     demo.py                           standalone script that trains a classifier and plots the result
     demo_cardinality_sweep.py         trains classifiers at several cardinalities and compares convergence
@@ -98,7 +99,7 @@ tests/                           one file per module under test, plus test_train
                                      MultiClassBackpropClassifierNetwork on real digit data,
                                      unchanged
   test_digit_capture.py           tile_grid_to_state, pixel_to_tile, downsample_to_target_grid,
-                                   intensity_to_color - the pure logic behind
+                                   paint_brush_stroke, intensity_to_color - the pure logic behind
                                    demo_digit_capture.py; the tkinter mouse/canvas code itself
                                    isn't unit-tested (no headless display in this test suite)
 cli                                setup / test / clean helper script
@@ -244,3 +245,14 @@ than approximating grading with a heuristic - shown live in a second preview can
 `digit_capture.intensity_to_color`, a linear grayscale mapping) so what the classifier actually
 sees is visible. The result still goes through `digit_capture.tile_grid_to_state` - the same
 row-major, `[0.0, 1.0]`-normalized shape `digits_data.py` produces - unchanged by this.
+
+Painting a single 32x32 cell per mouse event isn't enough, though - measured directly: a
+mouse-thin (1-cell-wide) stroke block-counts down to only ~25% of full intensity, far fainter
+than any real training example (which run ~14-16 out of 16 throughout their stroked regions,
+since a real pen stroke is proportionally thick relative to the 32x32 capture resolution, not
+single-pixel-thin). This was a real, reported bug - almost every digit misclassified toward
+whichever class happened to catch faint, ambiguous input (in practice, nearly always "7") -
+fixed by `digit_capture.paint_brush_stroke`, which stamps a `CAPTURE_BRUSH_RADIUS`-wide square
+per stroke instead of one cell. That radius (2, a 5x5 stamp) was chosen empirically: wide enough
+to reach near-full block intensity, but not so wide it fills in a real digit's negative space -
+e.g. an unfilled "0"'s hole, which a radius of 3+ visibly started doing in testing.

@@ -2,11 +2,13 @@ import pytest
 
 from perceptron.digit_capture import (
     BLOCK_SIZE,
+    CAPTURE_BRUSH_RADIUS,
     CAPTURE_GRID_SIZE,
     GRID_SIZE,
     MAX_BLOCK_VALUE,
     downsample_to_target_grid,
     intensity_to_color,
+    paint_brush_stroke,
     pixel_to_tile,
     tile_grid_to_state,
 )
@@ -157,6 +159,63 @@ def test_intensity_to_color_maps_to_grayscale_hex():
     assert intensity_to_color(1.0) == "#ffffff"
     # 0.375 * 255 = 95.625, rounds to 96 = 0x60
     assert intensity_to_color(0.375) == "#606060"
+
+
+def _empty_capture_grid_for_brush() -> list[list[float]]:
+    return [[0.0] * CAPTURE_GRID_SIZE for _ in range(CAPTURE_GRID_SIZE)]
+
+
+def test_paint_brush_stroke_stamps_a_square_neighborhood_fully_on():
+
+    grid = _empty_capture_grid_for_brush()
+
+    new_grid = paint_brush_stroke(grid, 10, 10, radius=2)
+
+    for delta_row in range(-2, 3):
+        for delta_col in range(-2, 3):
+            assert new_grid[10 + delta_row][10 + delta_col] == 1.0
+
+    # nothing further away than the radius is touched
+    assert new_grid[10 - 3][10] == 0.0
+    assert new_grid[10][10 + 3] == 0.0
+
+    # the original grid is left untouched - paint_brush_stroke returns a new one
+    assert grid[10][10] == 0.0
+
+
+def test_paint_brush_stroke_clips_to_the_grid_at_a_corner():
+
+    grid = _empty_capture_grid_for_brush()
+
+    new_grid = paint_brush_stroke(grid, 0, 0, radius=2)
+
+    # only the in-bounds quarter of the brush is stamped
+    on_count = sum(sum(row) for row in new_grid)
+    assert on_count == 3 * 3
+    assert new_grid[0][0] == 1.0
+    assert new_grid[2][2] == 1.0
+    assert new_grid[3][0] == 0.0
+
+
+def test_paint_brush_stroke_default_radius_matches_capture_brush_radius():
+
+    grid = _empty_capture_grid_for_brush()
+
+    new_grid = paint_brush_stroke(grid, 10, 10)
+
+    stroke_width = 2 * CAPTURE_BRUSH_RADIUS + 1
+    assert sum(sum(row) for row in new_grid) == stroke_width * stroke_width
+
+
+def test_paint_brush_stroke_rejects_out_of_bounds_center():
+
+    grid = _empty_capture_grid_for_brush()
+
+    with pytest.raises(AssertionError):
+        paint_brush_stroke(grid, -1, 0)
+
+    with pytest.raises(AssertionError):
+        paint_brush_stroke(grid, 0, CAPTURE_GRID_SIZE)
 
 
 def test_intensity_to_color_rejects_out_of_range_values():
