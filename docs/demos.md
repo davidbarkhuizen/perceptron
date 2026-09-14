@@ -209,3 +209,39 @@ collapsed. Saves the trained model to `data/mnist/trained_model.json` (gitignore
 digit-recognition demo's), printing how to reload it without retraining. Plots the same chart set
 as the digit-recognition demo: a per-digit training-accuracy-by-epoch curve, a confusion matrix,
 and a grid of sample test predictions.
+
+## demo: MNIST capture
+
+    . cli demo-mnist-capture
+
+Runs `perceptron/demos/demo_mnist_capture.py` - an interactive companion to the MNIST-recognition
+demo above, the same overall interaction as `demo_digit_capture.py` but against MNIST's own
+reference preprocessing instead of the UCI dataset's block-counting downsample. Loads the model
+the recognition demo trains and saves (`data/mnist/trained_model.json` via
+`EnsembleBackpropClassifierNetwork.load`; run `demo-mnist-recognition` first if that file doesn't
+exist yet), then opens two canvases: a 64x64 grid you paint with the mouse (click or click-and-
+drag - each stroke stamps a `CAPTURE_BRUSH_RADIUS`-wide square), and a 28x28 preview next to it
+showing the result of genuinely reproducing MNIST's own three-step preprocessing on what you drew
+(see `mnist_capture.preprocess_capture` and [structure](structure.md#multi-class)): crop to the
+drawn content's bounding box, aspect-preserving anti-aliased scale so the longer side hits 20
+pixels, center-of-mass placement into the 28x28 field. Every stroke updates the preview and
+reclassifies live, showing the predicted digit and the model's confidence in it.
+
+`CAPTURE_BRUSH_RADIUS` (4) was chosen empirically against the real trained ensemble, the same way
+the UCI capture tool's radius was: tested against hand-simulated "0"/"1"/"7" strokes, confidence
+stayed at ~1.00 through radius 2-5, and degraded from radius 6 onward as a "0"'s hole started
+filling in (0.94 at radius 6, 0.34 at radius 8, misclassified as "8" by radius 12) - 4 sits
+comfortably inside the safe range.
+
+Building this demo surfaced a real bug, found via an end-to-end smoke test (a simulated paint
+stroke through the actual tkinter app, not just the pure preprocessing functions in isolation):
+`resize_area_weighted`'s area-weighted average can overshoot its mathematically-guaranteed
+`[0.0, 1.0]` bound by a tiny floating-point amount (observed directly: `1.0000000000000002`),
+which the preview canvas's strict `[0.0, 1.0]` color-mapping assertion then rejected -
+`scale_to_fit` now clamps its result to fix this (the general-purpose `resize_area_weighted`
+itself is left unclamped, since its valid output range depends on whatever range its caller's
+own input happens to be in - not always `[0.0, 1.0]`).
+
+Unlike every other demo, this one needs a display and mouse input - it's not part of the
+automated test suite (`tests/test_mnist_capture.py` covers only the pure
+crop/scale/center-of-mass/brush logic behind it, not the tkinter UI itself).
