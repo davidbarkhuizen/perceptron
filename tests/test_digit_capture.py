@@ -1,11 +1,11 @@
 import pytest
 
 from perceptron.digit_capture import (
-    CENTER_INTENSITY,
+    BLOCK_SIZE,
+    CAPTURE_GRID_SIZE,
     GRID_SIZE,
-    MAX_INTENSITY,
-    NEIGHBOR_INTENSITY_STEP,
-    apply_brush_stroke,
+    MAX_BLOCK_VALUE,
+    downsample_to_target_grid,
     intensity_to_color,
     pixel_to_tile,
     tile_grid_to_state,
@@ -72,68 +72,83 @@ def test_pixel_to_tile_does_not_clamp_out_of_range_coordinates():
     assert pixel_to_tile(35 * 8, 0, 35) == (0, 8)
 
 
-def test_apply_brush_stroke_sets_center_to_full_intensity_and_softly_lights_neighbors():
-
-    grid = [[0.0] * GRID_SIZE for _ in range(GRID_SIZE)]
-
-    new_grid = apply_brush_stroke(grid, 3, 3)
-
-    assert new_grid[3][3] == CENTER_INTENSITY
-    for delta_row in (-1, 0, 1):
-        for delta_col in (-1, 0, 1):
-            if delta_row == 0 and delta_col == 0:
-                continue
-            assert new_grid[3 + delta_row][3 + delta_col] == NEIGHBOR_INTENSITY_STEP
-
-    # nothing further away than one tile is touched
-    assert new_grid[0][0] == 0.0
-    assert new_grid[5][5] == 0.0
-
-    # the original grid is left untouched - apply_brush_stroke returns a new one
-    assert grid[3][3] == 0.0
-    assert grid[2][2] == 0.0
-    assert NEIGHBOR_INTENSITY_STEP < MAX_INTENSITY
+def _empty_capture_grid() -> list[list[float]]:
+    return [[0.0] * CAPTURE_GRID_SIZE for _ in range(CAPTURE_GRID_SIZE)]
 
 
-def test_apply_brush_stroke_only_lights_in_bounds_neighbors_at_a_corner():
+def test_block_size_and_max_block_value_match_the_reference_work():
 
-    grid = [[0.0] * GRID_SIZE for _ in range(GRID_SIZE)]
-
-    new_grid = apply_brush_stroke(grid, 0, 0)
-
-    assert new_grid[0][0] == 1.0
-    assert new_grid[0][1] == NEIGHBOR_INTENSITY_STEP
-    assert new_grid[1][0] == NEIGHBOR_INTENSITY_STEP
-    assert new_grid[1][1] == NEIGHBOR_INTENSITY_STEP
-    # every other tile (including the three off-grid "neighbors") stays untouched
-    assert sum(sum(row) for row in new_grid) == 1.0 + 3 * NEIGHBOR_INTENSITY_STEP
+    # 32x32 divided into 8x8 nonoverlapping blocks -> each block is 4x4 -> 16 sub-pixels,
+    # matching the bundled training data's own 0-16 pixel grading exactly
+    assert BLOCK_SIZE == 4
+    assert MAX_BLOCK_VALUE == 16
 
 
-def test_apply_brush_stroke_neighbor_intensity_is_cumulative_and_capped():
+def test_downsample_to_target_grid_all_off_is_all_zero():
 
-    grid = [[0.0] * GRID_SIZE for _ in range(GRID_SIZE)]
+    capture_grid = _empty_capture_grid()
 
-    # tile (3, 4) is a neighbor of both (3, 3) and (3, 5) - two separate strokes should add up
-    grid = apply_brush_stroke(grid, 3, 3)
-    grid = apply_brush_stroke(grid, 3, 5)
+    target_grid = downsample_to_target_grid(capture_grid)
 
-    assert grid[3][4] == pytest.approx(2 * NEIGHBOR_INTENSITY_STEP)
-
-    # repeated strokes at the same spot cap at MAX_INTENSITY rather than exceeding it
-    for _ in range(10):
-        grid = apply_brush_stroke(grid, 3, 3)
-    assert grid[3][4] == MAX_INTENSITY
+    assert target_grid == [[0.0] * GRID_SIZE for _ in range(GRID_SIZE)]
 
 
-def test_apply_brush_stroke_rejects_out_of_bounds_center():
+def test_downsample_to_target_grid_all_on_is_all_one():
 
-    grid = [[0.0] * GRID_SIZE for _ in range(GRID_SIZE)]
+    capture_grid = [[1.0] * CAPTURE_GRID_SIZE for _ in range(CAPTURE_GRID_SIZE)]
+
+    target_grid = downsample_to_target_grid(capture_grid)
+
+    assert target_grid == [[1.0] * GRID_SIZE for _ in range(GRID_SIZE)]
+
+
+def test_downsample_to_target_grid_counts_a_single_on_pixel_within_its_block():
+
+    capture_grid = _empty_capture_grid()
+    # top-left pixel of the block feeding target cell (0, 0)
+    capture_grid[0][0] = 1.0
+
+    target_grid = downsample_to_target_grid(capture_grid)
+
+    assert target_grid[0][0] == pytest.approx(1 / 16)
+    assert sum(sum(row) for row in target_grid) == pytest.approx(1 / 16)
+
+
+def test_downsample_to_target_grid_a_fully_lit_block_is_exactly_full_intensity():
+
+    capture_grid = _empty_capture_grid()
+    # every pixel in the 4x4 block feeding target cell (1, 2)
+    block_row, block_col = 1 * BLOCK_SIZE, 2 * BLOCK_SIZE
+    for dr in range(BLOCK_SIZE):
+        for dc in range(BLOCK_SIZE):
+            capture_grid[block_row + dr][block_col + dc] = 1.0
+
+    target_grid = downsample_to_target_grid(capture_grid)
+
+    assert target_grid[1][2] == 1.0
+    # nothing else was touched
+    assert sum(sum(row) for row in target_grid) == 1.0
+
+
+def test_downsample_to_target_grid_blocks_do_not_overlap():
+
+    capture_grid = _empty_capture_grid()
+    # last pixel of the block feeding (0, 0) and the first pixel of the block feeding (0, 1)
+    # are adjacent on the capture grid but must land in different target cells
+    capture_grid[BLOCK_SIZE - 1][BLOCK_SIZE - 1] = 1.0
+    capture_grid[0][BLOCK_SIZE] = 1.0
+
+    target_grid = downsample_to_target_grid(capture_grid)
+
+    assert target_grid[0][0] == pytest.approx(1 / 16)
+    assert target_grid[0][1] == pytest.approx(1 / 16)
+    assert sum(sum(row) for row in target_grid) == pytest.approx(2 / 16)
+
+
+def test_downsample_to_target_grid_rejects_wrong_size_input():
 
     with pytest.raises(AssertionError):
-        apply_brush_stroke(grid, -1, 0)
-
-    with pytest.raises(AssertionError):
-        apply_brush_stroke(grid, 0, GRID_SIZE)
+        downsample_to_target_grid([[0.0] * GRID_SIZE for _ in range(GRID_SIZE)])
 
 
 def test_intensity_to_color_maps_to_grayscale_hex():
