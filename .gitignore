@@ -156,9 +156,10 @@ cython_debug/
 # MultiClassBackpropClassifierNetwork.save()/demo_digit_recognition.py)
 data/digits/trained_model.json
 
-# MNIST source data and its trained-model export - supplied locally, not committed (large
-# binary data; see perceptron/mnist_data.py)
+# MNIST source data (supplied locally) and its derived/regenerable artifacts - not committed
+# (large binary data; see perceptron/mnist_data.py's convert_parquet_to_binary)
 data/mnist/*.parquet
+data/mnist/*.bin
 data/mnist/trained_model.json
 
 # PyCharm
