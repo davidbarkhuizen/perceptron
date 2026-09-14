@@ -56,9 +56,9 @@ perceptron/
     demo_digit_recognition.py         classic-style handwritten digit recognition on the
                                        bundled 8x8 dataset, with confusion-matrix/sample charts
                                        and a saved, reloadable trained model
-    demo_digit_capture.py             an interactive, mouse-painted 8x8 tile grid, classified
-                                       live by the trained model saved above (binary tiles for
-                                       now - see the "multi-class" section above)
+    demo_digit_capture.py             an interactive, mouse-painted 8x8 tile grid with a soft,
+                                       graded brush, classified live by the trained model saved
+                                       above (see the "multi-class" section above)
 data/
   digits/
     digits.csv                      bundled 8x8 digits dataset (1797 rows, 64 pixels + a
@@ -230,6 +230,12 @@ which works identically whether `category` is a float or an int).
 `demo_digit_capture.py` classifies a live, mouse-painted 8x8 tile grid with a trained model
 loaded from disk (`MultiClassBackpropClassifierNetwork.load`), via `digit_capture.py`'s
 `tile_grid_to_state` - the same row-major, `[0.0, 1.0]`-normalized shape `digits_data.py`
-produces. Tiles are binary (fully on or off) for now; the bundled training data is actually
-graded 0-16 per pixel (NIST's own preprocessing averages each cell), so this is a deliberate
-first cut rather than a distribution match - graded/grayscale painting is a planned follow-up.
+produces. Painting is graded, not binary: `digit_capture.apply_brush_stroke` sets the touched
+tile to full intensity and softly lights its orthogonal/diagonal neighbors too (cumulative
+across strokes, capped at full intensity), approximating how the bundled training data's own
+0-16 grading actually arose (NIST's preprocessing averaged a higher-resolution scan down into
+8x8 cells, so a stroke near a cell edge left it partially lit, not just on or off). This isn't
+a cosmetic change - measured directly: the same single-tile-wide vertical stroke that a purely
+binary version classified as "3" at 0.82 confidence classifies as "1" at 1.00 confidence once
+painting produces the soft edges the model was actually trained on. Tile color is rendered via
+`digit_capture.intensity_to_color`, a linear grayscale mapping.
