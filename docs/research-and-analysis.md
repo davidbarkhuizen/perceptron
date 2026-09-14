@@ -126,3 +126,82 @@ Proceed with approach 2: a new ensemble class composed of 10 independent
 `BackpropClassifierNetwork`s (one per digit), a small balanced-binary-dataset builder, and a
 `multiprocessing`-based job dispatcher to train all 10 concurrently. See
 [structure](structure.md) for the resulting design once implemented.
+
+### building it: a real memory-exhaustion failure, and three wrong hypotheses before the right one
+
+Implementing approach 2 for real, at full MNIST scale, hit a genuine failure the small-scale
+prototyping above never exercised: the machine (5.7GB RAM, 2GB swap) ran out of memory and
+started thrashing hard enough that a training run never completed. Each hypothesis below was
+tested directly and ruled out before moving to the next - none were assumed.
+
+**Not a multiprocessing deadlock.** The stuck run's worker processes showed frozen CPU time
+(`ps`'s `TIME` column not advancing between checks) and a `futex_wait_queue` wait channel -
+consistent with either a genuine deadlock or a process stalled on swapped-out memory.
+`free -h` settled it: 1.8GB of the 2GB swap file in use and climbing. This was swap thrashing,
+not a hang - confirmed further once killing the stuck processes immediately freed the memory.
+
+**Not `Pool.imap`'s laziness.** A prior fix (see the ensemble-training PRs) built each class's
+balanced dataset via a generator passed to `Pool.imap`, intending to keep at most a few datasets
+in memory at once rather than all 10 upfront. A minimal repro disproved this: `imap` consumes
+its *entire* input generator essentially immediately, regardless of how slowly workers actually
+process tasks - confirmed by printing from inside the generator alongside artificially slow
+workers and watching all output appear before any worker finished. The "lazy" dataset building
+never throttled anything.
+
+**Not `worker_count` being too high.** Capping the worker pool by an estimate of available
+memory (not just CPU count) was a real, necessary fix on its own - but reran into the same
+thrashing anyway. The estimate itself (based on a small sample's *pickled* size) turned out to
+undercount the real cost by roughly an order of magnitude, because it never accounted for what
+happens next.
+
+**Not pyarrow's import footprint - genuinely disproven, not just deprioritized.** The next
+hypothesis: forking worker processes *after* the main process had already imported `pyarrow`
+(needed to load the source parquet files) meant every worker inherited pyarrow's own
+multi-hundred-MB footprint, whether or not that worker ever used it. This looked promising and
+matched a known Python/multiprocessing pattern - but was tested rather than trusted:
+
+| scenario | worker peak RSS |
+|---|---|
+| real MNIST data, pyarrow imported in parent, `gc.freeze()` before fork | 2380 MB |
+| same, without `gc.freeze()` | 2376 MB (no difference) |
+| synthetic data, no pyarrow import anywhere | 803 MB |
+| real MNIST data loaded via a new pyarrow-free binary format (`mnist_data.convert_parquet_to_binary`, a one-time offline conversion - kept, since it's useful regardless) | 2254 MB |
+
+The last row is the decisive one: removing pyarrow from the picture entirely barely moved the
+number. Whatever was costing ~1.5GB per worker, it wasn't pyarrow.
+
+**The real cause.** The synthetic-data test above used ~11846 freshly-generated examples
+directly - a similar count to one class's balanced set, but *not* the product of first loading
+all 60000 real examples and then subsampling. The real code path does exactly that: the main
+process decodes the *entire* dataset into `(tuple-of-784-floats, label)` pairs before any
+subsampling happens, and that fully-decoded structure - 60000 × 784 = 47 million individual
+boxed Python float objects - is what gets duplicated into every forked worker. Not a library's
+fault: that's just what nearly 47 million Python objects costs, regardless of how they got
+there or which library was or wasn't involved in loading them.
+
+**The fix, measured before and after on identical real work:**
+
+| approach | worker peak RSS |
+|---|---|
+| main process fully decodes all 60000 examples, then ships one class's ~11846-example slice via IPC | 2254.7 MB |
+| main process reads only label bytes (cheap); the worker seeks directly to its own ~11846 chosen examples and decodes only those | 374.4 MB |
+
+A ~6x reduction, by ensuring no process - main or worker - ever holds the full dataset decoded
+in memory at once. `mnist_data.load_mnist_labels` (label bytes only) and
+`load_mnist_records_at_indices` (direct seek, decodes only the requested examples) replace
+eager full-dataset decoding; `ensemble_train.select_balanced_indices` decides *which* examples
+each class needs from label data alone, and `train_ensemble_parallel_from_indices` has each
+worker load only its own selection, itself.
+
+**Verified end to end**, not just at the single-worker/single-class scale above: the real, full
+60000-image MNIST training set, all 10 classes, memory-aware worker count (8 workers on this
+machine) - **31.2 minutes wall-clock, memory stable throughout (no swap growth), 89.4% held-out
+test accuracy**, no digit's confusion-matrix row or column collapsed. The run that previously
+couldn't complete at all now finishes reliably, in less time than even the original "ideal"
+estimate for this approach.
+
+**The general lesson**, beyond this specific fix: a plausible, mechanism-matching hypothesis
+(pyarrow's known import-weight problem, matching a real documented Python gotcha) can still be
+wrong. Each hypothesis here was cheap to test in isolation and expensive to have shipped
+untested - the pyarrow theory in particular "felt right" and would have been easy to stop
+investigating at, had it not been measured directly against a synthetic-data control.
