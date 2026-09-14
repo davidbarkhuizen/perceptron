@@ -63,6 +63,15 @@ perceptron/
                                    worker loads only its own selected records, itself); a
                                    memory-aware worker count (_select_worker_count) caps the pool
                                    by available memory as well as CPU count
+  mnist_capture.py                 pure helpers for the interactive MNIST-capture tool: genuinely
+                                   reproduces MNIST's own reference preprocessing (crop to
+                                   bounding box -> aspect-preserving anti-aliased scale-to-20 via
+                                   area-weighted resampling -> center-of-mass placement into 28x28
+                                   - see resize_area_weighted, scale_to_fit, center_of_mass,
+                                   place_centered, preprocess_capture), plus a brush-stroke helper
+                                   for the 64x64 capture grid (independent of, not shared with,
+                                   digit_capture.py's - the two pipelines' grid sizes and
+                                   downstream processing differ enough to not be worth unifying)
   demos/
     demo.py                           standalone script that trains a classifier and plots the result
     demo_cardinality_sweep.py         trains classifiers at several cardinalities and compares convergence
@@ -86,6 +95,10 @@ perceptron/
                                        EnsembleBackpropClassifierNetwork - 10 independently,
                                        parallel-trained one-vs-rest classifiers (see "multi-class"
                                        below and research-and-analysis.md)
+    demo_mnist_capture.py             an interactive 64x64 mouse-painted grid, genuinely
+                                       reproducing MNIST's own crop/scale/center-of-mass
+                                       preprocessing (mnist_capture.py), classified live by the
+                                       ensemble trained above
 data/
   digits/
     digits.csv                      bundled 8x8 digits dataset (1797 rows, 64 pixels + a
@@ -291,3 +304,23 @@ the real memory-exhaustion bug hit (and fixed) while building it at full scale, 
 [research and analysis](research-and-analysis.md#parallelizing-mnist-training). Measured on this
 machine: ~31 minutes wall-clock for the full 60000-image, 10-class training run, 89.4% held-out
 test accuracy.
+
+`demo_mnist_capture.py` classifies a live, mouse-painted digit with `EnsembleBackpropClassifierNetwork.load`
+(the model the demo above trains and saves), the same overall interaction as
+`demo_digit_capture.py` but against MNIST's own reference preprocessing instead of the UCI
+dataset's block-counting downsample: the user paints a binary 64x64 bitmap
+(`mnist_capture.CAPTURE_GRID_SIZE`, deliberately higher resolution than the UCI tool's 32x32, so
+there's real room for aspect-preserving scaling to do something meaningful), then
+`mnist_capture.preprocess_capture` genuinely reproduces MNIST's own three-step pipeline - crop to
+the drawn content's bounding box, aspect-preserving anti-aliased scale so the longer side hits 20
+pixels, center-of-mass placement into a 28x28 field - shown live in a second preview canvas.
+`CAPTURE_BRUSH_RADIUS` (4, a 9x9 stamp) was chosen empirically against the real trained ensemble
+the same way `digit_capture.CAPTURE_BRUSH_RADIUS` was: tested against hand-simulated "0"/"1"/"7"
+strokes, confidence stayed at ~1.00 through radius 2-5, degraded from radius 6 onward as a "0"'s
+hole started filling in (0.94 at 6, 0.34 at 8, misclassified as "8" by 12) - 4 sits comfortably in
+the safe range. Building this demo surfaced a real floating-point bug: `resize_area_weighted`'s
+area-weighted average can overshoot its mathematically-guaranteed `[0.0, 1.0]` bound by a tiny
+amount (observed directly: `1.0000000000000002`) from summing many small overlap contributions,
+which `intensity_to_color`'s strict range assertion then rejected - `scale_to_fit` now clamps its
+result (not the general-purpose `resize_area_weighted` itself, whose valid output range depends
+on its caller's own input range).

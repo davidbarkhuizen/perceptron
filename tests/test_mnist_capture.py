@@ -130,6 +130,21 @@ def test_scale_to_fit_a_square_source_stays_square():
     assert len(result[0]) == 20
 
 
+def test_scale_to_fit_clamps_floating_point_overshoot_to_the_source_range():
+
+    # resize_area_weighted's average is mathematically bounded by the source's own min/max
+    # (here [0.0, 1.0]) - but summing many small floating-point overlap contributions can
+    # overshoot that bound by a tiny amount. A minimal repro found directly (not hand-derived):
+    # a 1x1 all-ones source resized to 1x3 produces 1.0000000000000002 without the clamp - this
+    # would fail intensity_to_color's strict [0.0, 1.0] assertion downstream, a real bug hit
+    # during interactive demo_mnist_capture.py smoke testing.
+    source = [[1.0]]
+
+    result = scale_to_fit(source, max_dimension=3)
+
+    assert all(0.0 <= value <= 1.0 for row in result for value in row)
+
+
 def test_center_of_mass_of_a_single_pixel_is_its_own_center():
 
     grid = _empty_grid(4)

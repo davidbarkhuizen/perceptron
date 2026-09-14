@@ -133,7 +133,15 @@ def scale_to_fit(source: list[list[float]], max_dimension: int = TARGET_MAX_DIME
         target_width = max_dimension
         target_height = max(1, round(source_height * max_dimension / source_width))
 
-    return resize_area_weighted(source, target_height, target_width)
+    resized = resize_area_weighted(source, target_height, target_width)
+
+    # resize_area_weighted's average is mathematically bounded by source's own min/max - here
+    # always [0.0, 1.0], a binary capture grid - but summing many small floating-point overlap
+    # contributions can overshoot that bound by a tiny amount (observed directly:
+    # 1.0000000000000002), which intensity_to_color's strict [0.0, 1.0] assertion then rejects.
+    # Clamping here (where the [0.0, 1.0] input range is actually guaranteed, unlike the
+    # general-purpose resize_area_weighted itself) corrects the representation, not the math.
+    return [[min(1.0, max(0.0, value)) for value in row] for row in resized]
 
 
 def center_of_mass(grid: list[list[float]]) -> tuple[float, float]:
