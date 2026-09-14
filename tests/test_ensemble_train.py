@@ -2,7 +2,7 @@ import random
 
 import pytest
 
-from perceptron.ensemble_train import build_balanced_binary_dataset
+from perceptron.ensemble_train import build_balanced_binary_dataset, train_ensemble_parallel
 
 
 def _synthetic_dataset(counts: dict[int, int]) -> list[tuple[tuple[float, ...], int]]:
@@ -101,3 +101,77 @@ def test_rejects_an_out_of_range_target_label():
 
     with pytest.raises(AssertionError):
         build_balanced_binary_dataset(dataset, target_label=4, class_count=4, rng=random.Random(0))
+
+
+def _synthetic_multiclass_dataset() -> list[tuple[tuple[float, float], int]]:
+    # three well-separated 2D clusters - small, but genuinely learnable (unlike the label-only
+    # synthetic dataset above, these states actually carry signal), so training this for real
+    # through the full multiprocessing.Pool path is meaningful, not just mechanically exercised
+    centers = {0: (-5.0, -5.0), 1: (5.0, 5.0), 2: (5.0, -5.0)}
+    rng = random.Random(1)
+    dataset = []
+    for label, (cx, cy) in centers.items():
+        for _ in range(20):
+            dataset.append(((cx + rng.uniform(-1.0, 1.0), cy + rng.uniform(-1.0, 1.0)), label))
+    return dataset
+
+
+def test_train_ensemble_parallel_produces_a_working_ensemble():
+
+    dataset = _synthetic_multiclass_dataset()
+    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+
+    ensemble, diagnostics = train_ensemble_parallel(
+        dataset, class_count=3, layer_sizes=[4], dimension=2, input_bounds=bounds,
+        learning_rate=0.5, epochs=5, worker_count=2, seed=0,
+    )
+
+    assert ensemble.class_count == 3
+    assert set(diagnostics.keys()) == {0, 1, 2}
+
+    # the ensemble should classify each cluster's own center correctly - a low bar, but a real
+    # end-to-end correctness check, not just "it ran without crashing"
+    assert ensemble.classify_state((-5.0, -5.0)) == 0
+    assert ensemble.classify_state((5.0, 5.0)) == 1
+    assert ensemble.classify_state((5.0, -5.0)) == 2
+
+
+def test_train_ensemble_parallel_gives_each_worker_independent_initial_weights():
+
+    # epochs=0: train_linear_classifier_network's loop body never runs, so each returned
+    # sub-network is left exactly at its randomized(), untrained state (confirmed directly -
+    # its snapshot is unchanged from before the call) - isolates "are initial weights actually
+    # independent per worker" from "training on different data made them diverge anyway",
+    # which a nonzero epoch count can't distinguish (confirmed by mutation testing: hardcoding
+    # every worker's seed to the same value still passed a version of this test using epochs=1,
+    # since post-training divergence from each sub-network's different binary dataset masked
+    # the identical initial weights)
+    dataset = _synthetic_multiclass_dataset()
+    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+
+    ensemble, _ = train_ensemble_parallel(
+        dataset, class_count=3, layer_sizes=[4], dimension=2, input_bounds=bounds,
+        learning_rate=0.5, epochs=0, worker_count=2, seed=0,
+    )
+
+    weight_sets = [
+        tuple(classifier.hidden_layers[0].nodes[0].input_node_weights) for classifier in ensemble.classifiers
+    ]
+    assert len(set(weight_sets)) == len(weight_sets)
+
+
+def test_train_ensemble_parallel_is_reproducible_under_a_fixed_seed():
+
+    dataset = _synthetic_multiclass_dataset()
+    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+
+    ensemble_a, _ = train_ensemble_parallel(
+        dataset, class_count=3, layer_sizes=[4], dimension=2, input_bounds=bounds,
+        learning_rate=0.5, epochs=3, worker_count=2, seed=7,
+    )
+    ensemble_b, _ = train_ensemble_parallel(
+        dataset, class_count=3, layer_sizes=[4], dimension=2, input_bounds=bounds,
+        learning_rate=0.5, epochs=3, worker_count=2, seed=7,
+    )
+
+    assert ensemble_a.snapshot() == ensemble_b.snapshot()
