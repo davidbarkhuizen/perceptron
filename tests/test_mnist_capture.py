@@ -1,0 +1,217 @@
+import pytest
+
+from perceptron.mnist_capture import (
+    CANVAS_SIZE,
+    bounding_box,
+    center_of_mass,
+    crop,
+    place_centered,
+    preprocess_capture,
+    resize_area_weighted,
+    scale_to_fit,
+)
+
+
+def _empty_grid(size: int) -> list[list[float]]:
+    return [[0.0] * size for _ in range(size)]
+
+
+def test_bounding_box_of_an_empty_grid_is_none():
+
+    assert bounding_box(_empty_grid(8)) is None
+
+
+def test_bounding_box_of_a_single_point():
+
+    grid = _empty_grid(8)
+    grid[3][5] = 1.0
+
+    assert bounding_box(grid) == (3, 5, 3, 5)
+
+
+def test_bounding_box_of_a_rectangle():
+
+    grid = _empty_grid(8)
+    grid[2][1] = 1.0
+    grid[2][4] = 1.0
+    grid[6][1] = 1.0
+    # a fourth interior point, shouldn't change the box
+    grid[4][2] = 1.0
+
+    assert bounding_box(grid) == (2, 1, 6, 4)
+
+
+def test_crop_extracts_exactly_the_given_box():
+
+    grid = [[float(r * 10 + c) for c in range(5)] for r in range(5)]
+
+    cropped = crop(grid, (1, 2, 3, 4))
+
+    assert cropped == [[12.0, 13.0, 14.0], [22.0, 23.0, 24.0], [32.0, 33.0, 34.0]]
+
+
+def test_resize_area_weighted_integer_ratio_matches_block_averaging():
+
+    # a 4x4 checkerboard of 2x2 blocks resized to 2x2 should exactly match averaging each block
+    source = [
+        [1.0, 1.0, 0.0, 0.0],
+        [1.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 1.0],
+        [0.0, 0.0, 1.0, 1.0],
+    ]
+
+    result = resize_area_weighted(source, 2, 2)
+
+    assert result == [[1.0, 0.0], [0.0, 1.0]]
+
+
+def test_resize_area_weighted_uniform_input_is_invariant_to_scale():
+
+    source = [[1.0] * 5 for _ in range(5)]
+
+    result = resize_area_weighted(source, 2, 2)
+
+    assert result == [[1.0, 1.0], [1.0, 1.0]]
+
+
+def test_resize_area_weighted_splits_a_single_source_pixel_across_two_output_rows():
+
+    # 3x1 -> 2x1 (row_scale=1.5): the middle source pixel (value 4.0) genuinely straddles both
+    # output rows - output 0 = (0*1.0 + 4*0.5) / 1.5 = 4/3; output 1 = (4*0.5 + 8*1.0) / 1.5 =
+    # 20/3 - hand-computed, not re-derived from the implementation. (A target size of 1 in
+    # either direction would be degenerate here - the whole source falls in a single output
+    # pixel, so every overlap is trivially 1.0 and no genuine splitting is exercised; caught by
+    # mutation testing, which is why this uses a real 3x1 -> 2x1 split instead.)
+    source = [[0.0], [4.0], [8.0]]
+
+    result = resize_area_weighted(source, 2, 1)
+
+    assert result[0][0] == pytest.approx(4 / 3)
+    assert result[1][0] == pytest.approx(20 / 3)
+
+
+def test_resize_area_weighted_splits_a_single_source_pixel_across_two_output_pixels():
+
+    # the row-direction case above collapses the whole source into a single output pixel,
+    # where every overlap is trivially 1.0 (nothing to actually split) - this instead resizes
+    # 1x3 -> 1x2 (col_scale=1.5), so the middle source pixel (value 4.0) genuinely straddles
+    # both output pixels: output 0 = (0*1.0 + 4*0.5) / 1.5 = 4/3; output 1 =
+    # (4*0.5 + 8*1.0) / 1.5 = 20/3 - hand-computed, not re-derived from the implementation
+    source = [[0.0, 4.0, 8.0]]
+
+    result = resize_area_weighted(source, 1, 2)
+
+    assert result[0][0] == pytest.approx(4 / 3)
+    assert result[0][1] == pytest.approx(20 / 3)
+
+
+def test_scale_to_fit_preserves_aspect_ratio_for_a_tall_source():
+
+    # 10 rows x 1 col, scaled so the longer dimension (rows) hits max_dimension=20 - the
+    # narrower dimension scales by the same 2x factor, 1 -> 2, not forced to also become 20
+    source = [[1.0] for _ in range(10)]
+
+    result = scale_to_fit(source, max_dimension=20)
+
+    assert len(result) == 20
+    assert len(result[0]) == 2
+
+
+def test_scale_to_fit_a_square_source_stays_square():
+
+    source = [[1.0] * 7 for _ in range(7)]
+
+    result = scale_to_fit(source, max_dimension=20)
+
+    assert len(result) == 20
+    assert len(result[0]) == 20
+
+
+def test_center_of_mass_of_a_single_pixel_is_its_own_center():
+
+    grid = _empty_grid(4)
+    grid[2][3] = 1.0
+
+    assert center_of_mass(grid) == (2.5, 3.5)
+
+
+def test_center_of_mass_of_a_symmetric_block_is_the_grid_center():
+
+    grid = _empty_grid(4)
+    for row in (1, 2):
+        for col in (1, 2):
+            grid[row][col] = 1.0
+
+    assert center_of_mass(grid) == (2.0, 2.0)
+
+
+def test_center_of_mass_of_asymmetric_weights_is_hand_computed():
+
+    # a weight of 1.0 at column 0 and 3.0 at column 2 (single row): col centroid =
+    # (1*0.5 + 3*2.5) / 4 = 2.0; row centroid = (1*0.5 + 3*0.5) / 4 = 0.5
+    grid = [[0.0, 0.0, 0.0, 0.0]]
+    grid[0][0] = 1.0
+    grid[0][2] = 3.0
+
+    assert center_of_mass(grid) == (0.5, 2.0)
+
+
+def test_center_of_mass_of_an_empty_grid_is_the_geometric_center():
+
+    grid = _empty_grid(4)
+
+    assert center_of_mass(grid) == (2.0, 2.0)
+
+
+def test_place_centered_translates_by_the_center_of_mass():
+
+    small_grid = [[1.0, 1.0], [1.0, 1.0]]  # centroid exactly (1.0, 1.0)
+
+    placed = place_centered(small_grid, canvas_size=6)
+
+    expected = _empty_grid(6)
+    expected[2][2] = expected[2][3] = expected[3][2] = expected[3][3] = 1.0
+    assert placed == expected
+
+
+def test_place_centered_clips_content_that_does_not_fit():
+
+    # larger than the canvas itself - content past the edge is dropped, not an error
+    small_grid = [[1.0] * 5 for _ in range(5)]
+
+    placed = place_centered(small_grid, canvas_size=4)
+
+    assert len(placed) == 4 and len(placed[0]) == 4
+    assert sum(sum(row) for row in placed) == 16.0  # less than the source's 25.0
+
+
+def test_place_centered_of_an_empty_small_grid_is_an_empty_canvas():
+
+    assert place_centered([], canvas_size=4) == _empty_grid(4)
+
+
+def test_preprocess_capture_on_an_empty_grid_is_an_all_zero_canvas():
+
+    result = preprocess_capture(_empty_grid(64))
+
+    assert len(result) == CANVAS_SIZE
+    assert len(result[0]) == CANVAS_SIZE
+    assert all(value == 0.0 for row in result for value in row)
+
+
+def test_preprocess_capture_centers_an_off_center_stroke():
+
+    # a vertical stroke drawn near one edge of a 64x64 capture, not the center
+    capture = _empty_grid(64)
+    for row in range(10, 50):
+        for col in (5, 6, 7):
+            capture[row][col] = 1.0
+
+    result = preprocess_capture(capture)
+
+    result_centroid_row, result_centroid_col = center_of_mass(result)
+    # centered on the 28x28 canvas - well within a couple pixels of dead center, unlike the
+    # source capture's own centroid (column ~6, nowhere near 32 - the source's own center)
+    assert result_centroid_col == pytest.approx(14.0, abs=1.5)
+    assert result_centroid_row == pytest.approx(14.0, abs=1.5)
+    assert any(value > 0.0 for row in result for value in row)
