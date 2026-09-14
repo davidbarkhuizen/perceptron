@@ -166,14 +166,14 @@ retraining. Plots a training-accuracy-by-epoch curve, a confusion matrix
 Runs `perceptron/demos/demo_digit_capture.py` - an interactive companion to the digit-recognition
 demo above. Loads the model that demo trains and saves (`data/digits/trained_model.json` via
 `MultiClassBackpropClassifierNetwork.load`; run `demo-digit-recognition` first if that file
-doesn't exist yet), then opens an 8x8 grid of tiles you paint with the mouse (click or
-click-and-drag). Every tile you paint reclassifies live, showing the predicted digit and the
-model's confidence in it. Unlike every other demo, this one needs a display and mouse input -
-it's not part of the automated test suite (`tests/test_digit_capture.py` covers only the pure
-grid-flattening/coordinate-mapping/brush logic behind it, not the tkinter UI itself). Painting
-is graded, not binary: each stroke sets the touched tile to full intensity and softly lights its
-neighbors too (`digit_capture.apply_brush_stroke`), approximating the soft, anti-aliased edges
-the bundled training data's own preprocessing produced - measured directly, this closes a real
-gap, not just a cosmetic one: the same single-tile-wide vertical stroke that an earlier, purely
-binary version of this tool classified as "3" at 0.82 confidence classifies as "1" at 1.00
-confidence with graded painting.
+doesn't exist yet), then opens two canvases: a 32x32 grid you paint with the mouse (click or
+click-and-drag, binary - each cell just on or off), and an 8x8 preview next to it showing the
+result of genuinely reproducing the bundled training data's own preprocessing on what you drew
+(see `digit_capture.downsample_to_target_grid` and docs/structure.md's "multi-class" section) -
+32x32 divided into nonoverlapping 4x4 blocks, each block's "on" pixel count (0-16) becoming one
+of the 8x8 grid's graded values, exactly like the real UCI hand-written digits dataset's own
+extraction from a 32x32 NIST bitmap. Every stroke updates the preview and reclassifies live,
+showing the predicted digit and the model's confidence in it. Unlike every other demo, this one
+needs a display and mouse input - it's not part of the automated test suite
+(`tests/test_digit_capture.py` covers only the pure grid-flattening/coordinate-mapping/
+downsampling logic behind it, not the tkinter UI itself).

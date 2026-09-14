@@ -38,9 +38,11 @@ perceptron/
   multiclass_evaluate.py          confusion_matrix and accuracy against a held-out test set -
                                    evaluate.py's functions are two-class- and geometry-specific
                                    and don't generalize to this
-  digit_capture.py                pure helpers for the interactive digit-capture tool: flattens
-                                   an 8x8 tile grid into the same state shape digits_data.py
-                                   produces, and maps a mouse pixel coordinate to a tile
+  digit_capture.py                pure helpers for the interactive digit-capture tool: maps a
+                                   mouse pixel coordinate to a tile, genuinely reproduces the
+                                   reference work's own 32x32-to-8x8 block-counting downsample,
+                                   and flattens the resulting 8x8 grid into the same state shape
+                                   digits_data.py produces
   demos/
     demo.py                           standalone script that trains a classifier and plots the result
     demo_cardinality_sweep.py         trains classifiers at several cardinalities and compares convergence
@@ -56,9 +58,10 @@ perceptron/
     demo_digit_recognition.py         classic-style handwritten digit recognition on the
                                        bundled 8x8 dataset, with confusion-matrix/sample charts
                                        and a saved, reloadable trained model
-    demo_digit_capture.py             an interactive, mouse-painted 8x8 tile grid with a soft,
-                                       graded brush, classified live by the trained model saved
-                                       above (see the "multi-class" section above)
+    demo_digit_capture.py             an interactive 32x32 mouse-painted grid, genuinely
+                                       downsampled to 8x8 the same way the reference work's own
+                                       preprocessing did, classified live by the trained model
+                                       saved above (see the "multi-class" section above)
 data/
   digits/
     digits.csv                      bundled 8x8 digits dataset (1797 rows, 64 pixels + a
@@ -94,7 +97,8 @@ tests/                           one file per module under test, plus test_train
   test_multiclass_training_pipeline.py  proves train_linear_classifier_network drives
                                      MultiClassBackpropClassifierNetwork on real digit data,
                                      unchanged
-  test_digit_capture.py           tile_grid_to_state, pixel_to_tile - the pure logic behind
+  test_digit_capture.py           tile_grid_to_state, pixel_to_tile, downsample_to_target_grid,
+                                   intensity_to_color - the pure logic behind
                                    demo_digit_capture.py; the tkinter mouse/canvas code itself
                                    isn't unit-tested (no headless display in this test suite)
 cli                                setup / test / clean helper script
@@ -227,15 +231,16 @@ functions are two-class- and geometry-specific and don't generalize here).
 `.snapshot()`/`.restore()`, and `.classify_state()` (via `_training_accuracy`'s bare `==` check,
 which works identically whether `category` is a float or an int).
 
-`demo_digit_capture.py` classifies a live, mouse-painted 8x8 tile grid with a trained model
-loaded from disk (`MultiClassBackpropClassifierNetwork.load`), via `digit_capture.py`'s
-`tile_grid_to_state` - the same row-major, `[0.0, 1.0]`-normalized shape `digits_data.py`
-produces. Painting is graded, not binary: `digit_capture.apply_brush_stroke` sets the touched
-tile to full intensity and softly lights its orthogonal/diagonal neighbors too (cumulative
-across strokes, capped at full intensity), approximating how the bundled training data's own
-0-16 grading actually arose (NIST's preprocessing averaged a higher-resolution scan down into
-8x8 cells, so a stroke near a cell edge left it partially lit, not just on or off). This isn't
-a cosmetic change - measured directly: the same single-tile-wide vertical stroke that a purely
-binary version classified as "3" at 0.82 confidence classifies as "1" at 1.00 confidence once
-painting produces the soft edges the model was actually trained on. Tile color is rendered via
-`digit_capture.intensity_to_color`, a linear grayscale mapping.
+`demo_digit_capture.py` classifies a live, mouse-painted digit with a trained model loaded from
+disk (`MultiClassBackpropClassifierNetwork.load`). Rather than painting an 8x8 grid directly (an
+earlier version of this tool did, first with binary tiles, then with an ad-hoc soft-brush
+heuristic to fake grading), it genuinely reproduces the reference work behind the bundled
+training data: the dataset's own description (`sklearn.datasets.load_digits()`) states "32x32
+bitmaps are divided into nonoverlapping blocks of 4x4 and the number of on pixels are counted in
+each block" to produce the 8x8, 0-16-graded shape `data/digits/digits.csv` actually contains. So
+the tool captures a binary 32x32 bitmap by mouse (mirroring NIST's own thresholded scan) and
+`digit_capture.downsample_to_target_grid` genuinely block-counts it down the same way, rather
+than approximating grading with a heuristic - shown live in a second preview canvas (rendered via
+`digit_capture.intensity_to_color`, a linear grayscale mapping) so what the classifier actually
+sees is visible. The result still goes through `digit_capture.tile_grid_to_state` - the same
+row-major, `[0.0, 1.0]`-normalized shape `digits_data.py` produces - unchanged by this.
