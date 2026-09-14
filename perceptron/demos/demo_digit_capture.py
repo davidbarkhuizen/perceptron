@@ -2,10 +2,12 @@ import sys
 import tkinter as tk
 
 from perceptron.digit_capture import (
+    CAPTURE_BRUSH_RADIUS,
     CAPTURE_GRID_SIZE,
     GRID_SIZE,
     downsample_to_target_grid,
     intensity_to_color,
+    paint_brush_stroke,
     pixel_to_tile,
     tile_grid_to_state,
 )
@@ -22,12 +24,14 @@ class DigitCaptureApp:
     """
     Captures a digit the same way the reference work behind the bundled training data did (see
     digit_capture.downsample_to_target_grid): the user paints a binary CAPTURE_GRID_SIZE x
-    CAPTURE_GRID_SIZE bitmap by mouse (mirroring NIST's own thresholded pen-on-paper scan),
-    which is then genuinely block-counted down to the GRID_SIZE x GRID_SIZE, 0-16-graded shape
-    the model was actually trained on - shown live in a second, smaller preview canvas, so
-    what the classifier actually sees is visible, not just asserted. Classified live by a
-    MultiClassBackpropClassifierNetwork loaded from disk (see demo_digit_recognition.py, which
-    trains and saves it) on every stroke.
+    CAPTURE_GRID_SIZE bitmap by mouse (mirroring NIST's own thresholded pen-on-paper scan) -
+    each stroke stamped CAPTURE_BRUSH_RADIUS cells wide (see digit_capture.paint_brush_stroke),
+    since a single-cell-wide mouse line comes out far fainter after downsampling than any real
+    training stroke - which is then genuinely block-counted down to the GRID_SIZE x GRID_SIZE,
+    0-16-graded shape the model was actually trained on - shown live in a second, smaller
+    preview canvas, so what the classifier actually sees is visible, not just asserted.
+    Classified live by a MultiClassBackpropClassifierNetwork loaded from disk (see
+    demo_digit_recognition.py, which trains and saves it) on every stroke.
     """
 
     def __init__(self, root: tk.Tk, classifier: MultiClassBackpropClassifierNetwork) -> None:
@@ -80,10 +84,16 @@ class DigitCaptureApp:
             self._paint_capture_tile(row, col)
 
     def _paint_capture_tile(self, row: int, col: int) -> None:
-        if self.capture_grid[row][col] == 1.0:
-            return
-        self.capture_grid[row][col] = 1.0
-        self.capture_canvas.itemconfig(self.capture_tile_ids[row][col], fill=ON_COLOR)
+        self.capture_grid = paint_brush_stroke(self.capture_grid, row, col)
+
+        # only the brush's own bounding box could have changed - cheap enough to just
+        # re-render every tile in it, clipped to the grid, rather than diffing
+        for brush_row in range(max(0, row - CAPTURE_BRUSH_RADIUS), min(CAPTURE_GRID_SIZE, row + CAPTURE_BRUSH_RADIUS + 1)):
+            for brush_col in range(
+                max(0, col - CAPTURE_BRUSH_RADIUS), min(CAPTURE_GRID_SIZE, col + CAPTURE_BRUSH_RADIUS + 1)
+            ):
+                self.capture_canvas.itemconfig(self.capture_tile_ids[brush_row][brush_col], fill=ON_COLOR)
+
         self._update_preview_and_classify()
 
     def clear(self) -> None:

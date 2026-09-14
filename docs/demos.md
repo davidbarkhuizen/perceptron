@@ -167,13 +167,21 @@ Runs `perceptron/demos/demo_digit_capture.py` - an interactive companion to the 
 demo above. Loads the model that demo trains and saves (`data/digits/trained_model.json` via
 `MultiClassBackpropClassifierNetwork.load`; run `demo-digit-recognition` first if that file
 doesn't exist yet), then opens two canvases: a 32x32 grid you paint with the mouse (click or
-click-and-drag, binary - each cell just on or off), and an 8x8 preview next to it showing the
-result of genuinely reproducing the bundled training data's own preprocessing on what you drew
-(see `digit_capture.downsample_to_target_grid` and docs/structure.md's "multi-class" section) -
-32x32 divided into nonoverlapping 4x4 blocks, each block's "on" pixel count (0-16) becoming one
-of the 8x8 grid's graded values, exactly like the real UCI hand-written digits dataset's own
-extraction from a 32x32 NIST bitmap. Every stroke updates the preview and reclassifies live,
-showing the predicted digit and the model's confidence in it. Unlike every other demo, this one
-needs a display and mouse input - it's not part of the automated test suite
-(`tests/test_digit_capture.py` covers only the pure grid-flattening/coordinate-mapping/
-downsampling logic behind it, not the tkinter UI itself).
+click-and-drag - each stroke stamps a `CAPTURE_BRUSH_RADIUS`-wide square, not a single cell; see
+below), and an 8x8 preview next to it showing the result of genuinely reproducing the bundled
+training data's own preprocessing on what you drew (see `digit_capture.downsample_to_target_grid`
+and docs/structure.md's "multi-class" section) - 32x32 divided into nonoverlapping 4x4 blocks,
+each block's "on" pixel count (0-16) becoming one of the 8x8 grid's graded values, exactly like
+the real UCI hand-written digits dataset's own extraction from a 32x32 NIST bitmap. Every stroke
+updates the preview and reclassifies live, showing the predicted digit and the model's confidence
+in it.
+
+The brush matters more than it might look: a single-mouse-cell-wide stroke (what plain
+click-drag paints without one) comes out only ~25% as intense as any real training example after
+downsampling - measured directly, this was a real bug (almost everything misclassified toward
+whichever class happened to catch faint input) before `digit_capture.paint_brush_stroke` was
+added to stamp a wider, more realistically pen-stroke-thick mark per event.
+
+Unlike every other demo, this one needs a display and mouse input - it's not part of the
+automated test suite (`tests/test_digit_capture.py` covers only the pure grid-flattening/
+coordinate-mapping/downsampling/brush logic behind it, not the tkinter UI itself).
