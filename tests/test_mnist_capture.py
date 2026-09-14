@@ -2,9 +2,12 @@ import pytest
 
 from perceptron.mnist_capture import (
     CANVAS_SIZE,
+    CAPTURE_BRUSH_RADIUS,
+    CAPTURE_GRID_SIZE,
     bounding_box,
     center_of_mass,
     crop,
+    paint_brush_stroke,
     place_centered,
     preprocess_capture,
     resize_area_weighted,
@@ -215,3 +218,56 @@ def test_preprocess_capture_centers_an_off_center_stroke():
     assert result_centroid_col == pytest.approx(14.0, abs=1.5)
     assert result_centroid_row == pytest.approx(14.0, abs=1.5)
     assert any(value > 0.0 for row in result for value in row)
+
+
+def _empty_capture_grid() -> list[list[float]]:
+    return [[0.0] * CAPTURE_GRID_SIZE for _ in range(CAPTURE_GRID_SIZE)]
+
+
+def test_paint_brush_stroke_stamps_a_square_neighborhood_fully_on():
+
+    grid = _empty_capture_grid()
+
+    new_grid = paint_brush_stroke(grid, 30, 30, radius=2)
+
+    for delta_row in range(-2, 3):
+        for delta_col in range(-2, 3):
+            assert new_grid[30 + delta_row][30 + delta_col] == 1.0
+
+    assert new_grid[30 - 3][30] == 0.0
+    assert new_grid[30][30 + 3] == 0.0
+    assert grid[30][30] == 0.0  # the original grid is left untouched
+
+
+def test_paint_brush_stroke_clips_to_the_grid_at_a_corner():
+
+    grid = _empty_capture_grid()
+
+    new_grid = paint_brush_stroke(grid, 0, 0, radius=2)
+
+    on_count = sum(sum(row) for row in new_grid)
+    assert on_count == 3 * 3
+    assert new_grid[0][0] == 1.0
+    assert new_grid[2][2] == 1.0
+    assert new_grid[3][0] == 0.0
+
+
+def test_paint_brush_stroke_default_radius_matches_capture_brush_radius():
+
+    grid = _empty_capture_grid()
+
+    new_grid = paint_brush_stroke(grid, 30, 30)
+
+    stroke_width = 2 * CAPTURE_BRUSH_RADIUS + 1
+    assert sum(sum(row) for row in new_grid) == stroke_width * stroke_width
+
+
+def test_paint_brush_stroke_rejects_out_of_bounds_center():
+
+    grid = _empty_capture_grid()
+
+    with pytest.raises(AssertionError):
+        paint_brush_stroke(grid, -1, 0)
+
+    with pytest.raises(AssertionError):
+        paint_brush_stroke(grid, 0, CAPTURE_GRID_SIZE)

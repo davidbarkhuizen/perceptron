@@ -3,6 +3,43 @@ import math
 TARGET_MAX_DIMENSION = 20
 CANVAS_SIZE = 28
 
+# the interactive capture tool's own painting resolution - deliberately higher than
+# TARGET_MAX_DIMENSION, so there's real room for scale_to_fit's aspect-preserving normalization
+# to do something meaningful (see demo_mnist_capture.py and docs/structure.md's "MNIST" section)
+CAPTURE_GRID_SIZE = 64
+
+# empirically tuned against a real trained model (mirroring exactly how
+# digit_capture.CAPTURE_BRUSH_RADIUS was chosen) - a single mouse-cell-wide stroke is far
+# thinner than any real digit stroke once cropped and scaled down to fit the 20px box, the
+# same failure mode fixed for the smaller UCI-digits capture tool
+CAPTURE_BRUSH_RADIUS = 4
+
+
+def paint_brush_stroke(
+    grid: list[list[float]], row: int, col: int, radius: int = CAPTURE_BRUSH_RADIUS
+) -> list[list[float]]:
+    """
+    Returns a new capture grid (grid itself is left untouched) with a radius-cell square brush
+    stamped fully on, centered at (row, col), clipped to the grid's bounds - the same approach
+    digit_capture.paint_brush_stroke uses for the smaller UCI-digits capture tool, kept as an
+    independent copy here (not shared) since the two capture pipelines' grid sizes and
+    downstream processing are different enough that forcing a shared abstraction isn't worth it.
+    """
+
+    assert len(grid) == CAPTURE_GRID_SIZE and all(
+        len(r) == CAPTURE_GRID_SIZE for r in grid
+    ), "grid must be CAPTURE_GRID_SIZE x CAPTURE_GRID_SIZE"
+    assert 0 <= row < CAPTURE_GRID_SIZE and 0 <= col < CAPTURE_GRID_SIZE, f"(row, col) must be within the grid; got ({row}, {col})"
+
+    new_grid = [list(r) for r in grid]
+    for delta_row in range(-radius, radius + 1):
+        for delta_col in range(-radius, radius + 1):
+            brush_row, brush_col = row + delta_row, col + delta_col
+            if 0 <= brush_row < CAPTURE_GRID_SIZE and 0 <= brush_col < CAPTURE_GRID_SIZE:
+                new_grid[brush_row][brush_col] = 1.0
+
+    return new_grid
+
 
 def bounding_box(grid: list[list[float]]) -> tuple[int, int, int, int] | None:
     """
