@@ -507,16 +507,25 @@ priority.
   (96.01%) at this codebase's currently-tuned `learning_rate=0.5`, plausibly for the same
   untuned-learning-rate-overshoot mechanism already confirmed for binary cross-entropy at every
   scale tested - see the "softmax on real full-scale MNIST" entry.
+- ~~Mini-batch gradient descent~~ - built per
+  [mini-batch gradient descent](mini-batch-gradient-descent.md)'s workplan:
+  `BackpropNode.accumulate_gradient`/`apply_accumulated_gradient` (plus the matching
+  `MomentumBackpropNode`/`L2RegularizedBackpropNode` overrides), `BackpropNetworkBase`'s
+  `_accumulate_gradients`/`_apply_accumulated_gradients`, `learn_batch` on
+  `BackpropClassifierNetwork`/`MultiClassBackpropClassifierNetwork` (and every sibling that
+  inherits it unchanged - momentum, L2, ReLU, fan-in-aware, binary cross-entropy, softmax), and
+  `train.train_backprop_network_mini_batch`. **The momentum re-test this existed to unblock is
+  still open** - see "still open" below; this entry is about the infrastructure only.
 
 **Still open:**
 
-- **Mini-batch gradient descent** (average the gradient over a small batch before each weight
-  update, instead of this codebase's current pure per-example online SGD) - directly relevant to
-  momentum's own open question: momentum was measured to fail here specifically because
-  per-example gradients are noisy (see `research-and-analysis.md`'s "momentum" entry); mini-batching
-  is the standard fix for exactly that noise source, and `MomentumBackpropClassifierNetwork`
-  already exists to retest against once it does, rather than needing its own new prototype. See
-  [mini-batch gradient descent](mini-batch-gradient-descent.md) for a function-level workplan.
+- **The momentum re-test mini-batch gradient descent was built to unblock** - momentum was
+  measured to fail here specifically because per-example online SGD's gradients are noisy (see
+  `research-and-analysis.md`'s "momentum" entry); mini-batching now exists
+  (`train_backprop_network_mini_batch`, above) but the actual re-measurement - momentum
+  coefficients crossed with a few batch sizes, the same statistical discipline (many seeds,
+  mean + stdev) that caught the original investigation's own small-sample mirage - hasn't been
+  run yet. See [mini-batch gradient descent](mini-batch-gradient-descent.md#6-the-actual-retest-this-workplan-exists-to-unblock).
 - **CI** (e.g. GitHub Actions running `pytest` on push/PR) - the one item here that's pure
   engineering, not ML content. Nothing currently protects this test suite (225 tests as of this
   writing, many pinned to hand-derived or empirically-measured expected values) from silently
