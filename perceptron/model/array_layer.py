@@ -70,11 +70,21 @@ class ArrayLayer:
         self.delta_batch = downstream * self.A * (1.0 - self.A)
 
     def accumulate_gradient(self, input_activation: np.ndarray) -> None:
-        # called once per example, whether one example (learn) or every example in a batch
-        # (learn_batch) - the same accumulate/apply split BackpropNode already uses, one array
-        # op (an outer product) instead of a double Python loop over (node, input_node) pairs
+        # the single-example path - the same accumulate/apply split BackpropNode already uses,
+        # one array op (an outer product) instead of a double Python loop over (node,
+        # input_node) pairs. Callable repeatedly, once per example, before any weight is
+        # written (see tests/test_array_layer.py's multi-example batch parity test).
         self._grad_W += np.outer(self.delta, input_activation)
         self._grad_b += self.delta
+
+    def accumulate_gradient_batch(self, input_activation_batch: np.ndarray) -> None:
+        # the one-shot batched path VectorizedMultiClassBackpropClassifierNetwork.learn_batch
+        # uses instead of calling accumulate_gradient once per example:
+        # self.delta_batch.T @ input_activation_batch computes the same sum of per-example outer
+        # products as looping accumulate_gradient over every row, in one matrix multiply - per
+        # docs/vectorized-array-classes.md's own learn_batch formula.
+        self._grad_W += self.delta_batch.T @ input_activation_batch
+        self._grad_b += self.delta_batch.sum(axis=0)
 
     def apply_accumulated_gradient(self, learning_rate: float, batch_size: int) -> None:
         self.W -= learning_rate * self._grad_W / batch_size

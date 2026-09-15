@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 
 from perceptron.mnist_data import (
@@ -5,6 +6,7 @@ from perceptron.mnist_data import (
     RECORD_SIZE,
     convert_parquet_to_binary,
     load_mnist_dataset,
+    load_mnist_dataset_as_array,
     load_mnist_labels,
     load_mnist_records_at_indices,
 )
@@ -119,3 +121,31 @@ def test_load_mnist_records_at_indices_respects_a_non_sorted_index_order():
     records = load_mnist_records_at_indices("data/mnist/mnist-train.bin", indices)
 
     assert records == [full[index] for index in indices]
+
+
+def test_load_mnist_dataset_as_array_matches_load_mnist_dataset_pixels():
+
+    dataset = load_mnist_dataset("data/mnist/mnist-train.bin", limit=50)
+    expected = np.array([state for state, _label in dataset])
+
+    actual = load_mnist_dataset_as_array("data/mnist/mnist-train.bin", limit=50)
+
+    assert actual.shape == (50, IMAGE_SIZE * IMAGE_SIZE)
+    assert np.allclose(actual, expected, rtol=1e-12, atol=1e-12)
+
+
+def test_load_mnist_dataset_as_array_without_limit_reads_the_full_file():
+
+    actual = load_mnist_dataset_as_array("data/mnist/mnist-test.bin")
+
+    assert actual.shape == (10000, IMAGE_SIZE * IMAGE_SIZE)
+
+
+def test_load_mnist_dataset_as_array_rejects_a_file_whose_size_is_not_a_record_multiple(tmp_path):
+
+    bad_path = str(tmp_path / "truncated.bin")
+    with open(bad_path, "wb") as f:
+        f.write(b"\x00" * (RECORD_SIZE + 1))
+
+    with pytest.raises(AssertionError):
+        load_mnist_dataset_as_array(bad_path)
