@@ -624,16 +624,25 @@ designed to help traverse.
 
 ### decision
 
-Not adopted. No real-scale validation run was spent - unlike the original fan-in-aware fix (an
-unambiguous proxy-scale win later confirmed at real scale), nothing in either sweep here showed a
-signal worth that confirmation cost. Worth recording for any future revisit: momentum's
-persistent per-node state raises a genuine design question this measurement's throwaway
-prototype never had to resolve properly - whether that state belongs in `snapshot()`/`restore()`
-(model state) or should reset on restore (the more common convention, treating it as pure
-optimizer state) - since `train_linear_classifier_network`'s own pocket-algorithm rollback
-already calls `restore()` mid-training, and the prototype's momentum state was silently left
-stale across that rollback without affecting this measurement's result (inference never reads it)
-but would need a real answer if momentum were ever built for real.
+Not adopted as a default - no learning rate or coefficient measured here beats plain SGD, so
+`MomentumBackpropClassifierNetwork` (see `perceptron/model/momentum_layer.py`/
+`momentum_backprop_classifier_network.py`) does not pick one and requires `momentum` as an
+explicit constructor argument rather than silently defaulting to Rumelhart et al.'s own cited
+value or any other. Unlike the other measured-and-rejected finding above (Xavier/Glorot), this
+one *was* committed as a real, tested class rather than left as an uncommitted prototype, on
+request - it remains genuinely useful to have available (e.g. for a future investigation under
+mini-batch gradients, where momentum's own literature is more commonly validated, and where this
+investigation's leading candidate explanation - per-example online SGD's especially noisy
+individual gradients - would no longer apply the same way), just not as something this
+investigation's own results recommend turning on today.
+
+The `snapshot()`/`restore()` design question this entry originally left open resolved itself by
+default: `MomentumBackpropClassifierNetwork` doesn't override either, so momentum's persistent
+per-node state (`_prev_weight_deltas`/`_prev_bias_delta`) is treated as pure optimizer state, not
+model state - a `restore()` call (including `train_linear_classifier_network`'s own
+pocket-algorithm rollback) leaves it exactly where training last left it, unconnected to whichever
+weight snapshot was just restored. This matches the more common convention the entry
+flagged as the likely answer, not the alternative of persisting it alongside the weights.
 
 ## ReLU hidden-layer activation: a clean win, once retuned
 
