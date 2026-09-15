@@ -1,6 +1,22 @@
 import json
 
 
+def save_json(path: str, state: dict) -> None:
+    """
+    Bare open/json.dump wrapping, shared by every save() in this codebase whose envelope shape
+    doesn't fit save_model_json's fixed layer_sizes/class_count fields (e.g.
+    ConvMultiClassBackpropClassifierNetwork.save, which has conv hyperparameters instead).
+    """
+    with open(path, "w") as f:
+        json.dump(state, f)
+
+
+def load_json(path: str) -> dict:
+    """The load-side counterpart to save_json - bare open/json.load, no envelope assumptions."""
+    with open(path) as f:
+        return json.load(f)
+
+
 def save_model_json(
     path: str,
     *,
@@ -18,17 +34,16 @@ def save_model_json(
     envelope differs between the two.
     """
 
-    with open(path, "w") as f:
-        json.dump(
-            {
-                "layer_sizes": layer_sizes,
-                "dimension": dimension,
-                "input_bounds": input_bounds,
-                "class_count": class_count,
-                "snapshot": snapshot,
-            },
-            f,
-        )
+    save_json(
+        path,
+        {
+            "layer_sizes": layer_sizes,
+            "dimension": dimension,
+            "input_bounds": input_bounds,
+            "class_count": class_count,
+            "snapshot": snapshot,
+        },
+    )
 
 
 def load_model_json(path: str) -> dict:
@@ -39,8 +54,6 @@ def load_model_json(path: str) -> dict:
     to reconstruct its own network shape(s) from.
     """
 
-    with open(path) as f:
-        state = json.load(f)
-
+    state = load_json(path)
     state["input_bounds"] = [tuple(bound) for bound in state["input_bounds"]]
     return state
