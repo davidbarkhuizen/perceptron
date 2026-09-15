@@ -6,6 +6,28 @@ from typing import Sequence
 from perceptron.model.base_node import AbstractNode, WeightedInputNode
 
 
+def sigmoid(z: float) -> float:
+    """
+    The standard logistic sigmoid, 1/(1+e^-z) - the textbook formula directly, except caught
+    against the OverflowError math.exp(-z) raises for z below about -709 (confirmed directly:
+    math.exp(710) raises OverflowError, math.exp(700) doesn't) - a real, reachable value for a
+    node whose weighted input sum has drifted large and negative during training, not just a
+    theoretical edge case. Deliberately not the usual piecewise e^z/(1+e^z) reformulation for
+    z < 0: that avoids the overflow too, but rounds differently from 1/(1+e^-z) across the
+    entire negative range, not just the extreme tail - which would silently perturb every
+    already-passing seeded/pinned training result in this codebase's tests, for a discrepancy
+    that only actually matters in the (unreached, in practice) extreme tail. In that tail,
+    1/(1+e^-z) is mathematically indistinguishable from 0.0 in float64 anyway (e^-z is already
+    astronomically larger than 1), so catching the overflow and returning that same limiting
+    value exactly reproduces what the direct formula would have computed had it not overflowed.
+    """
+
+    try:
+        return 1.0 / (1.0 + math.exp(-z))
+    except OverflowError:
+        return 0.0
+
+
 class BackpropNode(WeightedInputNode):
     """
     Sigmoid-activation neuron trained by gradient descent, in contrast to AssociationNode's
@@ -41,7 +63,7 @@ class BackpropNode(WeightedInputNode):
         # the only place activation is computed - value() is a pure cache read, so downstream
         # nodes reading this one multiple times in a forward pass don't each pay for a fresh
         # sigmoid evaluation
-        self._activation = 1.0 / (1.0 + math.exp(-self.z()))
+        self._activation = sigmoid(self.z())
         return self._activation
 
     def value(self) -> float:
