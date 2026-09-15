@@ -125,6 +125,64 @@ arrays in one pass instead of a Python double loop.
 - **dtype.** Must be explicit `float64` throughout, matching Python's own `float`, for the same
   pinned-test-fragility reason.
 
+## expected performance
+
+Measured, not assumed - a throwaway benchmark (`numpy` happens to be installed on this
+machine; not a repo dependency and not proposed as one here - used purely as a real proxy for
+"what a compiled, vectorized implementation could achieve," since it's the closest thing to
+this workplan's target already available to measure against) at this codebase's actual
+architecture (`dimension=784`, `hidden=16`, `output=10`, matching
+`demo_mnist_ensemble_recognition.py`/the softmax investigation). Correctness was checked before
+trusting the timing: the pure-Python and vectorized forward passes were run on identical
+weights/input and compared (max difference 5.27e-16 - floating-point noise, not a real
+discrepancy).
+
+| | time |
+|---|---|
+| pure Python, per-example forward pass | 1328.1 us |
+| vectorized (numpy), per-example forward pass | 8.8 us |
+| **speedup** | **150.7x** |
+| vectorized, batched (batch_size=8) | 4.74 us/example (amortized) |
+| vectorized, batched (batch_size=32) | 3.57 us/example (amortized) |
+| vectorized, batched (batch_size=128) | 2.44 us/example (amortized) |
+
+This measures only the forward pass - backward-pass delta computation and gradient
+application weren't separately benchmarked here, but are algorithmically the same shape of
+work (matrix-vector products, one outer product), so should see a comparable-order speedup;
+worth its own direct measurement once/if this work is pursued, not assumed to transfer
+unchecked.
+
+### relative: numpy is a ceiling, not the actual target
+
+`numpy`'s array operations are backed by OpenBLAS - SIMD instructions and cache-blocked matrix
+multiplication, decades of industry tuning. The workplan above deliberately starts with a
+**naive** Rust matmul (no SIMD, no blocking) - see "what stays explicitly out of scope." A
+naive implementation should be expected to land meaningfully below this 150x ceiling, not match
+it; even capturing a fraction of it - 15-45x, say, at 10-30% of the measured numpy speedup -
+would still be a large, practically significant win over the current pure-Python baseline. A
+real PyO3 extension also carries its own Python<->Rust call-marshaling overhead per call, not
+present in this pure-Python-vs-numpy proxy, which would eat into the measured ceiling further -
+another reason to treat 150x as an upper bound to measure against once a real implementation
+exists, not a number to plan around as delivered.
+
+### absolute: what this would mean for this codebase's real, already-measured workloads
+
+Extrapolating the per-example numpy figure above against this session's own real measured
+full-scale baseline (the isolated 4.03ms/iteration full `learn()` call - forward + backward +
+gradient application - measured for `MultiClassBackpropClassifierNetwork` at this exact
+architecture, see [research and analysis](research-and-analysis.md)): a 60000-example epoch
+currently takes ~4.0 minutes of pure-Python compute. Even a conservative fraction of the
+measured 150x forward-pass ceiling (say, 20x, allowing generously for FFI overhead and the
+naive-vs-BLAS gap) would put the same epoch under 15 seconds - the kind of change that doesn't
+just make existing runs faster, but changes what's practical to run at all: the
+[MNIST ensemble](demos.md#demo-mnist-ensemble-recognition)'s ~30-minute real training run,
+several-seed statistical sweeps like the ones behind every "measured, not worth adopting"
+finding in [research and analysis](research-and-analysis.md), and the mini-batch/momentum
+retest this repo's own "possible next steps" already has queued up, would each plausibly drop
+from a real logistical constraint (worth scheduling, worth running in the background while
+doing other work - precisely how every real-MNIST measurement in this session's own history was
+run) to something fast enough to iterate on interactively instead.
+
 ## decision: a hand-built Rust core (via PyO3/maturin), not C, not real NumPy
 
 Two implementation languages were compared for a from-scratch array core covering exactly the
