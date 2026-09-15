@@ -291,3 +291,93 @@ there is *binary* cross-entropy, not softmax - it collapses to the same clean `a
 target` delta for a single sigmoid unit. That's a separate, much larger-blast-radius change
 (every binary backprop demo and test in this codebase depends on `BackpropClassifierNetwork`'s
 current behavior) and was deliberately left out of this re-alignment.
+
+## binary cross-entropy for BackpropClassifierNetwork
+
+### context
+
+The deferred binary case above was investigated as a follow-up. `BackpropClassifierNetwork` is
+directly used by 4 standalone demos (`demo_backprop_circular_boundary.py`,
+`demo_backprop_linear_parity_check.py`, `demo_backprop_stripes_architecture_sweep.py`,
+`demo_xor_backprop_convergence.py`) and by every one of `EnsembleBackpropClassifierNetwork`'s 10
+sub-networks (real MNIST training). Its docstring gives no rationale for quadratic loss beyond
+describing the sigmoid/gradient-descent mechanism generically - the same "unexamined default"
+pattern the softmax audit found for the multi-class case.
+
+Architecturally, binary cross-entropy is *simpler* to add than softmax was: a single output
+node's delta needs nothing from any sibling (unlike softmax's joint normalization), so it
+doesn't even need a new `Layer` subclass overriding `forward()` - just a
+`CrossEntropyOutputNode(BackpropNode)` overriding `compute_output_delta` to
+`self.delta = self.value() - reference_value`, reusing the same `_node_cls`/`output_layer_cls`
+hooks the softmax work added.
+
+### measured comparison: cross-entropy is not a free win here
+
+Before assuming the same clean improvement the softmax work found, a cross-entropy variant was
+prototyped and measured against `test_backprop_training_pipeline.py`'s exact pinned XOR scenario
+(`BackpropClassifierNetwork([8], 2, square_bounds(10.0))`, `learning_rate=1.0`, 100 epochs),
+across 10 different (data-generation seed, weight-init seed) pairs:
+
+| seed | quadratic (MSE) | binary cross-entropy |
+|---|---|---|
+| 0 | 97.00% | 84.67% |
+| 1 | 98.33% | 93.67% |
+| 2 | 97.33% | 85.67% |
+| 3 | 97.33% | 92.33% |
+| 4 | 98.33% | 95.00% |
+| 5 | 98.33% | 94.00% |
+| 6 | 99.33% | 95.67% |
+| 7 | 96.67% | 92.00% |
+| 8 | 96.67% | 93.67% |
+| 9 | 98.67% | 92.00% |
+| **mean** | **97.80%** | **91.87%** |
+
+Cross-entropy underperformed quadratic loss on every single seed, not a fluke of one run - the
+opposite of what "canonical alignment" would predict as an automatic win, and the opposite of
+what the softmax/multi-class comparison above actually found.
+
+### why: cross-entropy needs a smaller learning rate here
+
+Rather than stopping at "cross-entropy is worse" (a plausible-looking but untested conclusion),
+the mechanism was tested directly: cross-entropy's delta drops the `a(1-a)` damping term
+quadratic loss's delta has, so at a fixed learning rate its effective gradient magnitude is
+larger - which can overshoot instead of converging smoothly. Sweeping `learning_rate` down for
+the cross-entropy variant, same 10 seeds:
+
+| learning_rate | mean training accuracy |
+|---|---|
+| 1.0 | 91.87% |
+| 0.5 | 95.47% |
+| 0.25 | 96.67% |
+| 0.1 | 97.60% |
+
+At `learning_rate=0.1`, cross-entropy's mean (97.60%) matches quadratic's mean at its own tuned
+`learning_rate=1.0` (97.80%). So cross-entropy isn't worse in principle - the hypothesis holds -
+but it is not a drop-in replacement at this codebase's existing, separately-tuned
+hyperparameters, unlike softmax's clean win at `demo_uci_digit_recognition.py`'s unmodified
+`learning_rate=0.5`.
+
+### why this changes the scope decision from the multi-class case
+
+Every consumer of `BackpropClassifierNetwork` has its own hand-tuned `learning_rate`/`epochs`
+(`demo_xor_backprop_convergence.py`'s is pinned into a regression test with exact hand-derived
+values), so none of them can simply have the loss function swapped in-place - each would need
+its own re-tuning and re-measurement pass. The most consequential case is
+`EnsembleBackpropClassifierNetwork`'s real-MNIST training (`ensemble_train.py`,
+`learning_rate=0.5`, a real ~31-minute wall-clock run per attempt) - unlike softmax, which was
+architecturally excluded there (cross-node coupling would undo the ensemble's parallelization),
+binary cross-entropy has no such exclusion, so extending it there is *possible* - but validating
+a retuned learning rate on real digit data means multiple expensive real training runs, and this
+2D-XOR-toy-problem finding may not even transfer to MNIST's very different input scale/dimension
+without its own dedicated measurement.
+
+### decision
+
+Build `BinaryCrossEntropyBackpropClassifierNetwork` as a standalone additive sibling (same
+pattern as `SoftmaxMultiClassBackpropClassifierNetwork`: new class, `BackpropClassifierNetwork`
+completely untouched, no demo repointed, no existing hyperparameter or pinned test touched) -
+it's genuinely useful as a literature-aligned option and cheap/low-risk to add on its own terms.
+Do **not** extend it to `EnsembleBackpropClassifierNetwork`/real-MNIST training as part of this
+work - that needs its own dedicated learning-rate retuning investigation, given the real cost of
+each measurement and the genuine uncertainty (not assumption) about whether the benefit
+transfers from this toy problem to that one.
