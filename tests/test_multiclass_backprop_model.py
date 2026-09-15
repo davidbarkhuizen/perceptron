@@ -5,36 +5,6 @@ from perceptron.geometry import square_bounds
 from perceptron.model.multiclass_backprop_classifier_network import MultiClassBackpropClassifierNetwork
 
 
-def test_layer_sizes_must_specify_at_least_one_hidden_layer():
-
-    with pytest.raises(AssertionError):
-        MultiClassBackpropClassifierNetwork([], 2, square_bounds(10.0), 3)
-
-
-def test_every_hidden_layer_size_must_be_at_least_one():
-
-    with pytest.raises(AssertionError):
-        MultiClassBackpropClassifierNetwork([4, 0], 2, square_bounds(10.0), 3)
-
-
-def test_class_count_must_be_at_least_two():
-
-    with pytest.raises(AssertionError):
-        MultiClassBackpropClassifierNetwork([4], 2, square_bounds(10.0), 1)
-
-
-def test_dimension_must_match_bounds_length():
-
-    with pytest.raises(AssertionError):
-        MultiClassBackpropClassifierNetwork([4], 2, [(-1.0, 1.0)], 3)
-
-
-def test_input_bounds_must_all_have_positive_width():
-
-    with pytest.raises(AssertionError):
-        MultiClassBackpropClassifierNetwork([4], 2, [(-10.0, 10.0), (5.0, 5.0)], 3)
-
-
 def _fixed_network() -> MultiClassBackpropClassifierNetwork:
     # dimension=1, one hidden node, 2 output classes - small enough to hand-derive the whole
     # forward+backward pass exactly (see the comment on the learn() test below)

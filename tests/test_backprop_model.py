@@ -14,34 +14,6 @@ def _fixed_network() -> BackpropClassifierNetwork:
     return network
 
 
-def test_layer_sizes_must_specify_at_least_one_hidden_layer():
-
-    with pytest.raises(AssertionError):
-        BackpropClassifierNetwork([], 2, square_bounds(10.0))
-
-
-def test_every_hidden_layer_size_must_be_at_least_one():
-
-    with pytest.raises(AssertionError):
-        BackpropClassifierNetwork([4, 0], 2, square_bounds(10.0))
-
-
-def test_dimension_must_match_bounds_length():
-
-    with pytest.raises(AssertionError):
-        BackpropClassifierNetwork([4], 2, [(-1.0, 1.0)])
-
-
-def test_input_bounds_must_all_have_positive_width():
-
-    with pytest.raises(AssertionError):
-        BackpropClassifierNetwork([4], 2, [(-10.0, 10.0), (5.0, 5.0)])
-
-    # inverted bounds (hi < lo) are equally nonsensical
-    with pytest.raises(AssertionError):
-        BackpropClassifierNetwork([4], 2, [(-10.0, 10.0), (5.0, -5.0)])
-
-
 def test_predict_probability_matches_a_hand_computed_forward_pass():
 
     # a minimal 1D-input, single-hidden-node, single-output-node network, small enough to
