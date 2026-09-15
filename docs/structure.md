@@ -353,3 +353,47 @@ amount (observed directly: `1.0000000000000002`) from summing many small overlap
 which `intensity_to_color`'s strict range assertion then rejected - `scale_to_fit` now clamps its
 result (not the general-purpose `resize_area_weighted` itself, whose valid output range depends
 on its caller's own input range).
+
+## possible next steps
+
+Recommendations from an audit-driven review of this codebase (see `research-and-analysis.md`
+for the investigations that shaped the architecture described above), not yet built. Ordered
+roughly by how directly each follows from an existing finding here, not by priority:
+
+- **ReLU hidden-layer activation**, as a sibling to the sigmoid-only hidden layers used
+  everywhere today - motivated directly by this repo's own sigmoid-saturation findings (the
+  fan-in-aware init fix, `research-and-analysis.md`'s "the ensemble/real-MNIST investigation"
+  entry, was the single biggest real-scale accuracy win found by any investigation here). ReLU
+  doesn't saturate on its positive side at all; pairs naturally with He/Kaiming init, the
+  ReLU-specific counterpart to the Xavier/Glorot scheme that entry's own follow-up measured (and
+  didn't adopt, for sigmoid).
+- **Mini-batch gradient descent** (average the gradient over a small batch before each weight
+  update, instead of this codebase's current pure per-example online SGD) - directly relevant to
+  the open question `research-and-analysis.md`'s "momentum" entry left unresolved: momentum was
+  measured to fail here specifically because per-example gradients are noisy; mini-batching is
+  the standard fix for exactly that noise source, and might change that verdict rather than
+  settle it as a separate, unrelated feature.
+- **CI** (e.g. GitHub Actions running `pytest` on push/PR) - the one item here that's pure
+  engineering, not ML content. Nothing currently protects this test suite (200+ tests, many
+  pinned to hand-derived or empirically-measured expected values) from silently regressing.
+- **Convolutional layers, from scratch** - a substantial but well-motivated next architecture
+  step for a codebase whose only two real datasets (UCI digits, MNIST) are both images, currently
+  classified with dense layers alone. Matches this repo's own pattern of progressively more
+  capable model classes (`LinearClassifierNetwork` -> `BackpropClassifierNetwork` -> multi-class
+  siblings) and its "hand-build everything, no ML framework" identity - a bigger effort than
+  anything above, needing new node/layer abstractions for 2D receptive fields and weight sharing.
+- **L2 weight regularization** - cheap to add (one extra term in the gradient step) and cheap to
+  measure empirically, the same proxy-then-real-scale way every other model variant here has
+  been evaluated.
+- **Softmax multiclass training on real full-scale MNIST** (currently only validated on the
+  small UCI digits set - see the "softmax/cross-entropy re-alignment" entry) - would directly
+  compare against the ensemble's 96.01%, but a single joint 10-output network can't be
+  parallelized across processes the way the ensemble was specifically built to allow (see
+  "parallelizing MNIST training"), so pure-Python training time at that scale is a real,
+  unmeasured risk before committing effort to it, not a formality.
+- **NumPy vectorization** - would meaningfully speed up training (the ~30-minute MNIST ensemble
+  runs are pure-Python-bound), but this repo's stated identity is explicitly "no ML framework
+  dependency, everything hand-built." NumPy isn't itself an ML framework, but adding any array
+  library is a values question for whoever maintains this repo to decide deliberately, not
+  something to assume is wanted just because it would be faster - flagged, not recommended
+  outright.
