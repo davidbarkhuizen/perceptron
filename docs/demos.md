@@ -189,8 +189,8 @@ backprop demo. Measured: ~99.5% training accuracy, ~95-97% held-out test accurac
 minute. Saves the trained model to `data/digits/trained_model.json` (gitignored - a regenerable
 build artifact) via the new `save()`/`load()` persistence, printing how to reload it without
 retraining. Plots a training-accuracy-by-epoch curve, a confusion matrix
-(`chart.plot_confusion_matrix`), and a grid of sample test predictions
-(`chart.plot_sample_predictions`) colored to flag any incorrect ones.
+(`chart.new_confusion_matrix_figure`), and a grid of sample test predictions
+(`chart.sample_predictions_figure`) colored to flag any incorrect ones.
 
 ## demo: UCI digit capture
 
@@ -306,7 +306,7 @@ comparison's measured accuracy, and plots a training-accuracy-by-epoch chart per
 - **Multi-class loss function** - `MultiClassBackpropClassifierNetwork` (one-vs-rest, MSE) vs
   `SoftmaxMultiClassBackpropClassifierNetwork` (softmax, cross-entropy) on the full UCI digits
   set, matching `demo_uci_digit_recognition.py`'s own architecture and hyperparameters exactly
-  (see [research and analysis](research-and-analysis.md#softmax-cross-entropy-re-alignment)).
+  (see [research and analysis](research-and-analysis.md#softmaxcross-entropy-re-alignment)).
 - **Binary loss function** - `BackpropClassifierNetwork` (quadratic) vs
   `BinaryCrossEntropyBackpropClassifierNetwork` (cross-entropy) on the XOR target, at both the
   shared learning rate and cross-entropy's own retuned rate (see
