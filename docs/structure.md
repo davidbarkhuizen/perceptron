@@ -511,7 +511,14 @@ finding here, not by priority.
 - **CI** (e.g. GitHub Actions running `pytest` on push/PR) - the one item here that's pure
   engineering, not ML content. Nothing currently protects this test suite (225 tests as of this
   writing, many pinned to hand-derived or empirically-measured expected values) from silently
-  regressing.
+  regressing. **Blocked on solving where the reference MNIST dataset comes from first**: a CI
+  workflow attempted this session had to explicitly exclude `test_mnist_data.py` (see
+  `setup.md`) to avoid a permanently-red build, since its 9 tests need the real MNIST
+  parquet/binary files, which are gitignored with no scripted fetch step anywhere in this
+  codebase - supplied locally, by hand, whenever a dev checkout needed them. Building CI without
+  first deciding how a fresh checkout gets that data (a public mirror to fetch from? a repo
+  secret + private download step? committing a small stratified subset instead of the full
+  dataset?) means shipping CI that quietly can't protect part of the suite, not a real fix.
 - **Convolutional layers, from scratch** - a substantial but well-motivated next architecture
   step for a codebase whose only two real datasets (UCI digits, MNIST) are both images, currently
   classified with dense layers alone. Matches this repo's own pattern of progressively more
