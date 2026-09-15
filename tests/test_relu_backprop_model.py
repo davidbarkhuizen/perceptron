@@ -1,6 +1,6 @@
 import pytest
 
-from helpers import assert_randomize_breaks_symmetry, assert_snapshot_restore_round_trip
+from helpers import assert_randomize_breaks_symmetry, assert_snapshot_restore_round_trip, wire_fixed_single_hidden_node
 from perceptron.geometry import square_bounds
 from perceptron.model.relu_backprop_classifier_network import ReLUBackpropClassifierNetwork
 
@@ -11,12 +11,7 @@ def _fixed_network(x: float = 2.0) -> ReLUBackpropClassifierNetwork:
     # activations' forward/backward math can be compared side by side from the exact same
     # starting point
     network = ReLUBackpropClassifierNetwork([1], 1, [(-10.0, 10.0)])
-    hidden_node = network.hidden_layers[0].nodes[0]
-    output_node = network.output_layer.nodes[0]
-    hidden_node.update_input_weights([0.5])
-    hidden_node.bias = 0.1
-    output_node.update_input_weights([0.8])
-    output_node.bias = -0.2
+    wire_fixed_single_hidden_node(network)
     return network
 
 
