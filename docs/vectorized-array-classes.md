@@ -4,13 +4,15 @@
 
 Part 1 of 3 in the [vectorization](vectorization.md) workplan split: what new classes would
 look like if this codebase's forward/backward/gradient math were rewritten around whole-layer
-arrays instead of individual node objects. Analysis and workplan only - not a decision to build
-anything, and nothing in `perceptron/` changes as a result of this document. Deliberately scoped
-to use real `numpy` as the concrete array backend for this stage - see "why numpy here, now" -
-not a decision to adopt it as a permanent dependency; see
-[the numpy interface subset](numpy-interface-subset.md) and
+arrays instead of individual node objects. Originally analysis and workplan only; this phase's
+build has since been greenlit and completed - `perceptron/model/array_layer.py` and
+`perceptron/model/vectorized_multiclass_backprop_classifier_network.py` now exist, purely
+additively (no existing class changed), parity-checked against the pure-Python reference at
+every stage (see "measured results" below). Deliberately scoped to use real `numpy` as the
+concrete array backend for this stage - see "why numpy here, now" - not a decision to adopt it
+as a permanent dependency; see [the numpy interface subset](numpy-interface-subset.md) and
 [the Rust implementation plan](rust-array-core.md) for how a hand-built replacement would take
-its place later.
+its place later, a still-undecided question.
 
 ## why numpy here, now
 
@@ -136,6 +138,34 @@ existing pure-Python classes at meaningfully lower wall-clock cost - not a new c
 faster path to the same numbers, honestly measured rather than assumed from the formulas' own
 algebraic equivalence.
 
+## measured results
+
+The workplan below has been built and run end to end; these are the real, measured numbers it
+was written to produce - not the extrapolated ceiling [vectorization](vectorization.md#expected-effect-in-one-place)
+was scoped from. Every stage's own parity tests (`tests/test_array_layer.py`,
+`tests/test_vectorized_multiclass_backprop_model.py`, `tests/test_mnist_data.py`) pass first, so
+these are a faster path to the *same* trained result, not a different one.
+
+**UCI digits** (`demo_vectorized_uci_digit_recognition.py`, seed 0, `[32]` hidden layer,
+`learning_rate=0.5`, 30 epochs): pure-Python 99.4% train / 96.7% test in 77.16s vs. vectorized
+99.5% train / 96.1% test in 8.57s - **9.00x** wall-clock speedup. Accuracy trajectories are
+close but not bit-identical, as "numerical parity validation" above anticipates: float64
+summation-order rounding compounds slightly differently across the ~43000 individual SGD steps
+this run takes.
+
+**Real MNIST** (`demo_vectorized_mnist_recognition.py`, `[30]` hidden layer - the same
+architecture `docs/research-and-analysis.md`'s own ~12.5-minutes/epoch pure-Python baseline
+used - `learning_rate=0.5`, 1 epoch, full 60000 train / 10000 test): pure-Python 93.3% train /
+93.0% test in 1107.2s (18.45 min) vs. vectorized 92.5% train / 92.4% test in 32.7s (0.54 min) -
+**33.87x** wall-clock speedup for one epoch. `load_mnist_dataset_as_array`'s bulk decode of the
+full training file measured at 0.41s vs. `load_mnist_dataset`'s 6.32s - **15.44x**, confirming
+the "single biggest real win" this doc's "MNIST data loading" section predicted, not just its
+correctness (already covered by `tests/test_mnist_data.py`'s parity test).
+
+Both real-scale speedups land well inside [vectorization](vectorization.md)'s own "15-45x,
+treat 150.7x as a ceiling" framing - measured here at real, practical batch-size-1 SGD, not the
+raw forward-pass-only microbenchmark that ceiling was scoped from.
+
 ## workplan
 
 ### 1. `ArrayLayer` forward pass, single example
@@ -190,8 +220,9 @@ a real measurement.
 
 ## what this document is not
 
-An analysis and a workplan, not an implementation, not a decision to adopt `numpy` as a
-dependency. Whether to pursue this at all - and whether `numpy` ever becomes more than this
-workplan's own temporary prototyping vehicle - remains the explicitly flagged, undecided
-question [structure](structure.md#possible-next-steps) already raises for vectorization as a
-whole.
+This phase's build (the classes and workplan above) is now done - see "measured results". What
+this document still is *not*: a decision to adopt `numpy` as a permanent dependency. Whether
+`numpy` ever becomes more than this workplan's own scoped prototyping vehicle - vs. swapping to
+[the Rust core](rust-array-core.md), vs. leaving it as-is - remains the explicitly flagged,
+undecided question [structure](structure.md#possible-next-steps) already raises for
+vectorization as a whole.

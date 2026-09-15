@@ -568,4 +568,7 @@ priority.
   which numpy operations those classes need), and
   [the Rust implementation plan](rust-array-core.md) (a hand-built, tightly-scoped array core in
   Rust, wrapped for Python via PyO3, implementing that exact subset as numpy's eventual
-  replacement).
+  replacement). The first of those three has since been built as a scoped, real-numpy prototype
+  (`perceptron/model/array_layer.py`, `vectorized_multiclass_backprop_classifier_network.py` -
+  see that document's own "measured results"); whether numpy becomes more than a prototyping
+  vehicle remains exactly the undecided values question above.
