@@ -6,7 +6,7 @@ from perceptron.train import random_alternating_training_data, train_linear_clas
 
 
 class XORTarget:
-    # same target as demo_nonrepresentable_target.py's XORTarget (not imported from there to
+    # same target as demo_xor_linear_classifier_ceiling.py's XORTarget (not imported from there to
     # avoid a tests/ -> perceptron/demos/ dependency) - no LinearClassifierNetwork gate can
     # represent this (see test_train.py's
     # test_train_linear_classifier_network_keeps_the_best_epoch_not_the_last, capped around

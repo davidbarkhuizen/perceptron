@@ -31,7 +31,7 @@ class DigitCaptureApp:
     0-16-graded shape the model was actually trained on - shown live in a second, smaller
     preview canvas, so what the classifier actually sees is visible, not just asserted.
     Classified live by a MultiClassBackpropClassifierNetwork loaded from disk (see
-    demo_digit_recognition.py, which trains and saves it) on every stroke.
+    demo_uci_digit_recognition.py, which trains and saves it) on every stroke.
     """
 
     def __init__(self, root: tk.Tk, classifier: MultiClassBackpropClassifierNetwork) -> None:
@@ -129,8 +129,8 @@ def main() -> None:
         classifier = MultiClassBackpropClassifierNetwork.load(MODEL_PATH)
     except FileNotFoundError:
         print(
-            f"no trained model found at {MODEL_PATH} - run `./cli demo-digit-recognition` "
-            "first to train and save one."
+            f"no trained model found at {MODEL_PATH} - run `./cli demo` and choose "
+            "'UCI digit recognition' first to train and save one."
         )
         sys.exit(1)
 

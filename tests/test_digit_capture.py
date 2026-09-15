@@ -69,7 +69,7 @@ def test_pixel_to_tile_maps_coordinates_to_the_containing_tile():
 
 def test_pixel_to_tile_does_not_clamp_out_of_range_coordinates():
 
-    # the caller's job to reject these, not pixel_to_tile's - see demo_digit_capture.py
+    # the caller's job to reject these, not pixel_to_tile's - see demo_uci_digit_capture.py
     assert pixel_to_tile(-1, -1, 35) == (-1, -1)
     assert pixel_to_tile(35 * 8, 0, 35) == (0, 8)
 

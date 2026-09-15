@@ -73,32 +73,44 @@ perceptron/
                                    digit_capture.py's - the two pipelines' grid sizes and
                                    downstream processing differ enough to not be worth unifying)
   demos/
-    demo.py                           standalone script that trains a classifier and plots the result
-    demo_cardinality_sweep.py         trains classifiers at several cardinalities and compares convergence
-    demo_unreachable_class.py         shows random_alternating_training_data's max_attempts guard tripping
-    demo_nonrepresentable_target.py   trains against a target no required_active/cardinality can represent
-    demo_backprop_xor.py              trains a BackpropClassifierNetwork on the same target - and converges
-    demo_backprop_architecture_sweep.py  compares single- vs two-hidden-layer BackpropClassifierNetworks
-                                          at matched node budgets, on a harder-than-XOR striped target
-    demo_backprop_circular_target.py  trains against a circular target - a genuinely curved
-                                       boundary, unlike any LinearClassifierNetwork's polygon
-    demo_backprop_vs_linear.py        parity check: both models on the same easy, linearly-
-                                       separable target
-    demo_digit_recognition.py         classic-style handwritten digit recognition on the
-                                       bundled 8x8 dataset, with confusion-matrix/sample charts
-                                       and a saved, reloadable trained model
-    demo_digit_capture.py             an interactive 32x32 mouse-painted grid, genuinely
-                                       downsampled to 8x8 the same way the reference work's own
-                                       preprocessing did, classified live by the trained model
-                                       saved above (see the "multi-class" section above)
-    demo_mnist_recognition.py         real MNIST (28x28, 60000/10000) recognition via
-                                       EnsembleBackpropClassifierNetwork - 10 independently,
-                                       parallel-trained one-vs-rest classifiers (see "multi-class"
-                                       below and research-and-analysis.md)
-    demo_mnist_capture.py             an interactive 64x64 mouse-painted grid, genuinely
-                                       reproducing MNIST's own crop/scale/center-of-mass
-                                       preprocessing (mnist_capture.py), classified live by the
-                                       ensemble trained above
+    menu.py                                      the . cli demo entrypoint: a text REPL that lists every demo
+                                                 (from registry.py), lets you pick one by number, prints its
+                                                 longer description, runs it, then loops back until you quit
+    registry.py                                  the DEMOS list menu.py renders and runs: each entry's module
+                                                 path, title, one-line summary and longer description
+    demo_minimum_disturbance_training.py         standalone script that trains a classifier and plots the
+                                                 result, showcasing the minimum-disturbance multi-unit learning
+                                                 rule at cardinality=4
+    demo_linear_classifier_cardinality_sweep.py  trains classifiers at several cardinalities and compares
+                                                 convergence
+    demo_unreachable_class_safety_guard.py       shows random_alternating_training_data's max_attempts guard
+                                                 tripping
+    demo_xor_linear_classifier_ceiling.py        trains against a target no required_active/cardinality can
+                                                 represent
+    demo_xor_backprop_convergence.py             trains a BackpropClassifierNetwork on the same target - and
+                                                 converges
+    demo_backprop_stripes_architecture_sweep.py  compares single- vs two-hidden-layer
+                                                 BackpropClassifierNetworks at matched node budgets, on a
+                                                 harder-than-XOR striped target
+    demo_backprop_circular_boundary.py           trains against a circular target - a genuinely curved
+                                                 boundary, unlike any LinearClassifierNetwork's polygon
+    demo_backprop_linear_parity_check.py         parity check: both models on the same easy, linearly-separable
+                                                 target
+    demo_uci_digit_recognition.py                classic-style handwritten digit recognition on the bundled 8x8
+                                                 dataset, with confusion-matrix/sample charts and a saved,
+                                                 reloadable trained model
+    demo_uci_digit_capture.py                    an interactive 32x32 mouse-painted grid, genuinely downsampled
+                                                 to 8x8 the same way the reference work's own preprocessing
+                                                 did, classified live by the trained model saved above (see the
+                                                 "multi-class" section above)
+    demo_mnist_ensemble_recognition.py           real MNIST (28x28, 60000/10000) recognition via
+                                                 EnsembleBackpropClassifierNetwork - 10 independently,
+                                                 parallel-trained one-vs-rest classifiers (see "multi-class"
+                                                 below and research-and-analysis.md)
+    demo_mnist_ensemble_capture.py               an interactive 64x64 mouse-painted grid, genuinely reproducing
+                                                 MNIST's own crop/scale/center-of-mass preprocessing
+                                                 (mnist_capture.py), classified live by the ensemble trained
+                                                 above
 data/
   digits/
     digits.csv                      bundled 8x8 digits dataset (1797 rows, 64 pixels + a
@@ -120,7 +132,7 @@ tests/                           one file per module under test, plus test_train
   test_chart.py                  reference_region_bounds, disagreement_axis_bounds,
                                   plot_training_data, plot_linear_classifier_network
   test_training_pipeline.py      end-to-end training + convergence + decision-boundary plotting
-                                  (mirrors what demo.py does, minus the windows)
+                                  (mirrors what demo_minimum_disturbance_training.py does, minus the windows)
   test_backprop_model.py         BackpropClassifierNetwork construction, hand-computed forward/
                                   backward pass, randomize() symmetry-breaking, snapshot/restore
   test_backprop_training_pipeline.py  proves train_linear_classifier_network drives a
@@ -136,7 +148,7 @@ tests/                           one file per module under test, plus test_train
                                      unchanged
   test_digit_capture.py           tile_grid_to_state, pixel_to_tile, downsample_to_target_grid,
                                    paint_brush_stroke, intensity_to_color - the pure logic behind
-                                   demo_digit_capture.py; the tkinter mouse/canvas code itself
+                                   demo_uci_digit_capture.py; the tkinter mouse/canvas code itself
                                    isn't unit-tested (no headless display in this test suite)
 cli                                setup / test / clean helper script
 ```
@@ -178,7 +190,7 @@ Because of that, `train.train_linear_classifier_network` uses a pocket-algorithm
 every epoch, and the student is left at whichever epoch's weights scored best, not
 necessarily the raw last epoch's - a no-op when training does converge (the best epoch is
 then the last one), and a real difference when it doesn't (see
-[demos](demos.md#demo-non-representable-target)). It returns a `ConvergenceSeries` - the
+[demos](demos.md#demo-xor-linear-classifier-ceiling)). It returns a `ConvergenceSeries` - the
 same list of `(iteration, disagreement_rate)` pairs it's always returned, so every existing
 use keeps working unchanged, plus a `.diagnostic` (a `TrainingDiagnostic`) that answers,
 without needing to eyeball a chart, whether that run `.converged` (every training example
@@ -204,7 +216,7 @@ than `max_attempts` allows, wasting the whole budget on candidates a tighter box
 made trivial. Falls back to `input_bounds` (byte-for-byte the previous behaviour) whenever no
 tight box is computable - cardinality 1-2 (never bounded), a non-AND `required_active`, or a
 classifier that isn't a `LinearClassifierNetwork` at all (both functions accept anything with
-the same `input_bounds`/`classify_state` interface, e.g. `demo_nonrepresentable_target.py`'s
+the same `input_bounds`/`classify_state` interface, e.g. `demo_xor_linear_classifier_ceiling.py`'s
 `XORTarget`).
 
 ## backprop
@@ -216,9 +228,9 @@ rule are fundamentally different from gradient-based learning. It composes `Back
 (`input -> hidden layer(s) -> a trainable single-node output layer`). Unlike
 `LinearClassifierNetwork`'s output layer (fixed weights of `1.0` per hidden node, so its output
 can only be a monotonically non-decreasing function of how many hidden nodes fire -
-see `demo_nonrepresentable_target.py`), every layer here is trained, including the output layer,
+see `demo_xor_linear_classifier_ceiling.py`), every layer here is trained, including the output layer,
 so a hidden node can push the output either way. That's what lets it represent targets like XOR
-that no `required_active`/`cardinality` combination can (see `demo_backprop_xor.py`).
+that no `required_active`/`cardinality` combination can (see `demo_xor_backprop_convergence.py`).
 
 Learning uses mean-squared-error, back-propagated by hand (no autodiff): at the output node,
 `delta = (a - y) * a * (1-a)`; at a hidden node, `delta = (Σ downstream delta * weight) *
@@ -268,7 +280,7 @@ functions are two-class- and geometry-specific and don't generalize here).
 `.snapshot()`/`.restore()`, and `.classify_state()` (via `_training_accuracy`'s bare `==` check,
 which works identically whether `category` is a float or an int).
 
-`demo_digit_capture.py` classifies a live, mouse-painted digit with a trained model loaded from
+`demo_uci_digit_capture.py` classifies a live, mouse-painted digit with a trained model loaded from
 disk (`MultiClassBackpropClassifierNetwork.load`). Rather than painting an 8x8 grid directly (an
 earlier version of this tool did, first with binary tiles, then with an ad-hoc soft-brush
 heuristic to fake grading), it genuinely reproduces the reference work behind the bundled
@@ -293,7 +305,7 @@ per stroke instead of one cell. That radius (2, a 5x5 stamp) was chosen empirica
 to reach near-full block intensity, but not so wide it fills in a real digit's negative space -
 e.g. an unfilled "0"'s hole, which a radius of 3+ visibly started doing in testing.
 
-`demo_mnist_recognition.py` trains on the real, full-scale MNIST dataset (28x28, 60000 train /
+`demo_mnist_ensemble_recognition.py` trains on the real, full-scale MNIST dataset (28x28, 60000 train /
 10000 test images) rather than the small bundled UCI set, using
 `EnsembleBackpropClassifierNetwork` instead of `MultiClassBackpropClassifierNetwork` - 10
 completely independent `BackpropClassifierNetwork`s, one per digit, each trained on its own
@@ -305,9 +317,9 @@ the real memory-exhaustion bug hit (and fixed) while building it at full scale, 
 machine: ~31 minutes wall-clock for the full 60000-image, 10-class training run, 89.4% held-out
 test accuracy.
 
-`demo_mnist_capture.py` classifies a live, mouse-painted digit with `EnsembleBackpropClassifierNetwork.load`
+`demo_mnist_ensemble_capture.py` classifies a live, mouse-painted digit with `EnsembleBackpropClassifierNetwork.load`
 (the model the demo above trains and saves), the same overall interaction as
-`demo_digit_capture.py` but against MNIST's own reference preprocessing instead of the UCI
+`demo_uci_digit_capture.py` but against MNIST's own reference preprocessing instead of the UCI
 dataset's block-counting downsample: the user paints a binary 64x64 bitmap
 (`mnist_capture.CAPTURE_GRID_SIZE`, deliberately higher resolution than the UCI tool's 32x32, so
 there's real room for aspect-preserving scaling to do something meaningful), then
