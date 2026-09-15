@@ -728,3 +728,71 @@ consistent with every other sibling class in this codebase: not wired into any e
 by default, and `BackpropClassifierNetwork` itself is completely unchanged - this needs its own
 tuned `learning_rate` wherever it's actually used, the same caveat binary cross-entropy already
 carries, not a drop-in replacement for the sigmoid default.
+
+## L2 weight regularization: closes the overfitting gap, doesn't improve it
+
+### context
+
+`docs/structure.md`'s "possible next steps" flagged L2 (weight decay) regularization as cheap to
+add and cheap to measure. Unlike the other four techniques investigated this session, L2's whole
+purpose is generalization (discouraging large weights, which is what actually controls a model's
+effective complexity) - so measuring it on the XOR toy problem (used for cross-entropy, momentum,
+and ReLU) would miss the point: XOR's training data is continuously resampled from a fixed true
+target, not a finite dataset a network can overfit to in the usual sense. Measured instead on the
+same fixed, finite MNIST proxy (400 real examples, digit 3's class-balanced one-vs-rest target,
+80/20 split) used for the ensemble init and Xavier/Glorot investigations, combined with the
+already-adopted fan-in-aware init (via a throwaway subclass, so L2's effect isn't confounded with
+the already-solved saturation problem), at the demo-tuned `learning_rate=0.5`.
+
+### measured comparison
+
+| l2_lambda | mean train accuracy | mean test accuracy | train-test gap |
+|---|---|---|---|
+| 0.0 (no regularization) | 98.50% | 93.75% | 4.75 pts |
+| 0.0001 | 98.31% | 92.75% | 5.56 pts |
+| 0.001 | 98.19% | 92.25% | 5.94 pts |
+| 0.01 | 93.75% | 93.75% | 0 pts |
+| 0.1 | 55.13% | 59.25% | &minus;4.13 pts |
+| 0.5 | 55.13% | 59.25% | &minus;4.13 pts |
+
+Three distinct regimes, not a single "helps" or "doesn't help" verdict:
+
+- **Too weak (0.0001, 0.001):** slightly *worse* on both train and test accuracy than no
+  regularization at all - not enough penalty to meaningfully constrain the weights, just enough
+  to mildly interfere with fitting.
+- **Closes the gap, but doesn't help (0.01):** training accuracy drops from 98.50% to 93.75% -
+  landing exactly on test accuracy's own unchanged 93.75%. This is the textbook regularization
+  signature (the train-test gap that indicates overfitting genuinely closes), but note what
+  actually happened: training accuracy fell to *meet* test accuracy, not test accuracy rising to
+  meet training. On this proxy, L2 traded away fit rather than buying generalization.
+- **Collapse (0.1, 0.5):** both land on identical numbers, confirmed directly rather than assumed
+  to be coincidence - checked the trained network's own hidden-layer weights and found them
+  decayed to near-zero (max magnitude ~0.003, mean ~0.0005), and its predictions on the entire
+  test set collapsed to a single constant class. Past some threshold between 0.01 and 0.1, the
+  weight-decay term overwhelms the gradient signal entirely and the network stops learning
+  anything - both "too strong" values land on the same degenerate, weights-near-zero result
+  because they're both well past that threshold, not because 0.1 and 0.5 are equivalent in
+  general.
+
+### interpretation
+
+No `l2_lambda` value tested improved held-out test accuracy above the unregularized baseline
+(93.75%) on this proxy - the best outcome (0.01) matched it, at the cost of noticeably worse
+training accuracy. This doesn't mean L2 regularization is wrong in principle (its whole
+literature-backed premise - constraining weight magnitude reduces effective model complexity -
+is well established), but on a network and dataset this small (a single 16-node hidden layer,
+320 training examples), there may simply not be enough overfitting happening in the first place
+for a weight-magnitude penalty to have room to help versus hurt. A 4.75-point train-test gap at
+`l2_lambda=0.0` is real but modest, not the kind of severe overfitting L2 regularization is
+usually reached for.
+
+### decision
+
+Not adopted as a default, for the same reason as momentum: no coefficient measured here beats
+plain SGD on the metric regularization actually exists to improve (held-out accuracy), so
+`L2RegularizedBackpropClassifierNetwork` requires `l2_lambda` as an explicit constructor
+argument rather than defaulting to any of the values tested. Kept as a real, tested class rather
+than left uncommitted, for the same reason as momentum: genuinely useful to have available for a
+larger or more overfitting-prone future scenario than this proxy represents, where L2's actual
+mechanism (as directly confirmed here - it does constrain weight magnitude, exactly as designed)
+would have more overfitting to actually correct.
