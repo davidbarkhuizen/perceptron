@@ -1,4 +1,4 @@
-# ml-from-first-principles
+# first-principles-networks
 
 A small, dependency-light implementation of two classifier families, built from first
 principles. `LinearClassifierNetwork` composes state (input) nodes and association
