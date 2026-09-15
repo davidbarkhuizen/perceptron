@@ -2,6 +2,7 @@ from random import shuffle
 from typing import Callable
 
 from perceptron.evaluate import class_balanced_disagreement_rate, sample_class_balanced_states
+from perceptron.model.backprop_classifier_network import BackpropClassifierNetwork
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 
 
@@ -146,6 +147,86 @@ def train_linear_classifier_network(
         for datum in training_data:
             (reference_state, reference_category) = datum
             student.learn(learning_rate, reference_state, reference_category)
+            iterations += 1
+
+            if reference_classifier:
+                convergence.append((iterations, class_balanced_disagreement_rate(reference_classifier, student)))
+
+        training_accuracy = _training_accuracy(student, training_data)
+        epoch_training_accuracies.append(training_accuracy)
+        if training_accuracy > best_training_accuracy:
+            best_training_accuracy = training_accuracy
+            best_epoch_index = epoch_index
+            best_snapshot = student.snapshot()
+
+    student.restore(best_snapshot)
+
+    result = ConvergenceSeries(convergence)
+    result.diagnostic = TrainingDiagnostic(epoch_training_accuracies, best_epoch_index, best_training_accuracy)
+    return result
+
+
+def _chunk_into_batches(data: list, batch_size: int) -> list[list]:
+    # a final undersized batch (len(data) doesn't evenly divide batch_size) is kept, not
+    # dropped - learn_batch already averages by its own len(batch), so no training data goes
+    # unused just because it didn't land on an exact batch boundary (see
+    # docs/mini-batch-gradient-descent.md's "batch construction" workplan item)
+    assert batch_size >= 1, f"batch_size must be at least 1; got {batch_size}"
+    return [data[i : i + batch_size] for i in range(0, len(data), batch_size)]
+
+
+def train_backprop_network_mini_batch(
+    student: BackpropClassifierNetwork,
+    training_data: list[tuple[tuple[float, ...], float]],
+    batch_size: int,
+    learning_rate: float = 0.25,
+    epochs: int = 1,
+    reference_classifier: LinearClassifierNetwork | None = None,
+    reshuffle_each_epoch: bool = True,
+) -> ConvergenceSeries:
+    """
+    The mini-batch-shaped sibling of train_linear_classifier_network, for gradient-based
+    students only: calls student.learn_batch, which LinearClassifierNetwork/AssociationNode's
+    discrete minimum-disturbance update rule has no equivalent of - see
+    docs/mini-batch-gradient-descent.md's "batch construction" item for why this is a separate
+    function rather than a branch inside that one. Like that function, actually duck-typed
+    across every learn_batch-supporting sibling (MultiClassBackpropClassifierNetwork included,
+    not just BackpropClassifierNetwork itself), despite the type hint naming only the most
+    common case - the same looseness train_linear_classifier_network's own hint already has.
+
+    Reshuffles training_data at the start of every epoch by default (unlike
+    train_linear_classifier_network's fixed per-example order across epochs) - standard
+    mini-batch SGD practice, so the same batch composition doesn't recur identically every
+    epoch; pass reshuffle_each_epoch=False for a fixed batch composition instead. The final
+    batch of an epoch is kept even when batch_size doesn't evenly divide len(training_data),
+    per _chunk_into_batches above.
+
+    Otherwise mirrors train_linear_classifier_network exactly: the same "keep the best epoch,
+    not the latest" pocket snapshot (see that function's own docstring), and the same
+    TrainingDiagnostic/ConvergenceSeries contract - "iterations" here counts batches (one
+    learn_batch call each), the batch-shaped analogue of one learn() call there.
+    """
+
+    assert len(training_data) >= 1, "training_data must not be empty"
+
+    iterations: int = 0
+    convergence: list[tuple[int, float]] = []
+
+    if reference_classifier:
+        convergence.append((iterations, class_balanced_disagreement_rate(reference_classifier, student)))
+
+    best_snapshot = student.snapshot()
+    best_training_accuracy = _training_accuracy(student, training_data)
+    best_epoch_index = -1  # -1: the untrained starting point was never beaten
+    epoch_training_accuracies: list[float] = []
+
+    for epoch_index in range(epochs):
+        epoch_data = list(training_data)
+        if reshuffle_each_epoch:
+            shuffle(epoch_data)
+
+        for batch in _chunk_into_batches(epoch_data, batch_size):
+            student.learn_batch(learning_rate, batch)
             iterations += 1
 
             if reference_classifier:
