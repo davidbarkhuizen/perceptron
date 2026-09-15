@@ -29,6 +29,19 @@ def classifier_with_tiny_bounded_region(bounds: list[tuple[float, float]]) -> Li
     return classifier
 
 
+def unreachable_class_classifier(bounds: list[tuple[float, float]]) -> LinearClassifierNetwork:
+
+    # tiny weights + a large threshold mean the decision boundary never crosses these bounds,
+    # so one class can never be sampled - used to exercise the safety guard against an
+    # unreachable-class sampling loop hanging forever (see
+    # demo_unreachable_class_safety_guard.py for the same idea as a standalone demo)
+    classifier = LinearClassifierNetwork(1, 2, bounds)
+    node = classifier.hidden_layer.nodes[0]
+    node.update_input_weights([0.01, 0.01])
+    node.threshold = -5.0
+    return classifier
+
+
 def network_with_hidden_thresholds(
     dimension: int,
     bounds: list[tuple[float, float]],
