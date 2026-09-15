@@ -16,6 +16,12 @@ class BackpropNetworkBase:
     out of this base.
     """
 
+    # override point for a subclass whose output layer needs different per-node activation
+    # semantics (e.g. a softmax multi-class sibling's SoftmaxOutputLayer) - every existing
+    # subclass leaves this as plain BackpropLayer, so this is a pure extension point with zero
+    # behavior change for them
+    output_layer_cls: type[BackpropLayer] = BackpropLayer
+
     def __init__(
         self,
         layer_sizes: list[int],
@@ -41,7 +47,7 @@ class BackpropNetworkBase:
             self.hidden_layers.append(layer)
             previous_layer = layer
 
-        self.output_layer = BackpropLayer(size=output_size, input_layer=previous_layer)
+        self.output_layer = self.output_layer_cls(size=output_size, input_layer=previous_layer)
 
         # drives both the backward pass and snapshot/restore uniformly - every layer whose
         # weights/bias are actually trained, in forward order
