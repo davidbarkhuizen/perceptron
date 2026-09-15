@@ -164,8 +164,9 @@ Grounded in the actual current implementation (`perceptron/model/base_node.py`,
   `accumulate_gradient`'s analytic value. `numpy`'s own `scipy.signal.correlate2d`/manual
   convolution (or a hand-rolled equivalent), used purely as an independent offline oracle to
   cross-check the forward pass - not adopted as a dependency, the same "used purely as a proxy"
-  framing `vectorization.md`'s own benchmark already establishes for this codebase - is a useful
-  second check, but gradient checking is the one that actually validates the *backward* pass.
+  framing [the Rust implementation plan](rust-array-core.md)'s own benchmark already
+  establishes for this codebase - is a useful second check, but gradient checking is the one
+  that actually validates the *backward* pass.
 - **Row-major flat-index assumption.** `ConvLayer`'s receptive-field wiring assumes
   `input_layer.nodes[row * width + col]` matches standard raster order - true for both
   `mnist_data.py` (PNG decode, row by row) and `digits_data.py` (UCI's own published format),
@@ -188,8 +189,8 @@ compare against directly:
 - **UCI digits (8x8, 1797 examples)** - `MultiClassBackpropClassifierNetwork` with
   fan-in-aware init: 99.5% training / 96.9% test accuracy (`randomize_fan_in_aware`'s own
   docstring). Small and fast enough for the same kind of quick, iterative validation
-  `vectorization.md`'s own throwaway benchmark and the mini-batch retest's proxy both used -
-  the natural first target, not real MNIST.
+  [the Rust implementation plan](rust-array-core.md)'s own throwaway benchmark and the
+  mini-batch retest's proxy both used - the natural first target, not real MNIST.
 - **Real MNIST (28x28, 60000/10000 train/test)** - `MultiClassBackpropClassifierNetwork`
   (92.75%), `SoftmaxMultiClassBackpropClassifierNetwork` (89.12%), and the
   `EnsembleBackpropClassifierNetwork` (96.01%) all have measured real-scale baselines
