@@ -80,6 +80,16 @@ class BackpropNetworkBase:
             for node in layer.nodes:
                 node.apply_gradient(learning_rate)
 
+    def _accumulate_gradients(self) -> None:
+        for layer in self.trainable_layers:
+            for node in layer.nodes:
+                node.accumulate_gradient()
+
+    def _apply_accumulated_gradients(self, learning_rate: float, batch_size: int) -> None:
+        for layer in self.trainable_layers:
+            for node in layer.nodes:
+                node.apply_accumulated_gradient(learning_rate, batch_size)
+
     def snapshot(self) -> list[list[tuple[list[float], float]]]:
         return [
             [(list(node.input_node_weights), node.bias) for node in layer.nodes] for layer in self.trainable_layers
