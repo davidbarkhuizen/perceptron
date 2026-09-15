@@ -5,22 +5,66 @@
 ```
 perceptron/
   model/
-    base_node.py                    AbstractNode — value() interface
+    base_node.py                    AbstractNode — value() interface; WeightedInputNode — the
+                                     weighted-sum/z() machinery AssociationNode and BackpropNode
+                                     both build on
+    bounds.py                       validate_input_bounds — the input_bounds shape/width check
+                                     shared by every network class below
     state_node.py                   sense point holding a scalar input value
     state_layer.py                  a vector of StateNodes (network input layer)
     association_node.py             weighted, thresholded neuron (z, activation, learning rule)
     association_layer.py            a layer of AssociationNodes over a given input layer
     linear_classifier_network.py    input -> hidden (association) -> output (k-of-n) layers
     backprop_node.py                sigmoid neuron trained by gradient descent (z, forward
-                                     cache, output/hidden delta, gradient step)
-    backprop_layer.py               a layer of BackpropNodes over a given input layer
+                                     cache, output/hidden delta, gradient step); sigmoid() itself
+                                     guards the OverflowError math.exp(-z) raises for very
+                                     negative z
+    backprop_layer.py               a layer of BackpropNodes over a given input layer;
+                                     _node_cls — the per-node-class override point every sibling
+                                     layer below (softmax, ReLU, cross-entropy, momentum, L2)
+                                     uses instead of a retrofit
+    backprop_network_base.py        BackpropNetworkBase — layer assembly, forward pass, the
+                                     hidden-layer half of backprop, snapshot/restore, shared by
+                                     backprop_classifier_network.py and
+                                     multiclass_backprop_classifier_network.py; hidden_layer_cls/
+                                     output_layer_cls — the per-layer-class override points every
+                                     sibling network below uses; randomize_fan_in_aware — the
+                                     fan-in-aware init scheme, shared by
+                                     multiclass_backprop_classifier_network.py and
+                                     fan_in_aware_backprop_classifier_network.py
     backprop_classifier_network.py  input -> hidden (backprop, any depth) -> trainable output
+    model_io.py                     save_model_json/load_model_json — the JSON envelope shared by
+                                     every save()/load()-capable network class below
     multiclass_backprop_classifier_network.py  one-vs-rest multi-class sibling of
                                      backprop_classifier_network.py (class_count-node output,
                                      fan-in-aware init, save()/load() persistence)
+    softmax_output_layer.py         SoftmaxOutputNode/SoftmaxOutputLayer — joint softmax
+                                     activation across an output layer's nodes (see "multi-class")
+    softmax_multiclass_backprop_classifier_network.py  softmax + cross-entropy sibling of
+                                     multiclass_backprop_classifier_network.py
     ensemble_backprop_classifier_network.py  class_count completely independent
                                      BackpropClassifierNetworks (no shared hidden layer), argmax
                                      over each one's own predict_probability at inference
+    fan_in_aware_backprop_classifier_network.py  fan-in-aware-init sibling of
+                                     backprop_classifier_network.py (see "backprop siblings")
+    binary_cross_entropy_backprop_classifier_network.py  binary cross-entropy sibling of
+                                     backprop_classifier_network.py (see "backprop siblings")
+    relu_layer.py                   ReLUNode/ReLULayer — a hidden-layer-only max(0, z)
+                                     activation (see "backprop siblings")
+    relu_backprop_classifier_network.py  ReLU-hidden-layer sibling of
+                                     backprop_classifier_network.py (see "backprop siblings")
+    momentum_layer.py               make_momentum_node_cls/make_momentum_layer_cls — factory
+                                     functions adding a momentum term to every trainable layer's
+                                     weight update (see "backprop siblings")
+    momentum_backprop_classifier_network.py  momentum sibling of
+                                     backprop_classifier_network.py (see "backprop siblings")
+    l2_regularization_layer.py      make_l2_node_cls/make_l2_layer_cls — factory functions
+                                     adding an L2 weight-decay penalty to every trainable layer's
+                                     weight update, bias excluded (see "backprop siblings")
+    l2_regularized_backprop_classifier_network.py  L2-regularized sibling of
+                                     backprop_classifier_network.py (see "backprop siblings")
+  capture_common.py               stamp_brush — the brush-stamping loop shared by
+                                   digit_capture.py and mnist_capture.py's own paint_brush_stroke
   graphics/
     chart.py                      matplotlib helpers: figures/axes, decision-boundary and
                                    training-data plotting, and expanding plot bounds to
@@ -80,6 +124,9 @@ perceptron/
                                                  and run just that one demo
     registry.py                                  the DEMOS list menu.py renders and runs: each entry's module
                                                  path, title, one-line summary and longer description
+    capture_app.py                                the shared tkinter capture UI (CaptureApp/CaptureConfig/
+                                                 run_capture_demo) demo_uci_digit_capture.py and
+                                                 demo_mnist_ensemble_capture.py both configure and call
     demo_minimum_disturbance_training.py         standalone script that trains a classifier and plots the
                                                  result, showcasing the minimum-disturbance multi-unit learning
                                                  rule at cardinality=4
@@ -113,6 +160,10 @@ perceptron/
                                                  MNIST's own crop/scale/center-of-mass preprocessing
                                                  (mnist_capture.py), classified live by the ensemble trained
                                                  above
+    demo_backprop_variant_comparison.py          reproduces three research-and-analysis.md A/B comparisons
+                                                 (one-vs-rest vs softmax, quadratic vs binary cross-entropy,
+                                                 fan-in-aware vs Xavier/Glorot init) live, side by side, with
+                                                 charts - see "backprop siblings" and demos.md
 data/
   digits/
     digits.csv                      bundled 8x8 digits dataset (1797 rows, 64 pixels + a
@@ -152,6 +203,24 @@ tests/                           one file per module under test, plus test_train
                                    paint_brush_stroke, intensity_to_color - the pure logic behind
                                    demo_uci_digit_capture.py; the tkinter mouse/canvas code itself
                                    isn't unit-tested (no headless display in this test suite)
+  test_mnist_data.py              load_mnist_dataset/labels/records_at_indices, convert_parquet_to_binary -
+                                   needs the real (gitignored, locally-supplied) MNIST data files, see
+                                   setup.md
+  test_mnist_capture.py           bounding_box, crop, resize_area_weighted, scale_to_fit, center_of_mass,
+                                   place_centered, preprocess_capture, paint_brush_stroke - the pure logic
+                                   behind demo_mnist_ensemble_capture.py
+  test_ensemble_backprop_classifier_network.py  EnsembleBackpropClassifierNetwork construction,
+                                   predict_probabilities/classify_state, snapshot/restore, save()/load()
+  test_ensemble_train.py          select_balanced_indices/build_balanced_binary_dataset,
+                                   train_ensemble_parallel(_from_indices) via real multiprocessing.Pool
+                                   runs, _select_worker_count's memory-aware capping
+  test_softmax_output_layer.py, test_softmax_multiclass_backprop_model.py,
+  test_softmax_multiclass_training_pipeline.py, test_fan_in_aware_backprop_model.py,
+  test_binary_cross_entropy_backprop_model.py, test_relu_layer.py, test_relu_backprop_model.py,
+  test_momentum_layer.py, test_momentum_backprop_model.py, test_l2_regularization_layer.py,
+  test_l2_regularized_backprop_model.py       one file per backprop sibling class and its underlying
+                                   node/layer machinery (see "backprop siblings"), each with the same
+                                   hand-computed-forward/backward-pass pattern as test_backprop_model.py
 cli                                setup / test / clean helper script
 ```
 
@@ -252,6 +321,55 @@ this reason), and `.classify_state()`, all of which both classes implement. The 
 covering every trainable layer including the output layer for `BackpropClassifierNetwork`) but
 the training loop only ever treats the snapshot as opaque, so this is invisible to it.
 
+## backprop siblings
+
+Five additive siblings of `BackpropClassifierNetwork` exist alongside it - each isolating one
+axis of variation (init scheme, hidden-layer activation, output loss, optimizer, regularization),
+none replacing it or changing any existing demo, and each backed by a real measurement in
+[research and analysis](research-and-analysis.md) rather than assumed to help:
+
+- **`FanInAwareBackpropClassifierNetwork`** swaps in the same fan-in-aware `randomize()` scheme
+  `MultiClassBackpropClassifierNetwork` already uses (below) instead of
+  `BackpropClassifierNetwork`'s own per-dimension-bounds-width scaling. This is the one adopted
+  by default: `EnsembleBackpropClassifierNetwork` (below) is built from this class, not plain
+  `BackpropClassifierNetwork` - switching alone, no other change, took the real MNIST ensemble
+  from 89.4% to 96.01% held-out test accuracy (see "the ensemble/real-MNIST investigation").
+- **`ReLUBackpropClassifierNetwork`** replaces sigmoid with ReLU (`max(0, z)`, see `relu_layer.py`)
+  for every hidden layer only - the output layer is untouched, since ReLU is a hidden-layer-only
+  convention. At `BackpropClassifierNetwork`'s own tuned learning rate it loses badly (dead ReLU
+  units were checked directly as the obvious explanation, and ruled out); retuned to its own
+  learning rate, it doesn't just recover, it exceeds the sigmoid baseline (99.27% vs 97.80% mean
+  on a fixed XOR scenario - see "ReLU hidden-layer activation").
+- **`BinaryCrossEntropyBackpropClassifierNetwork`** replaces quadratic loss with binary
+  cross-entropy at the output node (`self.delta = self.value() - reference_value`, no `a(1-a)`
+  factor) - the canonical loss for binary classification. Needs its own, substantially lower,
+  learning rate to match (not beat) the quadratic baseline's tuned performance - see "binary
+  cross-entropy for BackpropClassifierNetwork".
+- **`MomentumBackpropClassifierNetwork`** adds the momentum term from Rumelhart, Hinton &
+  Williams (1986)'s own generalized delta rule, which `apply_gradient` never had before this.
+  Sets both `hidden_layer_cls` and `output_layer_cls` - unlike the three above (each touching
+  only one layer or the other), this changes the weight-update rule itself, shared by every
+  trainable layer. Unlike the other four, no `momentum` coefficient tested actually beat plain
+  SGD - the constructor requires an explicit value rather than defaulting to one, and this class
+  was kept mainly for a future mini-batch-gradient investigation, where momentum's own literature
+  is more commonly validated (see "momentum").
+- **`L2RegularizedBackpropClassifierNetwork`** sets both hooks the same way, for the same
+  reason - it adds an `l2_lambda * weight` penalty to every weight's gradient (never bias -
+  standard practice). Measured on a small, fixed, finite proxy dataset rather than a toy
+  geometric target, since L2's whole purpose is generalization: no coefficient tested improved
+  held-out accuracy above the unregularized baseline, though the mechanism itself was confirmed
+  directly (a strong enough penalty collapses the network to a constant prediction, weights
+  decayed to near-zero - see "L2 weight regularization").
+
+Of these five, two (`FanInAware...`, `ReLU...`) are genuine, measured improvements over the
+plain sigmoid/quadratic-loss/no-momentum/no-regularization baseline; one
+(`BinaryCrossEntropy...`) matches it once retuned; two (`Momentum...`, `L2Regularized...`) are
+kept as real, tested capabilities despite measuring as nulls on the scenarios tested, not
+because either is recommended for use today. `demo_backprop_variant_comparison.py` reproduces
+three of these comparisons (one-vs-rest vs softmax, quadratic vs binary cross-entropy,
+fan-in-aware vs Xavier/Glorot init - see [demos](demos.md#demo-backprop-variant-comparison)) live
+and re-runnably, rather than leaving the documented numbers only readable.
+
 ## multi-class
 
 `MultiClassBackpropClassifierNetwork` is a one-vs-rest multi-class sibling of
@@ -325,14 +443,19 @@ e.g. an unfilled "0"'s hole, which a radius of 3+ visibly started doing in testi
 `demo_mnist_ensemble_recognition.py` trains on the real, full-scale MNIST dataset (28x28, 60000 train /
 10000 test images) rather than the small bundled UCI set, using
 `EnsembleBackpropClassifierNetwork` instead of `MultiClassBackpropClassifierNetwork` - 10
-completely independent `BackpropClassifierNetwork`s, one per digit, each trained on its own
-class-balanced binary dataset (`ensemble_train.build_balanced_binary_dataset`) with no shared
-hidden layer and no synchronization of any kind between them, dispatched as parallel
-`multiprocessing` jobs (`ensemble_train.train_ensemble_parallel_from_indices`). This design, and
-the real memory-exhaustion bug hit (and fixed) while building it at full scale, is written up in
-[research and analysis](research-and-analysis.md#parallelizing-mnist-training). Measured on this
-machine: ~31 minutes wall-clock for the full 60000-image, 10-class training run, 89.4% held-out
-test accuracy.
+completely independent `FanInAwareBackpropClassifierNetwork`s (see "backprop siblings" above; a
+`classifier_cls` parameter on `ensemble_train.py`'s training functions, defaulting to plain
+`BackpropClassifierNetwork`, is what lets this demo opt into the fan-in-aware sibling without
+touching any other caller), one per digit, each trained on its own class-balanced binary dataset
+(`ensemble_train.build_balanced_binary_dataset`) with no shared hidden layer and no
+synchronization of any kind between them, dispatched as parallel `multiprocessing` jobs
+(`ensemble_train.train_ensemble_parallel_from_indices`). This design, and the real
+memory-exhaustion bug hit (and fixed) while building it at full scale, is written up in
+[research and analysis](research-and-analysis.md#parallelizing-mnist-training). The switch to
+fan-in-aware init - the same fix "backprop siblings" describes - took this demo's own measured
+result from 89.4% to 96.01% held-out test accuracy at the same wall-clock cost (~30 minutes,
+measured directly at 29.6 minutes for the current configuration - see [research and
+analysis](research-and-analysis.md#the-ensemblereal-mnist-investigation)).
 
 `demo_mnist_ensemble_capture.py` classifies a live, mouse-painted digit with `EnsembleBackpropClassifierNetwork.load`
 (the model the demo above trains and saves), the same overall interaction as
@@ -357,8 +480,8 @@ on its caller's own input range).
 ## possible next steps
 
 Recommendations from an audit-driven review of this codebase (see `research-and-analysis.md`
-for the investigations that shaped the architecture described above). Two of the original seven
-are now built; the rest are ordered roughly by how directly each follows from an existing
+for the investigations that shaped the architecture described above). Three of the original
+seven are now built; the rest are ordered roughly by how directly each follows from an existing
 finding here, not by priority.
 
 **Built since this list was first written:**
@@ -372,6 +495,10 @@ finding here, not by priority.
   a null (no coefficient tested beat plain SGD - see the "momentum" entry), since it remains a
   genuine capability worth having on its own terms, e.g. for revisiting under mini-batch
   gradients below.
+- ~~L2 weight regularization~~ - built as `L2RegularizedBackpropClassifierNetwork` (see the "L2
+  weight regularization" entry): also measured as a null on the proxy tested (no coefficient
+  improved held-out accuracy over the unregularized baseline), kept for the same reason as
+  momentum.
 
 **Still open:**
 
@@ -382,7 +509,7 @@ finding here, not by priority.
   is the standard fix for exactly that noise source, and `MomentumBackpropClassifierNetwork`
   already exists to retest against once it does, rather than needing its own new prototype.
 - **CI** (e.g. GitHub Actions running `pytest` on push/PR) - the one item here that's pure
-  engineering, not ML content. Nothing currently protects this test suite (215 tests as of this
+  engineering, not ML content. Nothing currently protects this test suite (225 tests as of this
   writing, many pinned to hand-derived or empirically-measured expected values) from silently
   regressing.
 - **Convolutional layers, from scratch** - a substantial but well-motivated next architecture
@@ -391,9 +518,6 @@ finding here, not by priority.
   capable model classes (`LinearClassifierNetwork` -> `BackpropClassifierNetwork` -> multi-class
   siblings) and its "hand-build everything, no ML framework" identity - a bigger effort than
   anything above, needing new node/layer abstractions for 2D receptive fields and weight sharing.
-- **L2 weight regularization** - cheap to add (one extra term in the gradient step) and cheap to
-  measure empirically, the same proxy-then-real-scale way every other model variant here has
-  been evaluated.
 - **Softmax multiclass training on real full-scale MNIST** (currently only validated on the
   small UCI digits set - see the "softmax/cross-entropy re-alignment" entry) - would directly
   compare against the ensemble's 96.01%, but a single joint 10-output network can't be
