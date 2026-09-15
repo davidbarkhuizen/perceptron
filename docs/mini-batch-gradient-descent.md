@@ -2,20 +2,22 @@
 
 [← back to README](../README.md)
 
-## status: infrastructure built, the retest it was built for is not
+## status: built and run, result is inconclusive (not a clean win or loss)
 
 Stages 1-5 of the workplan below are built (`accumulate_gradient`/`apply_accumulated_gradient`
 on every trainable node, `learn_batch` on both classifier networks, `train.
 train_backprop_network_mini_batch`, and the numerical parity tests each stage required) - see
-the three PRs that implemented them (#139, #140, #141). The rest of this document is kept as
-written before that work started, since it's still the accurate record of the reasoning and
-the function-level detail behind what got built - **only this status section reflects
-present-tense reality**; everything below still reads as a forward-looking plan for stages
-that are, as of PR #141, actually finished. **Stage 6 - the momentum re-test this entire
-workplan exists to unblock - has not been run.** Building the mini-batch machinery answers the
-architectural "how would this even work" question; it doesn't itself tell us whether
-mini-batching helps momentum, which is the actual open question. See
-`docs/structure.md`'s "possible next steps" for the current status of that still-open retest.
+the three PRs that implemented them (#139, #140, #141). Stage 6 - the momentum re-test this
+entire workplan exists to unblock - has also now been run: see
+`docs/research-and-analysis.md`'s "momentum under mini-batch gradients: suggestive, but
+confounded by an untuned learning rate" entry. Short version: `batch_size=1`/`8` (closest to
+the original per-example regime) still shows no clear momentum benefit, matching the original
+finding; `batch_size=32`/`128` shows a striking rescue effect from higher momentum, but it's
+confounded with `learning_rate=0.5` never being scaled up for larger batch sizes (the standard
+mini-batch SGD practice this sweep didn't apply) rather than being clean evidence for the
+original gradient-noise hypothesis. The rest of this document is kept as written before any of
+this was built or run, since it's still the accurate record of the reasoning and function-level
+detail behind what got built - **only this status section reflects present-tense reality**.
 
 ## original framing (superseded by "status" above for what's actually built)
 
@@ -141,12 +143,14 @@ loop is a separate, later step, not something this workplan does itself.
 ## decision
 
 Unlike `vectorization.md` (still a pure analysis-and-workplan document, nothing built), this
-workplan's infrastructure stages (1-5) *were* built - see "status" at the top. What's still
-undecided is the same as it always was: whether momentum should ever be turned on by default,
-which depends entirely on stage 6's retest result, not yet run. Building the machinery to run
-that retest was judged worth doing on its own terms (the mini-batch capability itself, not
-just the retest); whether the retest's eventual result changes anything about momentum's
-default status remains for whoever maintains this repo to decide once it exists.
+workplan's infrastructure stages (1-5) *were* built, and stage 6 has now been run - see
+"status" at the top and `docs/research-and-analysis.md`'s writeup. What's still undecided is
+the same as it always was: whether momentum should ever be turned on by default. The retest's
+result doesn't settle that either way (still no clear win at the batch sizes closest to the
+original regime; the large-batch rescue effect is confounded, not clean evidence) -
+`MomentumBackpropClassifierNetwork` remains not adopted as a default. A follow-up sweep that
+scales `learning_rate` with `batch_size` (the confound the writeup identifies) could still
+change that, but hasn't been run.
 
 ## workplan
 
@@ -220,15 +224,17 @@ gradients let momentum's literature-cited benefit show up here, rather than assu
   are split.
 - **Any change to `LinearClassifierNetwork`/`AssociationNode`.** Their minimum-disturbance
   update rule has no gradient to batch.
-- **Re-tuning `learning_rate` for any specific batch size beyond what stage 6 needs.** A
-  broader learning-rate-vs-batch-size sweep, if warranted at all, is a follow-on to whatever
-  stage 6 finds, not part of this workplan.
+- **Re-tuning `learning_rate` for any specific batch size.** Stage 6's own result identifies
+  this as the confound behind its large-batch momentum-rescue effect (see
+  `docs/research-and-analysis.md`'s writeup) - a real, motivated follow-on, but a separate
+  sweep of its own, not part of this workplan or automatically run as part of stage 6.
 
 ## what this document is not
 
-As of PR #141, no longer purely an analysis and a workplan for stages 1-5 - see "status" at the
-top. Still not a migration plan (nothing in `BackpropNode`/`BackpropLayer`'s existing
-per-example `learn()` path was removed or changed - `learn_batch` sits alongside it) and still
-not a decision that momentum should be turned on: that remains the explicitly flagged,
-undecided question in [structure](structure.md#possible-next-steps), gated on stage 6's retest,
-which is what the built infrastructure exists to make possible - not yet what it has answered.
+As of PR #141 and the stage 6 retest, no longer purely an analysis and a workplan - see
+"status" at the top. Still not a migration plan (nothing in `BackpropNode`/`BackpropLayer`'s
+existing per-example `learn()` path was removed or changed - `learn_batch` sits alongside it)
+and still not a decision that momentum should be turned on: the retest's own result didn't
+settle that question cleanly either way, so it remains the explicitly flagged, undecided
+question in [structure](structure.md#possible-next-steps) - not because the retest wasn't run,
+but because what it found was confounded, not conclusive.

@@ -514,18 +514,24 @@ priority.
   `_accumulate_gradients`/`_apply_accumulated_gradients`, `learn_batch` on
   `BackpropClassifierNetwork`/`MultiClassBackpropClassifierNetwork` (and every sibling that
   inherits it unchanged - momentum, L2, ReLU, fan-in-aware, binary cross-entropy, softmax), and
-  `train.train_backprop_network_mini_batch`. **The momentum re-test this existed to unblock is
-  still open** - see "still open" below; this entry is about the infrastructure only.
+  `train.train_backprop_network_mini_batch`.
+- ~~The momentum re-test mini-batch gradient descent was built to unblock~~ - run: momentum
+  coefficients (0.0-0.9) crossed with batch sizes (1, 8, 32, 128), 10 seeds each, 200 runs on
+  the same real-MNIST proxy the original investigation used. Result is inconclusive, not a
+  clean win: `batch_size=1`/`8` (closest to the original per-example regime) still shows no
+  clear momentum benefit; `batch_size=32`/`128` shows a striking rescue effect from higher
+  momentum, but it's confounded with `learning_rate=0.5` never being scaled up for larger
+  batches (the standard mini-batch SGD practice this sweep didn't apply), not clean evidence for
+  the original gradient-noise hypothesis. `MomentumBackpropClassifierNetwork` remains not
+  adopted as a default. See `research-and-analysis.md`'s "momentum under mini-batch gradients"
+  entry.
 
 **Still open:**
 
-- **The momentum re-test mini-batch gradient descent was built to unblock** - momentum was
-  measured to fail here specifically because per-example online SGD's gradients are noisy (see
-  `research-and-analysis.md`'s "momentum" entry); mini-batching now exists
-  (`train_backprop_network_mini_batch`, above) but the actual re-measurement - momentum
-  coefficients crossed with a few batch sizes, the same statistical discipline (many seeds,
-  mean + stdev) that caught the original investigation's own small-sample mirage - hasn't been
-  run yet. See [mini-batch gradient descent](mini-batch-gradient-descent.md#6-the-actual-retest-this-workplan-exists-to-unblock).
+- **A learning-rate-vs-batch-size sweep**, to isolate the momentum re-test's large-batch rescue
+  effect from the untuned-learning-rate confound identified above (scale `learning_rate` with
+  `batch_size`, the standard practice the original sweep didn't apply) - the natural follow-up
+  to actually test the original gradient-noise hypothesis cleanly, not yet run.
 - **CI** (e.g. GitHub Actions running `pytest` on push/PR) - the one item here that's pure
   engineering, not ML content. Nothing currently protects this test suite (225 tests as of this
   writing, many pinned to hand-derived or empirically-measured expected values) from silently
