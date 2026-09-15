@@ -43,3 +43,22 @@ class ArrayLayer:
         self.Z = X @ self.W.T + self.b
         self.A = sigmoid(self.Z)
         return self.A
+
+    def compute_output_delta(self, reference: np.ndarray) -> None:
+        self.delta = (self.a - reference) * self.a * (1.0 - self.a)
+
+    def compute_hidden_delta(self, next_layer: "ArrayLayer") -> None:
+        # next_layer.W.T @ next_layer.delta replaces BackpropNode.compute_hidden_delta's
+        # per-node Python sum() over downstream nodes with one matmul for the whole layer
+        downstream = next_layer.W.T @ next_layer.delta
+        self.delta = downstream * self.a * (1.0 - self.a)
+
+    def compute_output_delta_batch(self, reference_batch: np.ndarray) -> None:
+        self.delta_batch = (self.A - reference_batch) * self.A * (1.0 - self.A)
+
+    def compute_hidden_delta_batch(self, next_layer: "ArrayLayer") -> None:
+        # next_layer.delta_batch.shape == (batch_size, next_layer.size); next_layer.W.shape ==
+        # (next_layer.size, self.size), so next_layer.delta_batch @ next_layer.W stacks
+        # compute_hidden_delta's single-example downstream computation over every batch row
+        downstream = next_layer.delta_batch @ next_layer.W
+        self.delta_batch = downstream * self.A * (1.0 - self.A)
