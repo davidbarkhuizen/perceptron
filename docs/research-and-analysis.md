@@ -483,3 +483,62 @@ separately-scoped piece of work, not folded into this write-up. The binary cross
 question, on the other hand, is considered adequately answered for now: consistently
 confirmed not to help at production's current learning rate, across three independent scales,
 with no further real-MNIST retuning planned unless a future need specifically calls for it.
+
+## Xavier/Glorot init: measured, not worth adopting
+
+### context
+
+A second backprop-literature audit, after `FanInAwareBackpropClassifierNetwork` was built and
+wired into the real MNIST ensemble (see above), asked a follow-up question:
+`randomize_fan_in_aware`'s `limit = 1/sqrt(fan_in)` scaling is fan-in-only, and doesn't exactly
+match the specific variance target LeCun et al. 1998 derived (`1/fan_in`, which for a uniform
+draw needs `limit = sqrt(3)/sqrt(fan_in)`, not `1/sqrt(fan_in)`) - it's closer to a common
+practical simplification of that scheme (also, historically, PyTorch's own pre-Kaiming default
+`nn.Linear` init). Since every network in this codebase uses sigmoid activation throughout, the
+literature's most specifically-tailored scheme for that case is Glorot & Bengio 2010's
+("Xavier") initialization, `limit = sqrt(6/(fan_in+fan_out))`, derived to keep both forward
+activation variance *and* backward gradient variance stable across layers - not just the forward
+term a fan-in-only scheme accounts for. A related, smaller question was whether zero-initializing
+biases (the more commonly cited default in the literature, e.g. Goodfellow et al.) would help or
+hurt, given the current scheme randomizes biases too.
+
+### measured comparison
+
+Same proxy as the earlier ensemble investigation (320 real MNIST examples, digit 3's
+class-balanced one-vs-rest target, 5 epochs, 5 seeds, `learning_rate=0.5` - the demo's own tuned
+rate, unchanged, since nothing here is a loss-function change that would need its own retuning).
+Three configs: the current production scheme, Xavier/Glorot weights with the same random-scaled
+bias, and Xavier/Glorot weights with zero bias:
+
+| config | mean test accuracy |
+|---|---|
+| (A) current fan-in-only (production) | 93.75% |
+| (B) Xavier/Glorot, random bias | 93.75% |
+| (C) Xavier/Glorot, zero bias | 93.75% |
+
+A clean null, not a weak signal - (B) and (C) even produced identical per-seed results (93.8%
+across all 5 seeds), and (A) landed at the same mean. A cheap prerequisite check (mirroring the
+earlier investigation's own step 1) confirmed Xavier/Glorot doesn't reintroduce saturation
+either - 0% of hidden activations saturated at MNIST's real 784-dimension scale, matching the
+already-fixed fan-in-only scheme exactly.
+
+### interpretation
+
+Unlike the original fan-in-only fix - which showed an unambiguous +11-point effect at this exact
+same proxy scale, later confirmed at full real-MNIST scale (+6.6 points, 89.4% -> 96.01%) - this
+comparison shows nothing to confirm. The likely reason: once the dominant saturation pathology is
+fixed (which both schemes do equally well), the *further* refinement Xavier/Glorot offers over a
+simpler fan-in-only scheme - accounting for backward gradient variance via fan_out, not just
+forward activation variance via fan_in - mainly matters for deeper networks or unusual
+layer-width ratios (the case Glorot & Bengio's own paper studied). This codebase's networks are
+shallow (a single hidden layer, in every current use), where that extra term has little room to
+matter.
+
+### decision
+
+Not adopted. No real-scale validation run was spent confirming this - the proxy's result is
+unambiguous enough (a literal tie across 3 configs x 5 seeds, not a marginal or noisy difference)
+that spending ~30 minutes of real training time to re-confirm a null result already this clean
+would not be a good use of that time. `randomize_fan_in_aware` and
+`FanInAwareBackpropClassifierNetwork` stay as they are; this remains a documented, measured "no"
+rather than an untested assumption either way.
