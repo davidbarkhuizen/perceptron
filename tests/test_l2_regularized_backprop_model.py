@@ -1,5 +1,6 @@
 import pytest
 
+from helpers import assert_randomize_breaks_symmetry
 from perceptron.geometry import square_bounds
 from perceptron.model.backprop_classifier_network import BackpropClassifierNetwork
 from perceptron.model.l2_regularized_backprop_classifier_network import L2RegularizedBackpropClassifierNetwork
@@ -78,9 +79,7 @@ def test_l2_lambda_zero_matches_the_plain_sgd_sibling_bit_for_bit():
 def test_randomize_breaks_symmetry_between_nodes_in_the_same_layer():
 
     network = L2RegularizedBackpropClassifierNetwork.randomized([4], 2, square_bounds(10.0), l2_lambda=0.01)
-    weight_sets = [tuple(node.input_node_weights) for node in network.hidden_layers[0].nodes]
-
-    assert len(set(weight_sets)) == len(weight_sets)
+    assert_randomize_breaks_symmetry(network)
 
 
 def test_snapshot_and_restore_round_trip():

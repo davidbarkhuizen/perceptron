@@ -1,5 +1,6 @@
 import pytest
 
+from helpers import assert_randomize_breaks_symmetry
 from perceptron.geometry import square_bounds
 from perceptron.model.momentum_backprop_classifier_network import MomentumBackpropClassifierNetwork
 
@@ -78,9 +79,7 @@ def test_momentum_zero_matches_the_plain_sgd_sibling_across_many_steps():
 def test_randomize_breaks_symmetry_between_nodes_in_the_same_layer():
 
     network = MomentumBackpropClassifierNetwork.randomized([4], 2, square_bounds(10.0), momentum=0.5)
-    weight_sets = [tuple(node.input_node_weights) for node in network.hidden_layers[0].nodes]
-
-    assert len(set(weight_sets)) == len(weight_sets)
+    assert_randomize_breaks_symmetry(network)
 
 
 def test_snapshot_and_restore_round_trip():

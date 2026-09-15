@@ -1,6 +1,17 @@
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 
 
+def assert_randomize_breaks_symmetry(network) -> None:
+    """
+    Shared by every *_backprop_model.py's test_randomize_breaks_symmetry_between_nodes_...:
+    identical starting weights across nodes in the same layer would receive identical gradients
+    forever and the layer would collapse to one effective unit, so randomize() must give each
+    node independent random weights, not a shared default.
+    """
+    weight_sets = [tuple(node.input_node_weights) for node in network.hidden_layers[0].nodes]
+    assert len(set(weight_sets)) == len(weight_sets)
+
+
 def classifier_with_bounded_square_region(bounds: list[tuple[float, float]]) -> LinearClassifierNetwork:
 
     # positive region is exactly the square [-1, 1] x [-1, 1]: x > -1, x < 1, y > -1, y < 1
