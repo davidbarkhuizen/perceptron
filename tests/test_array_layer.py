@@ -59,3 +59,23 @@ def test_forward_matches_backprop_layer_across_a_random_sweep():
         actual = array_layer.forward(np.array(x))
 
         assert np.allclose(actual, expected, rtol=1e-9, atol=1e-12)
+
+
+def test_forward_batch_matches_forward_run_once_per_row_and_stacked():
+
+    rng = random.Random(2)
+    dimension = 6
+    size = 3
+    batch_size = 8
+
+    array_layer = ArrayLayer(size, dimension)
+    array_layer.W = np.array([[rng.uniform(-3.0, 3.0) for _ in range(dimension)] for _ in range(size)])
+    array_layer.b = np.array([rng.uniform(-3.0, 3.0) for _ in range(size)])
+
+    X = np.array([[rng.uniform(-10.0, 10.0) for _ in range(dimension)] for _ in range(batch_size)])
+
+    expected = np.stack([array_layer.forward(x) for x in X])
+
+    actual = array_layer.forward_batch(X)
+
+    assert np.allclose(actual, expected, rtol=1e-9, atol=1e-12)
