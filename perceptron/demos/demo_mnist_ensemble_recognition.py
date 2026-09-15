@@ -14,6 +14,7 @@ from perceptron.graphics.chart import (
     sample_predictions_figure,
     style_dark_legend,
 )
+from perceptron.model.fan_in_aware_backprop_classifier_network import FanInAwareBackpropClassifierNetwork
 from perceptron.mnist_data import (
     convert_parquet_to_binary,
     load_mnist_dataset,
@@ -49,12 +50,15 @@ def main() -> None:
 
     print(
         "Real MNIST (28x28, 60000 train / 10000 test) via EnsembleBackpropClassifierNetwork - "
-        "10 completely independent BackpropClassifierNetworks, one per digit, each trained on "
-        "its own class-balanced binary dataset with no state shared between them at all. That's "
-        "what makes this genuinely (not just approximately) parallelizable across this "
-        "machine's CPUs - see docs/research-and-analysis.md's 'parallelizing MNIST training' "
-        "entry for the measurements behind this design, including a real memory-exhaustion "
-        "failure and how it was actually fixed (not just worked around)."
+        "10 completely independent FanInAwareBackpropClassifierNetworks, one per digit, each "
+        "trained on its own class-balanced binary dataset with no state shared between them at "
+        "all. That's what makes this genuinely (not just approximately) parallelizable across "
+        "this machine's CPUs - see docs/research-and-analysis.md's 'parallelizing MNIST "
+        "training' entry for the measurements behind this design, including a real "
+        "memory-exhaustion failure and how it was actually fixed (not just worked around). "
+        "Fan-in-aware initialization (rather than plain BackpropClassifierNetwork's default) "
+        "was itself measured to matter at this scale - see the 'ensemble/real-MNIST "
+        "investigation' entry: +6.6 points test accuracy from this init fix alone."
     )
     print()
 
@@ -63,7 +67,7 @@ def main() -> None:
     labels = load_mnist_labels(TRAIN_PATH)
     print(f"loaded {len(labels)} training labels (examples loaded lazily, per class, during training)")
 
-    print("training all 10 digit classifiers (measured on this machine: ~31 minutes) ...")
+    print("training all 10 digit classifiers (measured on this machine: ~30 minutes) ...")
     ensemble, diagnostics = train_ensemble_parallel_from_indices(
         TRAIN_PATH,
         load_mnist_records_at_indices,
@@ -74,6 +78,7 @@ def main() -> None:
         input_bounds=[(0.0, 1.0)] * DIMENSION,
         learning_rate=0.5,
         epochs=5,
+        classifier_cls=FanInAwareBackpropClassifierNetwork,
     )
 
     for label in range(CLASS_COUNT):
