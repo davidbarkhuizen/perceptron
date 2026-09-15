@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import math
-import random
-
-from perceptron.model.backprop_network_base import BackpropNetworkBase
+from perceptron.model.backprop_network_base import BackpropNetworkBase, randomize_fan_in_aware
 from perceptron.model.model_io import load_model_json, save_model_json
 
 
@@ -57,16 +54,9 @@ class MultiClassBackpropClassifierNetwork(BackpropNetworkBase):
         # fan-in-aware initialization, unlike BackpropClassifierNetwork.randomize()'s
         # per-dimension-bounds-width scaling (tuned for 1-2D geometric problems) - that scaling
         # produces exploding pre-activation sums (guaranteed sigmoid saturation) once fan-in
-        # reaches the tens or hundreds, as it does here (dimension=64 for 8x8 digit images).
-        # Validated empirically against the real bundled digits dataset before this class was
-        # written: 99.5% training accuracy, 96.9% test accuracy.
-        previous_size = self.dimension
-        for layer in self.trainable_layers:
-            limit = 1.0 / math.sqrt(previous_size)
-            for node in layer.nodes:
-                node.update_input_weights([random.uniform(-limit, limit) for _ in range(previous_size)])
-                node.bias = random.uniform(-limit, limit)
-            previous_size = layer.size
+        # reaches the tens or hundreds, as it does here (dimension=64 for 8x8 digit images). See
+        # randomize_fan_in_aware's own docstring for the scheme itself and its validation.
+        randomize_fan_in_aware(self)
 
     @classmethod
     def randomized(
