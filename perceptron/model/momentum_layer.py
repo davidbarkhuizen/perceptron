@@ -26,19 +26,27 @@ def make_momentum_node_cls(momentum: float) -> type[BackpropNode]:
             self._prev_weight_deltas = [0.0] * len(self.input_nodes)
             self._prev_bias_delta = 0.0
 
-        def apply_gradient(self, learning_rate: float) -> None:
+        def apply_accumulated_gradient(self, learning_rate: float, batch_size: int) -> None:
+            # the averaged accumulated gradient (accum / batch_size) plugs in exactly where the
+            # single-example gradient (self.delta * node.value()) used to - the momentum term
+            # itself (momentum * prev) is unaffected by batching, since it's a function of the
+            # *previous update*, not of how this one's gradient was computed
             new_weights = []
             new_prev = []
-            for weight, node, prev in zip(self.input_node_weights, self.input_nodes, self._prev_weight_deltas):
-                delta_w = learning_rate * self.delta * node.value() + momentum * prev
+            for weight, accum, prev in zip(
+                self.input_node_weights, self._weight_gradient_accum, self._prev_weight_deltas
+            ):
+                delta_w = learning_rate * accum / batch_size + momentum * prev
                 new_weights.append(weight - delta_w)
                 new_prev.append(delta_w)
             self.update_input_weights(new_weights)
             self._prev_weight_deltas = new_prev
 
-            bias_delta = learning_rate * self.delta + momentum * self._prev_bias_delta
+            bias_delta = learning_rate * self._bias_gradient_accum / batch_size + momentum * self._prev_bias_delta
             self.bias = self.bias - bias_delta
             self._prev_bias_delta = bias_delta
+
+            self._reset_gradient_accum()
 
     return MomentumBackpropNode
 
