@@ -525,6 +525,14 @@ priority.
   the original gradient-noise hypothesis. `MomentumBackpropClassifierNetwork` remains not
   adopted as a default. See `research-and-analysis.md`'s "momentum under mini-batch gradients"
   entry.
+- ~~Convolutional layers, from scratch~~ - built per
+  [convolutional layers](convolutional-layers.md)'s workplan (`ConvKernel`, `ConvUnit`,
+  `ConvLayer`, `ConvMultiClassBackpropClassifierNetwork`, and the one shared-code change every
+  prior sibling avoided needing: `BackpropLayer` gaining per-layer gradient/persistence hooks)
+  and validated on UCI digits at a comparable trainable-parameter budget (2410 dense vs. 2530
+  conv, 8 seeds each): mean test accuracy came out statistically indistinguishable (96.69%
+  dense vs. 96.52% conv) - a clean null, not a win, honestly reported. See
+  `research-and-analysis.md`'s "convolutional layers on UCI digits" entry.
 
 **Still open:**
 
@@ -532,6 +540,12 @@ priority.
   effect from the untuned-learning-rate confound identified above (scale `learning_rate` with
   `batch_size`, the standard practice the original sweep didn't apply) - the natural follow-up
   to actually test the original gradient-noise hypothesis cleanly, not yet run.
+- **A real-MNIST-scale convolutional layers validation**, now that the UCI-digits-scale result
+  came back a flat null rather than a clear loss (the workplan's own stated bar for considering
+  this) - real MNIST has meaningfully more spatial structure (28x28 vs. 8x8) for convolution's
+  own advantages to potentially show up in, but a full run costs on the order of 30 minutes per
+  architecture per seed (see the ensemble/real-MNIST investigation above), a real wall-clock
+  cost this UCI-digits result alone doesn't settle is worth spending. Not yet run.
 - **CI** (e.g. GitHub Actions running `pytest` on push/PR) - the one item here that's pure
   engineering, not ML content. Nothing currently protects this test suite (225 tests as of this
   writing, many pinned to hand-derived or empirically-measured expected values) from silently
@@ -543,14 +557,6 @@ priority.
   first deciding how a fresh checkout gets that data (a public mirror to fetch from? a repo
   secret + private download step? committing a small stratified subset instead of the full
   dataset?) means shipping CI that quietly can't protect part of the suite, not a real fix.
-- **Convolutional layers, from scratch** - a substantial but well-motivated next architecture
-  step for a codebase whose only two real datasets (UCI digits, MNIST) are both images, currently
-  classified with dense layers alone. Matches this repo's own pattern of progressively more
-  capable model classes (`LinearClassifierNetwork` -> `BackpropClassifierNetwork` -> multi-class
-  siblings) and its "hand-build everything, no ML framework" identity - a bigger effort than
-  anything above, needing new node/layer abstractions for 2D receptive fields and weight sharing.
-  See [convolutional layers](convolutional-layers.md) for a function-level workplan, scoped to
-  avoid backprop-through-convolution entirely by starting with exactly one conv layer.
 - **NumPy vectorization** - would meaningfully speed up training (the ~30-minute MNIST ensemble
   runs are pure-Python-bound), but this repo's stated identity is explicitly "no ML framework
   dependency, everything hand-built." NumPy isn't itself an ML framework, but adding any array
