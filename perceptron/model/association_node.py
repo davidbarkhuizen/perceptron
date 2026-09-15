@@ -1,9 +1,9 @@
 from typing import Sequence
 
-from perceptron.model.base_node import AbstractNode
+from perceptron.model.base_node import AbstractNode, WeightedInputNode
 
 
-class AssociationNode(AbstractNode):
+class AssociationNode(WeightedInputNode):
     def __init__(
         self,
         input_nodes: Sequence[AbstractNode],
@@ -11,26 +11,15 @@ class AssociationNode(AbstractNode):
         threshold: float = 0.0,
         default_input_node_weight: float = 1.0,
     ) -> None:
+        super().__init__(input_nodes, input_node_weights, offset=threshold, default_input_node_weight=default_input_node_weight)
 
-        self.threshold: float = threshold
+    @property
+    def threshold(self) -> float:
+        return self._offset
 
-        self.input_nodes: Sequence[AbstractNode] = input_nodes if input_nodes else []
-
-        self.input_node_weights: Sequence[float] = (
-            input_node_weights if input_node_weights else [default_input_node_weight for _ in self.input_nodes]
-        )
-
-    def update_input_weights(self, weights: list[float]) -> None:
-        assert len(weights) == len(self.input_nodes)
-        self.input_node_weights = weights
-
-    def z(self) -> float:
-
-        aggregate_input_value: float = sum(
-            [self.input_nodes[i].value() * self.input_node_weights[i] for i in range(len(self.input_nodes))]
-        )
-
-        return aggregate_input_value + self.threshold
+    @threshold.setter
+    def threshold(self, value: float) -> None:
+        self._offset = value
 
     def value(self) -> float:
         return 1.0 if self.z() > 0.0 else 0.0

@@ -3,10 +3,10 @@ from __future__ import annotations
 import math
 from typing import Sequence
 
-from perceptron.model.base_node import AbstractNode
+from perceptron.model.base_node import AbstractNode, WeightedInputNode
 
 
-class BackpropNode(AbstractNode):
+class BackpropNode(WeightedInputNode):
     """
     Sigmoid-activation neuron trained by gradient descent, in contrast to AssociationNode's
     hard step function and discrete minimum-disturbance update rule. bias plays the same role
@@ -20,14 +20,7 @@ class BackpropNode(AbstractNode):
         input_node_weights: Sequence[float] | None = None,
         bias: float = 0.0,
     ) -> None:
-
-        self.bias: float = bias
-
-        self.input_nodes: Sequence[AbstractNode] = input_nodes if input_nodes else []
-
-        self.input_node_weights: Sequence[float] = (
-            input_node_weights if input_node_weights else [1.0 for _ in self.input_nodes]
-        )
+        super().__init__(input_nodes, input_node_weights, offset=bias)
 
         # populated by forward(); no default - value() must never be called before a forward()
         # pass, that's a caller bug, not something to paper over with a fallback
@@ -36,17 +29,13 @@ class BackpropNode(AbstractNode):
         # populated by compute_output_delta()/compute_hidden_delta() during the backward pass
         self.delta: float
 
-    def update_input_weights(self, weights: list[float]) -> None:
-        assert len(weights) == len(self.input_nodes)
-        self.input_node_weights = weights
+    @property
+    def bias(self) -> float:
+        return self._offset
 
-    def z(self) -> float:
-
-        aggregate_input_value: float = sum(
-            [self.input_nodes[i].value() * self.input_node_weights[i] for i in range(len(self.input_nodes))]
-        )
-
-        return aggregate_input_value + self.bias
+    @bias.setter
+    def bias(self, value: float) -> None:
+        self._offset = value
 
     def forward(self) -> float:
         # the only place activation is computed - value() is a pure cache read, so downstream
