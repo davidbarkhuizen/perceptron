@@ -8,7 +8,7 @@ from matplotlib import pyplot
 
 from perceptron.evaluate import agreement_label, class_balanced_disagreement_rate, compare_on_random_point, smoothed_series
 from perceptron.geometry import square_bounds
-from perceptron.graphics.chart import disagreement_axis_bounds, new_axes, new_figure, plot_labeled_series
+from perceptron.graphics.chart import new_convergence_chart_pair, plot_labeled_series
 from perceptron.model.backprop_classifier_network import BackpropClassifierNetwork
 from perceptron.train import random_alternating_training_data, train_linear_classifier_network
 
@@ -104,13 +104,12 @@ def main() -> None:
         "instead of cardinalities"
     )
 
-    smoothed_figure = new_figure("backprop convergence by architecture (smoothed)")
-    smoothed_axes = new_axes(smoothed_figure, disagreement_axis_bounds(x_max), scaled=False)
+    smoothed_axes, smoothed_log_axes = new_convergence_chart_pair(
+        "backprop convergence by architecture (smoothed)",
+        "backprop convergence by architecture (smoothed, log scale)",
+        x_max,
+    )
     plot_labeled_series(smoothed_axes, smoothed_results)
-
-    smoothed_log_figure = new_figure("backprop convergence by architecture (smoothed, log scale)")
-    smoothed_log_axes = new_axes(smoothed_log_figure, disagreement_axis_bounds(x_max, log=True), scaled=False)
-    smoothed_log_axes.set_yscale("log")
     plot_labeled_series(smoothed_log_axes, smoothed_results)
 
     pyplot.show()

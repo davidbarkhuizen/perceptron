@@ -254,6 +254,22 @@ def disagreement_axis_bounds(x_max: float, log: bool = False) -> list[tuple[floa
     return [(0.0, x_max), (1.0e-3, 1.0) if log else (0.0, 1.0)]
 
 
+def new_convergence_chart_pair(linear_title: str, log_title: str, x_max: float) -> tuple[Axes, Axes]:
+    """
+    Bundles the new_figure -> new_axes(disagreement_axis_bounds(...), scaled=False) sequence
+    every convergence-chart demo repeats twice (once linear-scaled, once log-scaled - the log
+    axes additionally gets set_yscale("log")) - callers still do their own plotting (a single
+    axes.plot, or plot_labeled_series for a multi-series sweep) on the two returned axes.
+    """
+
+    linear_axes = new_axes(new_figure(linear_title), disagreement_axis_bounds(x_max), scaled=False)
+
+    log_axes = new_axes(new_figure(log_title), disagreement_axis_bounds(x_max, log=True), scaled=False)
+    log_axes.set_yscale("log")
+
+    return linear_axes, log_axes
+
+
 def new_figure(label: str) -> Figure:
     figure = pyplot.figure(label)
     figure.patch.set_facecolor("xkcd:black")
