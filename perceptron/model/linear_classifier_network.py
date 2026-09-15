@@ -3,6 +3,7 @@ from __future__ import annotations
 import random
 
 from perceptron.model.association_layer import AssociationLayer
+from perceptron.model.bounds import validate_input_bounds
 from perceptron.model.state_layer import StateLayer
 
 
@@ -20,8 +21,7 @@ class LinearClassifierNetwork:
 
         self.dimension = dimension
 
-        assert len(input_bounds) == dimension
-        assert all(hi > lo for lo, hi in input_bounds), f"input_bounds must all have positive width; got {input_bounds}"
+        validate_input_bounds(dimension, input_bounds)
         self.input_bounds = input_bounds
 
         # how many of the cardinality hidden nodes must be active for the output to fire -
