@@ -25,14 +25,21 @@ def make_l2_node_cls(l2_lambda: float) -> type[BackpropNode]:
     """
 
     class L2RegularizedBackpropNode(BackpropNode):
-        def apply_gradient(self, learning_rate: float) -> None:
+        def apply_accumulated_gradient(self, learning_rate: float, batch_size: int) -> None:
+            # l2_lambda*weight is added once here, against the batch-averaged data gradient -
+            # not accumulated per example in accumulate_gradient() (inherited unchanged from
+            # BackpropNode), since the weight itself doesn't move during a batch's forward/
+            # backward passes: the penalty term is the same value at every example in the
+            # batch, so accumulating it per example and then averaging would just reproduce
+            # this same single term, at the cost of doing so the confusing way
             self.update_input_weights(
                 [
-                    weight - learning_rate * (self.delta * node.value() + l2_lambda * weight)
-                    for weight, node in zip(self.input_node_weights, self.input_nodes)
+                    weight - learning_rate * (accum / batch_size + l2_lambda * weight)
+                    for weight, accum in zip(self.input_node_weights, self._weight_gradient_accum)
                 ]
             )
-            self.bias = self.bias - learning_rate * self.delta
+            self.bias = self.bias - learning_rate * self._bias_gradient_accum / batch_size
+            self._reset_gradient_accum()
 
     return L2RegularizedBackpropNode
 

@@ -51,6 +51,13 @@ class BackpropNode(WeightedInputNode):
         # populated by compute_output_delta()/compute_hidden_delta() during the backward pass
         self.delta: float
 
+        # accumulated by accumulate_gradient(), consumed and reset by
+        # apply_accumulated_gradient() - lets a caller run forward+backward+accumulate over an
+        # entire mini-batch before any weight is actually written, instead of apply_gradient's
+        # single-example fused compute-and-apply
+        self._weight_gradient_accum: list[float] = [0.0 for _ in self.input_nodes]
+        self._bias_gradient_accum: float = 0.0
+
     @property
     def bias(self) -> float:
         return self._offset
@@ -81,11 +88,30 @@ class BackpropNode(WeightedInputNode):
         downstream = sum(node.delta * node.input_node_weights[own_index] for node in next_layer_nodes)
         self.delta = downstream * a * (1.0 - a)
 
-    def apply_gradient(self, learning_rate: float) -> None:
+    def accumulate_gradient(self) -> None:
+        for i, node in enumerate(self.input_nodes):
+            self._weight_gradient_accum[i] += self.delta * node.value()
+        self._bias_gradient_accum += self.delta
+
+    def apply_accumulated_gradient(self, learning_rate: float, batch_size: int) -> None:
         self.update_input_weights(
             [
-                weight - learning_rate * self.delta * node.value()
-                for weight, node in zip(self.input_node_weights, self.input_nodes)
+                weight - learning_rate * accum / batch_size
+                for weight, accum in zip(self.input_node_weights, self._weight_gradient_accum)
             ]
         )
-        self.bias = self.bias - learning_rate * self.delta
+        self.bias = self.bias - learning_rate * self._bias_gradient_accum / batch_size
+        self._reset_gradient_accum()
+
+    def _reset_gradient_accum(self) -> None:
+        self._weight_gradient_accum = [0.0 for _ in self.input_nodes]
+        self._bias_gradient_accum = 0.0
+
+    def apply_gradient(self, learning_rate: float) -> None:
+        # the batch_size=1 special case of accumulate + apply, kept as the single-example entry
+        # point every existing caller (learn(), every pinned test) already uses - dispatches
+        # through accumulate_gradient()/apply_accumulated_gradient() polymorphically, so a
+        # subclass overriding either (e.g. MomentumBackpropNode, L2RegularizedBackpropNode) gets
+        # its own per-example behavior without needing to override apply_gradient itself
+        self.accumulate_gradient()
+        self.apply_accumulated_gradient(learning_rate, 1)
