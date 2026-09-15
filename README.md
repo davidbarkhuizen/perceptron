@@ -1,4 +1,4 @@
-# perceptron
+# ml-from-first-principles
 
 A small, dependency-light implementation of two classifier families, built from first
 principles. `LinearClassifierNetwork` composes state (input) nodes and association
