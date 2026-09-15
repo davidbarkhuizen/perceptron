@@ -989,3 +989,91 @@ mini-batch SGD practice this one didn't apply) - rather than more epochs, which 
 this sweep's already-24-minute cost considerably for the larger batch sizes - is the natural
 next step to actually isolate momentum's effect from the learning-rate confound, but hasn't
 been run; this entry reports what was measured, not what a corrected sweep would show.
+
+## convolutional layers on UCI digits: a clean null result
+
+### context
+
+[Convolutional layers](convolutional-layers.md)'s workplan built a from-scratch
+`ConvMultiClassBackpropClassifierNetwork` (`ConvKernel`/`ConvUnit`/`ConvLayer` - see that
+document's stages 1-5, all implemented and tested) specifically to answer one honestly-flagged
+open question: whether local receptive fields and weight sharing measurably help on this
+codebase's own real image data, or whether - given `MultiClassBackpropClassifierNetwork`'s
+already-strong dense baseline on UCI digits (99.5%/96.9% train/test,
+`randomize_fan_in_aware`'s own docstring) - the task is already close to saturated for a dense
+network, leaving little room for convolution to show a clear win at this scale. This entry is
+that validation - stage 6 of the workplan.
+
+Full, real UCI digits (1797 samples), the exact same fixed train/test split
+`demo_uci_digit_recognition.py` itself uses (`split_train_test(dataset, test_fraction=0.2,
+seed=0)` - 1438 train, 359 test), `learning_rate=0.5`, `epochs=30`, matching that demo's own
+tuned parameters exactly for a fair comparison. Two architectures compared at a deliberately
+comparable overall trainable-parameter budget, not an arbitrarily different one:
+
+| architecture | shape | trainable parameters |
+|---|---|---|
+| dense (`MultiClassBackpropClassifierNetwork`) | `[32]` hidden layer | 2410 |
+| conv (`ConvMultiClassBackpropClassifierNetwork`) | `kernel_size=3`, `channel_count=4` conv layer -> `[16]` dense hidden layer | 2530 (40 kernel + 2490 dense) |
+
+8 seeds each (varying only weight initialization/training randomness - the train/test split
+itself stayed fixed across every run, unlike the momentum retest's own per-seed resampling,
+since UCI digits is this codebase's own established fixed benchmark), 16 runs total, run in
+parallel across an 8-core process pool (the same fork-based-sharing pattern `ensemble_train.py`
+and the momentum retest both already use) - 518.3s wall-clock.
+
+### measured comparison
+
+| architecture | train accuracy | test accuracy |
+|---|---|---|
+| dense | mean=99.57% stdev=0.08% | mean=96.69% stdev=0.62% |
+| conv | mean=99.78% stdev=0.10% | mean=96.52% stdev=0.73% |
+
+Test accuracy per seed:
+
+- dense: 95.54%, 96.66%, 96.94%, 96.66%, 96.94%, 97.21%, 97.49%, 96.10%
+- conv: 96.94%, 95.26%, 97.21%, 96.10%, 96.10%, 97.21%, 97.21%, 96.10%
+
+The two means differ by 0.17 percentage points - smaller than either architecture's own stdev
+(0.62%/0.73% at n=8) and well inside the overlap of their two per-seed ranges. Both architectures
+land in the same 95.3%-97.5% band; neither one's seeds cluster above or below the other's in any
+visible pattern.
+
+### interpretation
+
+A flat, statistically indistinguishable result - the same shape of finding as momentum's own
+canonical-coefficient sweep and L2's own regularization sweep (see those entries above), not a
+win for either architecture. This is consistent with, not a refutation of, the open question
+`convolutional-layers.md`'s own "numerical and behavioral risks" section flagged before this
+measurement was taken: UCI digits' 8x8 images are small and the task is already close to
+saturated for a plain dense network at this parameter budget (99.5%/96.9% is close to ceiling
+for 1797 samples, 10 classes), leaving little room for convolution's own real advantages -
+translation invariance, fewer effective parameters per learned feature - to show up as a test-
+accuracy improvement specifically. Training accuracy tells a similar story: conv's 99.78% is
+marginally higher than dense's 99.57%, plausibly just a slightly easier optimization landscape
+at this parameter count on this particular training set, not a generalization advantage (the
+held-out numbers don't follow the same pattern).
+
+Two things this measurement does *not* by itself establish: whether convolution's own real
+advantages would show up on a task with more, or spatially larger, structure to exploit (real
+MNIST's 28x28 images are the next, larger-scale test this workplan's own "expected effect and
+validation targets" section already scoped, gated on this comparison being "favorable or at
+least not a clear loss" - a flat null qualifies, per that document's own stated bar), and
+whether a different conv architecture (more channels, a different kernel size, more training
+epochs at conv's own possibly-different optimal learning rate) would separate the two more
+clearly - this measurement used one specific, reasonably-chosen but not exhaustively-tuned
+architecture and the dense baseline's own already-tuned hyperparameters, not a search over
+either.
+
+### decision
+
+Not adopted as a demonstrated win at this scale - no accuracy improvement was measured on UCI
+digits at a comparable parameter budget, honestly reported as a null result rather than
+stretched into a positive finding. `ConvMultiClassBackpropClassifierNetwork` remains built and
+tested (see `convolutional-layers.md`'s own stages 1-5), a genuine, correct capability now
+available in this codebase, just not one this specific measurement recommends over the existing
+dense baseline for this specific task. Per the workplan's own stated bar ("favorable, or at
+least not a clear loss"), this flat result is enough to make a real-MNIST-scale run worth
+considering as a follow-up, not enough to justify it as a confident next step on its own -
+that's a real, further wall-clock cost (a full real-MNIST run takes on the order of 30 minutes
+per architecture per seed, per the ensemble/real-MNIST investigation above) for a question this
+UCI-digits-scale result leaves genuinely open rather than answered.

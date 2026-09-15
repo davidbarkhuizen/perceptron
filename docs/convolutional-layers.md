@@ -2,6 +2,23 @@
 
 [← back to README](../README.md)
 
+## status: built and validated, result is a clean null
+
+Stages 1-5 are built and tested (5 PRs: the layer-level gradient/persistence hook refactor,
+`ConvKernel`, `ConvUnit`, `ConvLayer`, `ConvMultiClassBackpropClassifierNetwork`). Stage 6 - the
+actual UCI-digits validation against the existing dense baseline - has also been run: see
+`docs/research-and-analysis.md`'s "convolutional layers on UCI digits: a clean null result"
+entry. Short version: at a comparable trainable-parameter budget (2410 dense vs. 2530 conv),
+8 seeds each, mean test accuracy came out statistically indistinguishable (96.69% dense vs.
+96.52% conv, well within each other's stdev) - no measured win for convolution at this scale,
+honestly reported rather than stretched into one. `ConvMultiClassBackpropClassifierNetwork`
+remains a real, correct, tested capability in this codebase; whether a real-MNIST-scale run is
+worth the further wall-clock cost, given this flat result meets but doesn't exceed the
+workplan's own "favorable or at least not a clear loss" bar, is now an open question of its own
+- see `docs/structure.md`'s "possible next steps". The rest of this document is kept as written
+before any of this was built or run - **only this status section reflects present-tense
+reality**.
+
 Analysis and workplan only - not a decision to build anything here, and nothing in
 `perceptron/` changes as a result of this document. `docs/structure.md`'s "possible next
 steps" flags convolutional layers as "a substantial but well-motivated next architecture step
@@ -207,15 +224,16 @@ same input (one shared `kernel_size**2`-weight kernel per channel, not `input_si
 output node) and, per CNN theory, better generalization on image-shaped data from translation
 invariance - both empirical claims to measure against the baselines above, not assume.
 
-## decision: not made here
+## decision
 
-Same posture as `vectorization.md` and `mini-batch-gradient-descent.md` before it was built:
-this document scopes one specific way convolutional layers could be added, in enough
-function-level detail to implement, without recommending it be built. `docs/structure.md`'s
-"possible next steps" already flags this as the most substantial of the remaining open items -
-whether it's worth the real architectural work above (a genuine, if narrowly-scoped,
-`BackpropNetworkBase`/`BackpropLayer` change, unlike any prior sibling) is for whoever
-maintains this repo to decide.
+Built (stages 1-5) and run (stage 6) - see "status" at the top. The measurement itself didn't
+recommend convolution over the existing dense baseline at UCI-digits scale (a flat null, not a
+win), but building it was judged worth doing on its own terms (a real, correct, additive
+capability, and the actual reason the "how would this even work" architectural question needed
+answering at all - see `docs/research-and-analysis.md`'s own writeup for why the null result
+doesn't settle whether convolution would help at real-MNIST scale, where there's more spatial
+structure to exploit). Whether to spend the further wall-clock cost on that real-MNIST
+validation remains for whoever maintains this repo to decide.
 
 ## workplan
 
@@ -301,9 +319,12 @@ there.
 
 ## what this document is not
 
-An analysis and a workplan, not an implementation, not a migration plan, and not a decision to
-build. Whether to pursue this at all remains the explicitly flagged, undecided question in
-[structure](structure.md#possible-next-steps) - the value case here (fewer parameters per
-feature, translation invariance) is a real, literature-backed claim, but this codebase's own
-practice throughout is to measure it directly against its own real baselines rather than take
-it on faith, exactly as stage 6 above is scoped to do.
+As of stage 6, no longer purely an analysis and a workplan - see "status" at the top. Still not
+a migration plan (nothing in `BackpropNode`/`BackpropLayer`/any existing sibling changed;
+`ConvMultiClassBackpropClassifierNetwork` sits alongside them) and still not a claim that
+convolution beats the dense baseline: the value case here (fewer parameters per feature,
+translation invariance) is a real, literature-backed claim, but this codebase's own practice
+throughout is to measure it directly against its own real baselines rather than take it on
+faith - stage 6 did exactly that, honestly, and found a null, not a win, at this scale. Whether
+that changes at real-MNIST scale remains the explicitly flagged, undecided question in
+[structure](structure.md#possible-next-steps).
