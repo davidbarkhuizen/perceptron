@@ -2,11 +2,10 @@ from __future__ import annotations
 
 import random
 
-from perceptron.model.backprop_layer import BackpropLayer
-from perceptron.model.state_layer import StateLayer
+from perceptron.model.backprop_network_base import BackpropNetworkBase
 
 
-class BackpropClassifierNetwork:
+class BackpropClassifierNetwork(BackpropNetworkBase):
     """
     A sigmoid-activation, gradient-descent-trained network of arbitrary depth
     (input -> hidden layer(s) -> a trainable single-node output layer), added alongside
@@ -25,39 +24,10 @@ class BackpropClassifierNetwork:
         dimension: int,
         input_bounds: list[tuple[float, float]],
     ) -> None:
-
-        assert len(layer_sizes) >= 1, "layer_sizes must specify at least one hidden layer"
-        assert all(size >= 1 for size in layer_sizes), f"every hidden layer must have at least 1 node; got {layer_sizes}"
-
-        self.dimension = dimension
-
-        assert len(input_bounds) == dimension
-        assert all(hi > lo for lo, hi in input_bounds), f"input_bounds must all have positive width; got {input_bounds}"
-        self.input_bounds = input_bounds
-
-        self.input_layer = StateLayer(dimension, input_bounds)
-
-        self.hidden_layers: list[BackpropLayer] = []
-        previous_layer: StateLayer | BackpropLayer = self.input_layer
-        for size in layer_sizes:
-            layer = BackpropLayer(size=size, input_layer=previous_layer)
-            self.hidden_layers.append(layer)
-            previous_layer = layer
-
-        self.output_layer = BackpropLayer(size=1, input_layer=previous_layer)
-
-        # drives both the backward pass and snapshot/restore uniformly - every layer whose
-        # weights/bias are actually trained, in forward order
-        self.trainable_layers: list[BackpropLayer] = self.hidden_layers + [self.output_layer]
-
-    def update_state_layer(self, state: tuple[float, ...]) -> None:
-        self.input_layer.update_state(state)
+        super().__init__(layer_sizes, dimension, input_bounds, output_size=1)
 
     def _forward(self, state: tuple[float, ...]) -> float:
-        self.update_state_layer(state)
-        for layer in self.trainable_layers:
-            layer.forward()
-        return self.output_layer.nodes[0].value()
+        return self._forward_outputs(state)[0]
 
     def predict_probability(self, state: tuple[float, ...]) -> float:
         return self._forward(state)
@@ -72,16 +42,7 @@ class BackpropClassifierNetwork:
 
     def _backward(self, reference_value: float) -> None:
         self.output_layer.nodes[0].compute_output_delta(reference_value)
-
-        for layer_index in reversed(range(len(self.hidden_layers))):
-            next_layer = self.trainable_layers[layer_index + 1]
-            for own_index, node in enumerate(self.hidden_layers[layer_index].nodes):
-                node.compute_hidden_delta(next_layer.nodes, own_index)
-
-    def _apply_gradients(self, learning_rate: float) -> None:
-        for layer in self.trainable_layers:
-            for node in layer.nodes:
-                node.apply_gradient(learning_rate)
+        self._backward_hidden_layers()
 
     def half_widths(self) -> list[float]:
         return [(hi - lo) / 2.0 for lo, hi in self.input_bounds]
@@ -118,14 +79,3 @@ class BackpropClassifierNetwork:
         network = cls(layer_sizes, dimension, input_bounds)
         network.randomize()
         return network
-
-    def snapshot(self) -> list[list[tuple[list[float], float]]]:
-        return [
-            [(list(node.input_node_weights), node.bias) for node in layer.nodes] for layer in self.trainable_layers
-        ]
-
-    def restore(self, snapshot: list[list[tuple[list[float], float]]]) -> None:
-        for layer, layer_snapshot in zip(self.trainable_layers, snapshot):
-            for node, (weights, bias) in zip(layer.nodes, layer_snapshot):
-                node.update_input_weights(weights)
-                node.bias = bias

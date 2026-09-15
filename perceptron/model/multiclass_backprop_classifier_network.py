@@ -4,11 +4,10 @@ import json
 import math
 import random
 
-from perceptron.model.backprop_layer import BackpropLayer
-from perceptron.model.state_layer import StateLayer
+from perceptron.model.backprop_network_base import BackpropNetworkBase
 
 
-class MultiClassBackpropClassifierNetwork:
+class MultiClassBackpropClassifierNetwork(BackpropNetworkBase):
     """
     A one-vs-rest multi-class sibling of BackpropClassifierNetwork, built entirely on the same
     BackpropNode/BackpropLayer building blocks - a new class, not a retrofit, because
@@ -29,39 +28,13 @@ class MultiClassBackpropClassifierNetwork:
         class_count: int,
     ) -> None:
 
-        assert len(layer_sizes) >= 1, "layer_sizes must specify at least one hidden layer"
-        assert all(size >= 1 for size in layer_sizes), f"every hidden layer must have at least 1 node; got {layer_sizes}"
         assert class_count >= 2, f"class_count must be at least 2; got {class_count}"
-
-        self.dimension = dimension
-
-        assert len(input_bounds) == dimension
-        assert all(hi > lo for lo, hi in input_bounds), f"input_bounds must all have positive width; got {input_bounds}"
-        self.input_bounds = input_bounds
-
         self.class_count = class_count
 
-        self.input_layer = StateLayer(dimension, input_bounds)
-
-        self.hidden_layers: list[BackpropLayer] = []
-        previous_layer: StateLayer | BackpropLayer = self.input_layer
-        for size in layer_sizes:
-            layer = BackpropLayer(size=size, input_layer=previous_layer)
-            self.hidden_layers.append(layer)
-            previous_layer = layer
-
-        self.output_layer = BackpropLayer(size=class_count, input_layer=previous_layer)
-
-        self.trainable_layers: list[BackpropLayer] = self.hidden_layers + [self.output_layer]
-
-    def update_state_layer(self, state: tuple[float, ...]) -> None:
-        self.input_layer.update_state(state)
+        super().__init__(layer_sizes, dimension, input_bounds, output_size=class_count)
 
     def _forward(self, state: tuple[float, ...]) -> list[float]:
-        self.update_state_layer(state)
-        for layer in self.trainable_layers:
-            layer.forward()
-        return [node.value() for node in self.output_layer.nodes]
+        return self._forward_outputs(state)
 
     def predict_probabilities(self, state: tuple[float, ...]) -> list[float]:
         return self._forward(state)
@@ -78,16 +51,7 @@ class MultiClassBackpropClassifierNetwork:
     def _backward(self, category: int) -> None:
         for i, node in enumerate(self.output_layer.nodes):
             node.compute_output_delta(1.0 if i == category else 0.0)
-
-        for layer_index in reversed(range(len(self.hidden_layers))):
-            next_layer = self.trainable_layers[layer_index + 1]
-            for own_index, node in enumerate(self.hidden_layers[layer_index].nodes):
-                node.compute_hidden_delta(next_layer.nodes, own_index)
-
-    def _apply_gradients(self, learning_rate: float) -> None:
-        for layer in self.trainable_layers:
-            for node in layer.nodes:
-                node.apply_gradient(learning_rate)
+        self._backward_hidden_layers()
 
     def randomize(self) -> None:
         # fan-in-aware initialization, unlike BackpropClassifierNetwork.randomize()'s
@@ -115,17 +79,6 @@ class MultiClassBackpropClassifierNetwork:
         network = cls(layer_sizes, dimension, input_bounds, class_count)
         network.randomize()
         return network
-
-    def snapshot(self) -> list[list[tuple[list[float], float]]]:
-        return [
-            [(list(node.input_node_weights), node.bias) for node in layer.nodes] for layer in self.trainable_layers
-        ]
-
-    def restore(self, snapshot: list[list[tuple[list[float], float]]]) -> None:
-        for layer, layer_snapshot in zip(self.trainable_layers, snapshot):
-            for node, (weights, bias) in zip(layer.nodes, layer_snapshot):
-                node.update_input_weights(weights)
-                node.bias = bias
 
     def save(self, path: str) -> None:
         with open(path, "w") as f:
