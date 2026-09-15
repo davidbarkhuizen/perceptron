@@ -25,6 +25,10 @@ class BackpropNetworkBase:
     # behavior change for them
     output_layer_cls: type[BackpropLayer] = BackpropLayer
 
+    # same override point, for the hidden layers instead (e.g. a ReLU sibling's ReLULayer) -
+    # every existing subclass leaves this as plain BackpropLayer too
+    hidden_layer_cls: type[BackpropLayer] = BackpropLayer
+
     def __init__(
         self,
         layer_sizes: list[int],
@@ -46,7 +50,7 @@ class BackpropNetworkBase:
         self.hidden_layers: list[BackpropLayer] = []
         previous_layer: StateLayer | BackpropLayer = self.input_layer
         for size in layer_sizes:
-            layer = BackpropLayer(size=size, input_layer=previous_layer)
+            layer = self.hidden_layer_cls(size=size, input_layer=previous_layer)
             self.hidden_layers.append(layer)
             previous_layer = layer
 
