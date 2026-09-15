@@ -32,3 +32,29 @@ class BackpropLayer:
     def forward(self) -> None:
         for node in self.nodes:
             node.forward()
+
+    # these five methods are BackpropNetworkBase's own per-node loops, extracted here so a
+    # sibling layer with a different notion of "one weight-owning unit" than "one node" (e.g. a
+    # convolutional layer sharing one kernel across many spatial-position nodes - see
+    # docs/convolutional-layers.md) can override just these, once per layer, instead of the
+    # network reaching into layer.nodes directly - a pure extraction for every existing layer
+    # type, zero behavior change
+    def apply_gradients(self, learning_rate: float) -> None:
+        for node in self.nodes:
+            node.apply_gradient(learning_rate)
+
+    def accumulate_gradients(self) -> None:
+        for node in self.nodes:
+            node.accumulate_gradient()
+
+    def apply_accumulated_gradients(self, learning_rate: float, batch_size: int) -> None:
+        for node in self.nodes:
+            node.apply_accumulated_gradient(learning_rate, batch_size)
+
+    def snapshot_state(self) -> list[tuple[list[float], float]]:
+        return [(list(node.input_node_weights), node.bias) for node in self.nodes]
+
+    def restore_state(self, layer_snapshot: list[tuple[list[float], float]]) -> None:
+        for node, (weights, bias) in zip(self.nodes, layer_snapshot):
+            node.update_input_weights(weights)
+            node.bias = bias
