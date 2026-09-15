@@ -91,6 +91,13 @@ class TrainingDiagnostic:
         # more epochs might help
         return not self.converged and not self.plateaued
 
+    @property
+    def status_label(self) -> str:
+        # the same "converged"/"plateaued"/"still improving" tri-state label every demo prints
+        # after training - one place so the wording (and the tri-state logic itself) can't drift
+        # between demos
+        return "converged" if self.converged else "plateaued" if self.plateaued else "still improving"
+
 
 class ConvergenceSeries(list):
     """

@@ -50,7 +50,7 @@ def main() -> None:
     result = train_linear_classifier_network(student, training_data, learning_rate=1.0, epochs=80)
 
     diagnostic = result.diagnostic
-    status = "converged" if diagnostic.converged else "plateaued" if diagnostic.plateaued else "still improving"
+    status = diagnostic.status_label
     print(
         f"training accuracy {diagnostic.best_training_accuracy:.3f} ({status} - best epoch "
         f"{diagnostic.best_epoch_index + 1}/{len(diagnostic.epoch_training_accuracies)})"

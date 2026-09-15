@@ -79,7 +79,7 @@ def main() -> None:
         results.append((label, color, n, disagreement))
 
         diagnostic = convergence_series.diagnostic
-        status = "converged" if diagnostic.converged else "plateaued" if diagnostic.plateaued else "still improving"
+        status = diagnostic.status_label
         final_disagreement = class_balanced_disagreement_rate(target, student, per_class_sample_count=300)
 
         new_state, reference_category, student_category = compare_on_random_point(target, student)
