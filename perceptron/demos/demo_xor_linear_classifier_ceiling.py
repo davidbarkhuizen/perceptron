@@ -71,7 +71,7 @@ def main() -> None:
         disagreement = class_balanced_disagreement_rate(target, student, per_class_sample_count=300)
 
         diagnostic = result.diagnostic
-        status = "converged" if diagnostic.converged else "plateaued" if diagnostic.plateaued else "still improving"
+        status = diagnostic.status_label
         plateaued_count += diagnostic.plateaued
         converged_count += diagnostic.converged
         print(

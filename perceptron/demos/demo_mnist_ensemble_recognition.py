@@ -83,7 +83,7 @@ def main() -> None:
 
     for label in range(CLASS_COUNT):
         diagnostic = diagnostics[label]
-        status = "converged" if diagnostic.converged else "plateaued" if diagnostic.plateaued else "still improving"
+        status = diagnostic.status_label
         print(f"digit {label}: binary training accuracy {diagnostic.best_training_accuracy:.3f} ({status})")
 
     test_data = load_mnist_dataset(TEST_PATH)
