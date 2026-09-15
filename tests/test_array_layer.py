@@ -283,3 +283,27 @@ def test_apply_accumulated_gradient_resets_the_accumulator():
 
     assert np.array_equal(array_layer.W, weights_after_first_apply)
     assert np.array_equal(array_layer.b, bias_after_first_apply)
+
+
+def test_accumulate_gradient_batch_matches_looping_accumulate_gradient_over_every_row():
+
+    rng = random.Random(9)
+    size = 3
+    input_size = 4
+    batch_size = 5
+
+    looped = ArrayLayer(size, input_size)
+    one_shot = ArrayLayer(size, input_size)
+
+    delta_batch = np.array([[rng.uniform(-5.0, 5.0) for _ in range(size)] for _ in range(batch_size)])
+    X = np.array([[rng.uniform(-10.0, 10.0) for _ in range(input_size)] for _ in range(batch_size)])
+
+    for row in range(batch_size):
+        looped.delta = delta_batch[row]
+        looped.accumulate_gradient(X[row])
+
+    one_shot.delta_batch = delta_batch
+    one_shot.accumulate_gradient_batch(X)
+
+    assert np.allclose(one_shot._grad_W, looped._grad_W, rtol=1e-9, atol=1e-12)
+    assert np.allclose(one_shot._grad_b, looped._grad_b, rtol=1e-9, atol=1e-12)

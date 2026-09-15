@@ -1,6 +1,8 @@
 import struct
 import zlib
 
+import numpy as np
+
 IMAGE_SIZE = 28
 RECORD_SIZE = IMAGE_SIZE * IMAGE_SIZE + 1  # IMAGE_SIZE*IMAGE_SIZE pixel bytes + 1 label byte
 
@@ -132,6 +134,30 @@ def load_mnist_dataset(path: str, limit: int | None = None) -> list[tuple[tuple[
         dataset.append((state, label))
 
     return dataset
+
+
+def load_mnist_dataset_as_array(path: str, limit: int | None = None) -> np.ndarray:
+    """
+    The array-backed counterpart to load_mnist_dataset, addressing the root cause
+    docs/research-and-analysis.md's "parallelizing MNIST training" entry measured and worked
+    around rather than fixed: decoding into `tuple[float, ...]` per example means 60000 x 784 =
+    47 million individually boxed Python float objects. Decoding raw uint8 pixel bytes directly
+    via np.frombuffer avoids that entirely - one array, not millions of objects.
+
+    Returns pixels only (shape (n, 784), normalized to [0.0, 1.0]), not labels - use
+    load_mnist_labels for those, exactly as load_mnist_dataset's own callers already do when
+    they only need labels. A new, additive function alongside load_mnist_dataset, not a
+    replacement - nothing currently calling that function needs to change.
+    """
+
+    with open(path, "rb") as f:
+        data = f.read(limit * RECORD_SIZE) if limit is not None else f.read()
+
+    assert len(data) % RECORD_SIZE == 0, f"file size is not a multiple of RECORD_SIZE ({RECORD_SIZE}); got {len(data)} bytes"
+
+    record_count = len(data) // RECORD_SIZE
+    records = np.frombuffer(data, dtype=np.uint8).reshape(record_count, RECORD_SIZE)
+    return records[:, :-1].astype(np.float64) / 255.0
 
 
 def load_mnist_labels(path: str) -> list[int]:
