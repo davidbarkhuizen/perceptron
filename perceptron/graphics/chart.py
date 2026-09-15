@@ -4,6 +4,7 @@ from typing import Callable
 from matplotlib import lines, pyplot
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
+from matplotlib.legend import Legend
 
 from perceptron.geometry import reference_positive_region_polygon
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
@@ -219,6 +220,32 @@ def plot_sample_predictions(
         axes.set_yticks([])
         correct = predicted_label == true_label
         axes.set_title(f"pred={predicted_label} true={true_label}", color="white" if correct else "red", fontsize=8)
+
+
+def style_dark_legend(legend: Legend) -> None:
+    """
+    Styles a matplotlib legend to match this codebase's dark chart theme (see new_figure/
+    new_axes, which paint everything else black-with-white) - a legend's own frame/text default
+    to a light theme regardless of the axes' facecolor, so this has to be done explicitly.
+    """
+
+    legend.get_frame().set_facecolor("black")
+    for text in legend.get_texts():
+        text.set_color("white")
+
+
+def plot_labeled_series(axes: Axes, results: list[tuple[str, str, list[float], list[float]]]) -> None:
+    """
+    Plots each (label, color, x, y) series in results on axes and adds a dark-styled legend -
+    the shared multi-series convergence-chart pattern behind
+    demo_linear_classifier_cardinality_sweep.py and demo_backprop_stripes_architecture_sweep.py,
+    which differ only in how each series' label is computed before being passed in here.
+    """
+
+    for label, color, x, y in results:
+        axes.plot(x, y, color=color, label=label)
+
+    style_dark_legend(axes.legend())
 
 
 def disagreement_axis_bounds(x_max: float, log: bool = False) -> list[tuple[float, float]]:

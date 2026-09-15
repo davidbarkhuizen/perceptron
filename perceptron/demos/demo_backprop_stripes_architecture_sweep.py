@@ -5,11 +5,10 @@ import matplotlib
 matplotlib.use("TkAgg")
 
 from matplotlib import pyplot
-from matplotlib.axes import Axes
 
 from perceptron.evaluate import class_balanced_disagreement_rate, compare_on_random_point, smoothed_series
 from perceptron.geometry import square_bounds
-from perceptron.graphics.chart import disagreement_axis_bounds, new_axes, new_figure
+from perceptron.graphics.chart import disagreement_axis_bounds, new_axes, new_figure, plot_labeled_series
 from perceptron.model.backprop_classifier_network import BackpropClassifierNetwork
 from perceptron.train import random_alternating_training_data, train_linear_classifier_network
 
@@ -29,17 +28,6 @@ class StripesTarget:
     def classify_state(self, state: tuple[float, float]) -> float:
         x, _ = state
         return 1.0 if math.floor(x / self.cell_size) % 2 == 0 else 0.0
-
-
-def _plot_convergence(axes: Axes, results: list[tuple[str, str, list[int], list[float]]]) -> None:
-
-    for label, color, n, disagreement in results:
-        axes.plot(n, disagreement, color=color, label=label)
-
-    legend = axes.legend()
-    legend.get_frame().set_facecolor("black")
-    for text in legend.get_texts():
-        text.set_color("white")
 
 
 def main() -> None:
@@ -118,12 +106,12 @@ def main() -> None:
 
     smoothed_figure = new_figure("backprop convergence by architecture (smoothed)")
     smoothed_axes = new_axes(smoothed_figure, disagreement_axis_bounds(x_max), scaled=False)
-    _plot_convergence(smoothed_axes, smoothed_results)
+    plot_labeled_series(smoothed_axes, smoothed_results)
 
     smoothed_log_figure = new_figure("backprop convergence by architecture (smoothed, log scale)")
     smoothed_log_axes = new_axes(smoothed_log_figure, disagreement_axis_bounds(x_max, log=True), scaled=False)
     smoothed_log_axes.set_yscale("log")
-    _plot_convergence(smoothed_log_axes, smoothed_results)
+    plot_labeled_series(smoothed_log_axes, smoothed_results)
 
     pyplot.show()
 
