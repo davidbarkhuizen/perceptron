@@ -515,7 +515,8 @@ priority.
   momentum's own open question: momentum was measured to fail here specifically because
   per-example gradients are noisy (see `research-and-analysis.md`'s "momentum" entry); mini-batching
   is the standard fix for exactly that noise source, and `MomentumBackpropClassifierNetwork`
-  already exists to retest against once it does, rather than needing its own new prototype.
+  already exists to retest against once it does, rather than needing its own new prototype. See
+  [mini-batch gradient descent](mini-batch-gradient-descent.md) for a function-level workplan.
 - **CI** (e.g. GitHub Actions running `pytest` on push/PR) - the one item here that's pure
   engineering, not ML content. Nothing currently protects this test suite (225 tests as of this
   writing, many pinned to hand-derived or empirically-measured expected values) from silently
