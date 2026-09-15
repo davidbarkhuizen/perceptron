@@ -1,6 +1,6 @@
 import pytest
 
-from helpers import assert_snapshot_restore_round_trip
+from helpers import assert_save_and_load_round_trip, assert_snapshot_restore_round_trip
 from perceptron.model.backprop_classifier_network import BackpropClassifierNetwork
 from perceptron.model.ensemble_backprop_classifier_network import EnsembleBackpropClassifierNetwork
 
@@ -74,13 +74,12 @@ def test_save_and_load_round_trip(tmp_path):
         for _ in range(5):
             classifier.learn(0.1, (1.0, -2.0), 1.0)
 
-    path = str(tmp_path / "ensemble.json")
-    ensemble.save(path)
-    loaded = EnsembleBackpropClassifierNetwork.load(path)
+    loaded = assert_save_and_load_round_trip(
+        ensemble,
+        EnsembleBackpropClassifierNetwork.load,
+        tmp_path,
+        "ensemble.json",
+        [(1.0, -2.0), (-3.0, 4.0), (0.0, 0.0)],
+    )
 
-    assert loaded.snapshot() == ensemble.snapshot()
     assert loaded.class_count == ensemble.class_count
-
-    for state in [(1.0, -2.0), (-3.0, 4.0), (0.0, 0.0)]:
-        assert loaded.classify_state(state) == ensemble.classify_state(state)
-        assert loaded.predict_probabilities(state) == pytest.approx(ensemble.predict_probabilities(state))

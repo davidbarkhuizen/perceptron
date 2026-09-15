@@ -2,7 +2,7 @@ import random
 
 import pytest
 
-from helpers import assert_snapshot_restore_round_trip
+from helpers import assert_save_and_load_round_trip, assert_snapshot_restore_round_trip
 from perceptron.digits_data import load_digits_dataset, split_train_test
 from perceptron.model.backprop_layer import BackpropLayer
 from perceptron.model.conv_layer import ConvLayer
@@ -165,11 +165,10 @@ def test_save_and_load_round_trip(tmp_path):
     network.randomize()
 
     state = tuple(random.uniform(0.0, 1.0) for _ in range(64))
-    original_probabilities = network.predict_probabilities(state)
 
-    path = str(tmp_path / "conv_model.json")
-    network.save(path)
-    loaded = ConvMultiClassBackpropClassifierNetwork.load(path)
+    loaded = assert_save_and_load_round_trip(
+        network, ConvMultiClassBackpropClassifierNetwork.load, tmp_path, "conv_model.json", [state]
+    )
 
     assert loaded.input_height == network.input_height
     assert loaded.input_width == network.input_width
@@ -178,7 +177,6 @@ def test_save_and_load_round_trip(tmp_path):
     assert loaded.stride == network.stride
     assert loaded.dense_layer_sizes == network.dense_layer_sizes
     assert loaded.class_count == network.class_count
-    assert loaded.predict_probabilities(state) == pytest.approx(original_probabilities)
 
 
 def test_trains_on_a_real_uci_digits_subset():
