@@ -4,6 +4,7 @@ from typing import Sequence
 
 from perceptron.model.base_node import AbstractNode
 from perceptron.model.conv_kernel import ConvKernel
+from perceptron.model.relu_layer import relu_activation, relu_hidden_delta
 
 
 class ConvUnit(AbstractNode):
@@ -16,9 +17,9 @@ class ConvUnit(AbstractNode):
     interface with no weight-related state to conflict with, so a ConvUnit is a valid
     input_nodes entry for a downstream dense BackpropLayer with zero special-casing there.
 
-    forward()/compute_hidden_delta() match BackpropNode/ReLUNode's own formulas exactly (ReLU
-    activation - relu_layer.py - the standard default for convolutional hidden layers), reading
-    weights from a shared ConvKernel instead of an owned list.
+    forward()/compute_hidden_delta() call ReLUNode's own shared formulas (relu_layer.py's
+    relu_activation/relu_hidden_delta - ReLU is the standard default for convolutional hidden
+    layers), reading weights from a shared ConvKernel instead of an owned list.
     """
 
     def __init__(self, input_nodes: Sequence[AbstractNode], kernel: ConvKernel) -> None:
@@ -43,7 +44,7 @@ class ConvUnit(AbstractNode):
         )
 
     def forward(self) -> float:
-        self._activation = max(0.0, self.z())
+        self._activation = relu_activation(self.z())
         return self._activation
 
     def value(self) -> float:
@@ -57,8 +58,7 @@ class ConvUnit(AbstractNode):
         )
 
     def compute_hidden_delta(self, next_layer_nodes: Sequence["ConvUnit"], own_index: int) -> None:
-        downstream = sum(node.delta * node.input_node_weights[own_index] for node in next_layer_nodes)
-        self.delta = downstream if self.value() > 0.0 else 0.0
+        self.delta = relu_hidden_delta(next_layer_nodes, own_index, self.value())
 
     def accumulate_gradient(self) -> None:
         receptive_field_values = [node.value() for node in self.input_nodes]
