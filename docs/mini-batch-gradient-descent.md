@@ -2,6 +2,23 @@
 
 [← back to README](../README.md)
 
+## status: infrastructure built, the retest it was built for is not
+
+Stages 1-5 of the workplan below are built (`accumulate_gradient`/`apply_accumulated_gradient`
+on every trainable node, `learn_batch` on both classifier networks, `train.
+train_backprop_network_mini_batch`, and the numerical parity tests each stage required) - see
+the three PRs that implemented them (#139, #140, #141). The rest of this document is kept as
+written before that work started, since it's still the accurate record of the reasoning and
+the function-level detail behind what got built - **only this status section reflects
+present-tense reality**; everything below still reads as a forward-looking plan for stages
+that are, as of PR #141, actually finished. **Stage 6 - the momentum re-test this entire
+workplan exists to unblock - has not been run.** Building the mini-batch machinery answers the
+architectural "how would this even work" question; it doesn't itself tell us whether
+mini-batching helps momentum, which is the actual open question. See
+`docs/structure.md`'s "possible next steps" for the current status of that still-open retest.
+
+## original framing (superseded by "status" above for what's actually built)
+
 Analysis and workplan only - not a decision to build anything here, and nothing in
 `perceptron/` changes as a result of this document. `docs/structure.md`'s "possible next
 steps" lists mini-batch gradient descent as still open, directly motivated by a specific
@@ -121,13 +138,15 @@ prerequisite for (but independent of) `vectorization.md`'s own batched design: t
 the training loop is already batch-shaped at the Python level - vectorizing an already-batched
 loop is a separate, later step, not something this workplan does itself.
 
-## decision: not made here
+## decision
 
-Same posture as `vectorization.md`: this document scopes one specific way mini-batching could
-be built, worked through in enough detail to implement, without recommending it be built. The
-momentum retest it unblocks is itself the actual reason to prefer this over leaving the
-question permanently open, but whether that retest is worth running now is for whoever
-maintains this repo to decide.
+Unlike `vectorization.md` (still a pure analysis-and-workplan document, nothing built), this
+workplan's infrastructure stages (1-5) *were* built - see "status" at the top. What's still
+undecided is the same as it always was: whether momentum should ever be turned on by default,
+which depends entirely on stage 6's retest result, not yet run. Building the machinery to run
+that retest was judged worth doing on its own terms (the mini-batch capability itself, not
+just the retest); whether the retest's eventual result changes anything about momentum's
+default status remains for whoever maintains this repo to decide once it exists.
 
 ## workplan
 
@@ -207,7 +226,9 @@ gradients let momentum's literature-cited benefit show up here, rather than assu
 
 ## what this document is not
 
-An analysis and a workplan, not an implementation, not a migration plan, and not a decision to
-build. Whether to pursue this at all remains the explicitly flagged, undecided question in
-[structure](structure.md#possible-next-steps): the value here is specifically unblocking the
-momentum retest already queued up there, not mini-batching for its own sake.
+As of PR #141, no longer purely an analysis and a workplan for stages 1-5 - see "status" at the
+top. Still not a migration plan (nothing in `BackpropNode`/`BackpropLayer`'s existing
+per-example `learn()` path was removed or changed - `learn_batch` sits alongside it) and still
+not a decision that momentum should be turned on: that remains the explicitly flagged,
+undecided question in [structure](structure.md#possible-next-steps), gated on stage 6's retest,
+which is what the built infrastructure exists to make possible - not yet what it has answered.
