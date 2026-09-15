@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import math
+import random
+
 from perceptron.model.backprop_layer import BackpropLayer
 from perceptron.model.bounds import validate_input_bounds
 from perceptron.model.state_layer import StateLayer
@@ -83,3 +86,31 @@ class BackpropNetworkBase:
             for node, (weights, bias) in zip(layer.nodes, layer_snapshot):
                 node.update_input_weights(weights)
                 node.bias = bias
+
+
+def randomize_fan_in_aware(network: BackpropNetworkBase) -> None:
+    """
+    Fan-in-aware weight/bias initialization (limit = 1/sqrt(fan_in) per layer) - each weight
+    drawn uniformly from [-limit, limit], scaled down as fan-in grows, so a layer's weighted
+    input sum doesn't blow up (guaranteeing sigmoid saturation at every node) once fan-in
+    reaches the tens or hundreds. Originally written only for
+    MultiClassBackpropClassifierNetwork.randomize() (validated there against the real bundled
+    UCI digits dataset: 99.5% training accuracy, 96.9% test accuracy) - extracted here once
+    FanInAwareBackpropClassifierNetwork needed the identical scheme, so both classes share one
+    implementation instead of two copies of the same formula.
+
+    Unlike BackpropClassifierNetwork.randomize()'s per-dimension-bounds-width scaling (tuned for
+    1-2D geometric problems - see that method's own docstring), this scheme is dimension-generic:
+    it was measured directly to matter at real scale for EnsembleBackpropClassifierNetwork's
+    784-dimension MNIST sub-networks too (see docs/research-and-analysis.md's "ensemble/real-MNIST
+    investigation" entry - 83.5% of hidden activations already saturated at initialization under
+    the old scheme, fixed by this one, +6.6 points real-scale test accuracy with no other change).
+    """
+
+    previous_size = network.dimension
+    for layer in network.trainable_layers:
+        limit = 1.0 / math.sqrt(previous_size)
+        for node in layer.nodes:
+            node.update_input_weights([random.uniform(-limit, limit) for _ in range(previous_size)])
+            node.bias = random.uniform(-limit, limit)
+        previous_size = layer.size
