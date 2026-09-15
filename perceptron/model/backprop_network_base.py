@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from perceptron.model.backprop_layer import BackpropLayer
+from perceptron.model.bounds import validate_input_bounds
 from perceptron.model.state_layer import StateLayer
 
 
@@ -28,8 +29,7 @@ class BackpropNetworkBase:
 
         self.dimension = dimension
 
-        assert len(input_bounds) == dimension
-        assert all(hi > lo for lo, hi in input_bounds), f"input_bounds must all have positive width; got {input_bounds}"
+        validate_input_bounds(dimension, input_bounds)
         self.input_bounds = input_bounds
 
         self.input_layer = StateLayer(dimension, input_bounds)
