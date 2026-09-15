@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import json
-
 from perceptron.model.backprop_classifier_network import BackpropClassifierNetwork
+from perceptron.model.model_io import load_model_json, save_model_json
 
 
 class EnsembleBackpropClassifierNetwork:
@@ -49,28 +48,23 @@ class EnsembleBackpropClassifierNetwork:
     def save(self, path: str) -> None:
         assert len({classifier.dimension for classifier in self.classifiers}) == 1, "every classifier must share a dimension"
         first = self.classifiers[0]
-        with open(path, "w") as f:
-            json.dump(
-                {
-                    "class_count": self.class_count,
-                    "layer_sizes": [layer.size for layer in first.hidden_layers],
-                    "dimension": first.dimension,
-                    "input_bounds": first.input_bounds,
-                    "snapshot": self.snapshot(),
-                },
-                f,
-            )
+        save_model_json(
+            path,
+            layer_sizes=[layer.size for layer in first.hidden_layers],
+            dimension=first.dimension,
+            input_bounds=first.input_bounds,
+            class_count=self.class_count,
+            snapshot=self.snapshot(),
+        )
 
     @classmethod
     def load(cls, path: str) -> "EnsembleBackpropClassifierNetwork":
-        with open(path) as f:
-            state = json.load(f)
+        state = load_model_json(path)
 
-        dimension = state["dimension"]
-        input_bounds = [tuple(bound) for bound in state["input_bounds"]]
-        layer_sizes = state["layer_sizes"]
-
-        classifiers = [BackpropClassifierNetwork(layer_sizes, dimension, input_bounds) for _ in range(state["class_count"])]
+        classifiers = [
+            BackpropClassifierNetwork(state["layer_sizes"], state["dimension"], state["input_bounds"])
+            for _ in range(state["class_count"])
+        ]
         ensemble = cls(classifiers)
         ensemble.restore(state["snapshot"])
         return ensemble

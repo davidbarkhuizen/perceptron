@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import json
 import math
 import random
 
 from perceptron.model.backprop_network_base import BackpropNetworkBase
+from perceptron.model.model_io import load_model_json, save_model_json
 
 
 class MultiClassBackpropClassifierNetwork(BackpropNetworkBase):
@@ -81,28 +81,18 @@ class MultiClassBackpropClassifierNetwork(BackpropNetworkBase):
         return network
 
     def save(self, path: str) -> None:
-        with open(path, "w") as f:
-            json.dump(
-                {
-                    "layer_sizes": [layer.size for layer in self.hidden_layers],
-                    "dimension": self.dimension,
-                    "input_bounds": self.input_bounds,
-                    "class_count": self.class_count,
-                    "snapshot": self.snapshot(),
-                },
-                f,
-            )
+        save_model_json(
+            path,
+            layer_sizes=[layer.size for layer in self.hidden_layers],
+            dimension=self.dimension,
+            input_bounds=self.input_bounds,
+            class_count=self.class_count,
+            snapshot=self.snapshot(),
+        )
 
     @classmethod
     def load(cls, path: str) -> "MultiClassBackpropClassifierNetwork":
-        with open(path) as f:
-            state = json.load(f)
-
-        network = cls(
-            state["layer_sizes"],
-            state["dimension"],
-            [tuple(bound) for bound in state["input_bounds"]],
-            state["class_count"],
-        )
+        state = load_model_json(path)
+        network = cls(state["layer_sizes"], state["dimension"], state["input_bounds"], state["class_count"])
         network.restore(state["snapshot"])
         return network
