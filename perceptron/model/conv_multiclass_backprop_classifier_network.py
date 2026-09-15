@@ -1,10 +1,9 @@
 from __future__ import annotations
 
 import json
-import math
-import random
 
 from perceptron.model.backprop_layer import BackpropLayer
+from perceptron.model.backprop_network_base import fan_in_aware_weights_and_bias
 from perceptron.model.conv_layer import ConvLayer
 from perceptron.model.multiclass_backprop_classifier_network import MultiClassBackpropClassifierNetwork
 from perceptron.model.state_layer import StateLayer
@@ -92,19 +91,19 @@ class ConvMultiClassBackpropClassifierNetwork(MultiClassBackpropClassifierNetwor
     def randomize(self) -> None:
         self.conv_layer.randomize_fan_in_aware()
 
-        # the same fan-in-aware formula randomize_fan_in_aware (backprop_network_base.py) uses,
-        # duplicated (not called directly) because that function assumes every trainable layer
-        # is a plain BackpropLayer with a .size attribute and nodes with update_input_weights -
-        # true for every dense layer here, but not for self.conv_layer, which needs its own
-        # kernel-fan-in-scoped randomize_fan_in_aware() above instead. previous_size starts at
-        # the conv layer's own flattened output size (its true fan-out into the first dense
-        # layer), not network.dimension.
+        # fan_in_aware_weights_and_bias (backprop_network_base.py) applied directly here rather
+        # than via randomize_fan_in_aware(network), since that function assumes every trainable
+        # layer is a plain BackpropLayer with a .size attribute and nodes with
+        # update_input_weights - true for every dense layer here, but not for self.conv_layer,
+        # which needs its own kernel-fan-in-scoped randomize_fan_in_aware() above instead.
+        # previous_size starts at the conv layer's own flattened output size (its true fan-out
+        # into the first dense layer), not network.dimension.
         previous_size = len(self.conv_layer.nodes)
         for layer in self.hidden_layers[1:] + [self.output_layer]:
-            limit = 1.0 / math.sqrt(previous_size)
             for node in layer.nodes:
-                node.update_input_weights([random.uniform(-limit, limit) for _ in range(previous_size)])
-                node.bias = random.uniform(-limit, limit)
+                weights, bias = fan_in_aware_weights_and_bias(previous_size)
+                node.update_input_weights(weights)
+                node.bias = bias
             previous_size = layer.size
 
     @classmethod
