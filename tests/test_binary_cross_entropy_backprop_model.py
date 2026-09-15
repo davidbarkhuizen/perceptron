@@ -1,5 +1,6 @@
 import pytest
 
+from helpers import assert_randomize_breaks_symmetry
 from perceptron.geometry import square_bounds
 from perceptron.model.binary_cross_entropy_backprop_classifier_network import (
     BinaryCrossEntropyBackpropClassifierNetwork,
@@ -65,9 +66,7 @@ def test_learn_matches_the_binary_cross_entropy_update_rule_by_hand():
 def test_randomize_breaks_symmetry_between_nodes_in_the_same_layer():
 
     network = BinaryCrossEntropyBackpropClassifierNetwork.randomized([4], 2, square_bounds(10.0))
-    weight_sets = [tuple(node.input_node_weights) for node in network.hidden_layers[0].nodes]
-
-    assert len(set(weight_sets)) == len(weight_sets)
+    assert_randomize_breaks_symmetry(network)
 
 
 def test_snapshot_and_restore_round_trip():

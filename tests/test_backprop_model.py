@@ -1,5 +1,6 @@
 import pytest
 
+from helpers import assert_randomize_breaks_symmetry
 from perceptron.geometry import square_bounds
 from perceptron.model.backprop_classifier_network import BackpropClassifierNetwork
 
@@ -96,13 +97,8 @@ def test_learn_matches_the_backprop_update_rule_by_hand():
 
 def test_randomize_breaks_symmetry_between_nodes_in_the_same_layer():
 
-    # identical starting weights across nodes in a layer would receive identical gradients
-    # forever and the layer would collapse to one effective unit - randomize() must give each
-    # node independent random weights, not a shared default
     network = BackpropClassifierNetwork.randomized([4], 2, square_bounds(10.0))
-    weight_sets = [tuple(node.input_node_weights) for node in network.hidden_layers[0].nodes]
-
-    assert len(set(weight_sets)) == len(weight_sets)
+    assert_randomize_breaks_symmetry(network)
 
 
 def test_snapshot_and_restore_round_trip():

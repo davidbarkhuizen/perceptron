@@ -1,5 +1,6 @@
 import pytest
 
+from helpers import assert_randomize_breaks_symmetry
 from perceptron.geometry import square_bounds
 from perceptron.model.relu_backprop_classifier_network import ReLUBackpropClassifierNetwork
 
@@ -84,9 +85,7 @@ def test_learn_leaves_a_dead_units_incoming_weights_unchanged():
 def test_randomize_breaks_symmetry_between_nodes_in_the_same_layer():
 
     network = ReLUBackpropClassifierNetwork.randomized([4], 2, square_bounds(10.0))
-    weight_sets = [tuple(node.input_node_weights) for node in network.hidden_layers[0].nodes]
-
-    assert len(set(weight_sets)) == len(weight_sets)
+    assert_randomize_breaks_symmetry(network)
 
 
 def test_snapshot_and_restore_round_trip():
