@@ -1,6 +1,6 @@
 import pytest
 
-from helpers import assert_randomize_breaks_symmetry, assert_snapshot_restore_round_trip
+from helpers import assert_randomize_breaks_symmetry, assert_save_and_load_round_trip, assert_snapshot_restore_round_trip
 from perceptron.geometry import square_bounds
 from perceptron.model.multiclass_backprop_classifier_network import MultiClassBackpropClassifierNetwork
 
@@ -131,16 +131,14 @@ def test_save_and_load_round_trip(tmp_path):
     for _ in range(5):
         network.learn(0.1, (1.0, -2.0), 2)
 
-    path = str(tmp_path / "model.json")
-    network.save(path)
-    loaded = MultiClassBackpropClassifierNetwork.load(path)
+    loaded = assert_save_and_load_round_trip(
+        network,
+        MultiClassBackpropClassifierNetwork.load,
+        tmp_path,
+        "model.json",
+        [(1.0, -2.0), (-3.0, 4.0), (0.0, 0.0)],
+    )
 
-    assert loaded.snapshot() == network.snapshot()
     assert loaded.dimension == network.dimension
     assert loaded.class_count == network.class_count
     assert loaded.input_bounds == network.input_bounds
-
-    # not just identical weights - identical predictions on real states too
-    for state in [(1.0, -2.0), (-3.0, 4.0), (0.0, 0.0)]:
-        assert loaded.classify_state(state) == network.classify_state(state)
-        assert loaded.predict_probabilities(state) == pytest.approx(network.predict_probabilities(state))

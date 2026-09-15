@@ -1,4 +1,26 @@
+import pytest
+
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
+
+
+def assert_save_and_load_round_trip(network, load_fn, tmp_path, filename: str, states):
+    """
+    Shared core of every save/load round-trip test in this codebase (the *multiclass/softmax/
+    ensemble/conv sibling model classes): save network to a temp path, reload it via load_fn,
+    and confirm the reloaded network's snapshot and predictions match the original exactly.
+    Returns the loaded network so each call site can layer its own class-specific assertions
+    (dimension, class_count, input_bounds, conv hyperparameters, ...) on top.
+    """
+    path = str(tmp_path / filename)
+    network.save(path)
+    loaded = load_fn(path)
+
+    assert loaded.snapshot() == network.snapshot()
+    for state in states:
+        assert loaded.classify_state(state) == network.classify_state(state)
+        assert loaded.predict_probabilities(state) == pytest.approx(network.predict_probabilities(state))
+
+    return loaded
 
 
 def assert_randomize_breaks_symmetry(network) -> None:
