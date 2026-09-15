@@ -77,29 +77,22 @@ class BackpropNetworkBase:
 
     def _apply_gradients(self, learning_rate: float) -> None:
         for layer in self.trainable_layers:
-            for node in layer.nodes:
-                node.apply_gradient(learning_rate)
+            layer.apply_gradients(learning_rate)
 
     def _accumulate_gradients(self) -> None:
         for layer in self.trainable_layers:
-            for node in layer.nodes:
-                node.accumulate_gradient()
+            layer.accumulate_gradients()
 
     def _apply_accumulated_gradients(self, learning_rate: float, batch_size: int) -> None:
         for layer in self.trainable_layers:
-            for node in layer.nodes:
-                node.apply_accumulated_gradient(learning_rate, batch_size)
+            layer.apply_accumulated_gradients(learning_rate, batch_size)
 
     def snapshot(self) -> list[list[tuple[list[float], float]]]:
-        return [
-            [(list(node.input_node_weights), node.bias) for node in layer.nodes] for layer in self.trainable_layers
-        ]
+        return [layer.snapshot_state() for layer in self.trainable_layers]
 
     def restore(self, snapshot: list[list[tuple[list[float], float]]]) -> None:
         for layer, layer_snapshot in zip(self.trainable_layers, snapshot):
-            for node, (weights, bias) in zip(layer.nodes, layer_snapshot):
-                node.update_input_weights(weights)
-                node.bias = bias
+            layer.restore_state(layer_snapshot)
 
 
 def randomize_fan_in_aware(network: BackpropNetworkBase) -> None:
