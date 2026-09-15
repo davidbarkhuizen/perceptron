@@ -5,7 +5,7 @@ matplotlib.use("TkAgg")
 from matplotlib import pyplot
 from matplotlib.axes import Axes
 
-from perceptron.evaluate import compare_on_random_point, smoothed_series
+from perceptron.evaluate import agreement_label, compare_on_random_point, smoothed_series
 from perceptron.geometry import is_positive_region_bounded, square_bounds
 from perceptron.graphics.chart import (
     disagreement_axis_bounds,
@@ -70,7 +70,7 @@ def main() -> None:
     new_state, reference_category, student_category = compare_on_random_point(
         reference_classifier, student_classifier
     )
-    agreement = "agree" if reference_category == student_category else "disagree"
+    agreement = agreement_label(reference_category, student_category)
     print(f"prediction on new point {new_state}: reference={reference_category}, student={student_category} ({agreement})")
 
     n: list[int] = [x[0] for x in convergence_series]

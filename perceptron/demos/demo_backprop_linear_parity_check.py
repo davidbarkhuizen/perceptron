@@ -4,7 +4,7 @@ matplotlib.use("TkAgg")
 
 from matplotlib import pyplot
 
-from perceptron.evaluate import class_balanced_disagreement_rate, compare_on_random_point
+from perceptron.evaluate import agreement_label, class_balanced_disagreement_rate, compare_on_random_point
 from perceptron.geometry import square_bounds
 from perceptron.graphics.chart import (
     new_axes,
@@ -53,7 +53,7 @@ def main() -> None:
         diagnostic = result.diagnostic
         disagreement = class_balanced_disagreement_rate(reference, student, per_class_sample_count=300)
         new_state, reference_category, student_category = compare_on_random_point(reference, student)
-        agreement = "agree" if reference_category == student_category else "disagree"
+        agreement = agreement_label(reference_category, student_category)
         print(
             f"{label}: training accuracy {diagnostic.best_training_accuracy:.3f}, disagreement "
             f"vs reference {disagreement:.3f}, prediction on new point: reference="
