@@ -481,8 +481,9 @@ on its caller's own input range).
 
 Recommendations from an audit-driven review of this codebase (see `research-and-analysis.md`
 for the investigations that shaped the architecture described above). Three of the original
-seven are now built; the rest are ordered roughly by how directly each follows from an existing
-finding here, not by priority.
+seven are now built, and a fourth has been measured (no new class needed - it already existed);
+the rest are ordered roughly by how directly each follows from an existing finding here, not by
+priority.
 
 **Built since this list was first written:**
 
@@ -499,6 +500,13 @@ finding here, not by priority.
   weight regularization" entry): also measured as a null on the proxy tested (no coefficient
   improved held-out accuracy over the unregularized baseline), kept for the same reason as
   momentum.
+- ~~Softmax multiclass training on real full-scale MNIST~~ - not a new class
+  (`SoftmaxMultiClassBackpropClassifierNetwork` already existed; only the real full-scale
+  measurement was outstanding) - measured as a clean loss against both
+  `MultiClassBackpropClassifierNetwork` (89.12% vs 92.75% test accuracy) and the ensemble
+  (96.01%) at this codebase's currently-tuned `learning_rate=0.5`, plausibly for the same
+  untuned-learning-rate-overshoot mechanism already confirmed for binary cross-entropy at every
+  scale tested - see the "softmax on real full-scale MNIST" entry.
 
 **Still open:**
 
@@ -525,12 +533,6 @@ finding here, not by priority.
   capable model classes (`LinearClassifierNetwork` -> `BackpropClassifierNetwork` -> multi-class
   siblings) and its "hand-build everything, no ML framework" identity - a bigger effort than
   anything above, needing new node/layer abstractions for 2D receptive fields and weight sharing.
-- **Softmax multiclass training on real full-scale MNIST** (currently only validated on the
-  small UCI digits set - see the "softmax/cross-entropy re-alignment" entry) - would directly
-  compare against the ensemble's 96.01%, but a single joint 10-output network can't be
-  parallelized across processes the way the ensemble was specifically built to allow (see
-  "parallelizing MNIST training"), so pure-Python training time at that scale is a real,
-  unmeasured risk before committing effort to it, not a formality.
 - **NumPy vectorization** - would meaningfully speed up training (the ~30-minute MNIST ensemble
   runs are pure-Python-bound), but this repo's stated identity is explicitly "no ML framework
   dependency, everything hand-built." NumPy isn't itself an ML framework, but adding any array
