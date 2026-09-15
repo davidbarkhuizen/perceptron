@@ -4,7 +4,7 @@ matplotlib.use("TkAgg")
 
 from matplotlib import pyplot
 
-from perceptron.demos.demo_nonrepresentable_target import XORTarget
+from perceptron.demos.demo_xor_linear_classifier_ceiling import XORTarget
 from perceptron.geometry import square_bounds
 from perceptron.graphics.chart import new_axes, new_figure, plot_classifier_probability_heatmap, plot_training_data
 from perceptron.model.backprop_classifier_network import BackpropClassifierNetwork
@@ -20,7 +20,7 @@ def main() -> None:
     training_data = random_alternating_training_data(1000, target)
 
     print(
-        "Same XOR-style target as demo_nonrepresentable_target.py: category = (x > 0) != "
+        "Same XOR-style target as demo_xor_linear_classifier_ceiling.py: category = (x > 0) != "
         "(y > 0), two diagonally opposite quadrants. That demo showed no LinearClassifierNetwork "
         "gate gets close, because its output layer's weights are fixed at 1.0 per hidden node - "
         "the output can only be a monotonically non-decreasing function of how many hidden nodes "

@@ -18,7 +18,7 @@ def tile_grid_to_state(grid: list[list[float]]) -> tuple[float, ...]:
     shape digits_data.load_digits_dataset produces (row 0 -> indices 0-7, row 1 -> 8-15, ...) -
     matching exactly how sklearn.datasets.load_digits().data flattens its own 8x8 images, since
     that's what data/digits/digits.csv was extracted from. Kept separate from the interactive
-    capture UI (perceptron/demos/demo_digit_capture.py) because it's the one piece of that
+    capture UI (perceptron/demos/demo_uci_digit_capture.py) because it's the one piece of that
     tool's logic that's actually a pure function, and so the one piece worth unit-testing the
     same way as everything else in this codebase - the tkinter mouse/canvas code itself isn't
     meaningfully testable without a real or virtual display.
@@ -36,7 +36,7 @@ def pixel_to_tile(x: int, y: int, tile_size: int) -> tuple[int, int]:
     division, since every tile is the same fixed size. Doesn't clamp/validate against any
     particular grid size - a mouse-drag event firing just outside a canvas can produce a
     negative or too-large row/col, and it's the caller's job to decide whether to ignore that
-    (see demo_digit_capture.py's _handle_paint_event), not this function's. Used for both the
+    (see demo_uci_digit_capture.py's _handle_paint_event), not this function's. Used for both the
     32x32 capture grid and (implicitly, via its fixed tile size) the 8x8 preview grid.
     """
 

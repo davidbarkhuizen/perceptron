@@ -137,7 +137,7 @@ def test_scale_to_fit_clamps_floating_point_overshoot_to_the_source_range():
     # overshoot that bound by a tiny amount. A minimal repro found directly (not hand-derived):
     # a 1x1 all-ones source resized to 1x3 produces 1.0000000000000002 without the clamp - this
     # would fail intensity_to_color's strict [0.0, 1.0] assertion downstream, a real bug hit
-    # during interactive demo_mnist_capture.py smoke testing.
+    # during interactive demo_mnist_ensemble_capture.py smoke testing.
     source = [[1.0]]
 
     result = scale_to_fit(source, max_dimension=3)

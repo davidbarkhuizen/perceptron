@@ -17,7 +17,7 @@ from perceptron.train import random_alternating_training_data, train_linear_clas
 class StripesTarget:
     """
     Vertical stripes, alternating class every cell_size units of x (y is irrelevant) - unlike
-    demo_nonrepresentable_target.py's XORTarget (2 regions), this target's number of regions
+    demo_xor_linear_classifier_ceiling.py's XORTarget (2 regions), this target's number of regions
     scales with how wide input_bounds is relative to cell_size, so it's a convenient dial for
     "how hard is this problem" independent of any classifier's architecture.
     """
@@ -60,7 +60,7 @@ def main() -> None:
 
     print(
         "StripesTarget: 4 alternating vertical bands - a genuinely harder target than "
-        "demo_backprop_xor.py's 2-region XOR, used here to actually compare architectures "
+        "demo_xor_backprop_convergence.py's 2-region XOR, used here to actually compare architectures "
         "(including, for the first time in this demo set, a genuine 2-hidden-layer network) "
         "rather than just show any one of them succeeding. Unseeded, like every other sweep "
         "demo in this codebase - which architecture comes out ahead varies noticeably between "
@@ -112,7 +112,7 @@ def main() -> None:
     print(
         "smoothed convergence chart: x-axis = training iteration (pooled across epochs), "
         "y-axis = each architecture's disagreement-rate series smoothed with a trailing "
-        "moving average, same as demo_cardinality_sweep.py - here comparing architectures "
+        "moving average, same as demo_linear_classifier_cardinality_sweep.py - here comparing architectures "
         "instead of cardinalities"
     )
 

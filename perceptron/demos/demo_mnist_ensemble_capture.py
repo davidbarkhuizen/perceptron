@@ -28,7 +28,7 @@ class MnistCaptureApp:
     bounding box, aspect-preserving-anti-aliased-scaled to fit a 20px box, and center-of-mass-
     placed into a 28x28 field - shown live in a second, smaller preview canvas, so what the
     classifier actually sees is visible, not just asserted. Classified live by an
-    EnsembleBackpropClassifierNetwork loaded from disk (see demo_mnist_recognition.py, which
+    EnsembleBackpropClassifierNetwork loaded from disk (see demo_mnist_ensemble_recognition.py, which
     trains and saves it) on every stroke.
     """
 
@@ -127,8 +127,8 @@ def main() -> None:
         classifier = EnsembleBackpropClassifierNetwork.load(MODEL_PATH)
     except FileNotFoundError:
         print(
-            f"no trained model found at {MODEL_PATH} - run `./cli demo-mnist-recognition` "
-            "first to train and save one."
+            f"no trained model found at {MODEL_PATH} - run `./cli demo` and choose "
+            "'MNIST ensemble recognition' first to train and save one."
         )
         sys.exit(1)
 

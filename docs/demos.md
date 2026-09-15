@@ -2,11 +2,23 @@
 
 [← back to README](../README.md)
 
-## demo
+All demos run through a single entrypoint, `. cli demo`, which launches
+`perceptron/demos/menu.py` - a small text-based REPL rather than a separate CLI command per
+demo. It prints a numbered table of every demo (name + one-line summary, sourced from
+`perceptron/demos/registry.py`), prompts for a number, then prints that demo's longer
+description before importing its module and calling its `main()`. Once the demo finishes (its
+windows are closed, or it was headless/console-only to begin with), the menu loops back to the
+table so you can run another one or type `q` to quit - so a session can run several demos back
+to back without re-invoking the shell command each time. The sections below describe what each
+menu entry does; select it by the title shown here.
+
+## demo: minimum-disturbance training
 
     . cli demo
 
-Runs `perceptron/demos/demo.py`, which replicates `test_training_of_linear_classifier` outside
+Select **Minimum-disturbance training** from the menu it prints.
+
+Runs `perceptron/demos/demo_minimum_disturbance_training.py`, which replicates `test_training_of_linear_classifier` outside
 of pytest: trains a classifier against a random reference classifier and pops up three
 windows — the convergence curve on a linear scale, the same curve on a log scale (better for
 seeing how fast it converges, since disagreement tends to drop roughly exponentially — see
@@ -28,11 +40,13 @@ actually being used to predict, not just compared to the reference by eye on a c
 decision-boundary chart's bounds are widened as needed, via `chart.reference_region_bounds`,
 so the whole bounded region stays visible instead of being cropped at the training bounds.
 
-## demo: cardinality sweep
+## demo: linear-classifier cardinality sweep
 
-    . cli demo-cardinality-sweep
+    . cli demo
 
-Runs `perceptron/demos/demo_cardinality_sweep.py`, which trains independent reference/student
+Select **Linear-classifier cardinality sweep** from the menu it prints.
+
+Runs `perceptron/demos/demo_linear_classifier_cardinality_sweep.py`, which trains independent reference/student
 pairs at `cardinality = 1, 2, 3, 4` and overlays their disagreement-rate convergence curves
 on two charts, each built from the series smoothed with a trailing moving average (to see
 the trend through the sampling noise from `class_balanced_disagreement_rate`'s small
@@ -46,11 +60,13 @@ randomly generated reference
 classifiers make one class unreachable within the given bounds — the demo regenerates the
 reference (up to 20 times) rather than failing the whole sweep on one unlucky draw.
 
-## demo: unreachable class
+## demo: unreachable-class safety guard
 
-    . cli demo-unreachable-class
+    . cli demo
 
-Runs `perceptron/demos/demo_unreachable_class.py`, a headless, console-only demo of
+Select **Unreachable-class safety guard** from the menu it prints.
+
+Runs `perceptron/demos/demo_unreachable_class_safety_guard.py`, a headless, console-only demo of
 `random_alternating_training_data`'s safety guard: it first generates training data from a
 normal, randomly initialised classifier (retrying if an unlucky `randomize()` happens to make
 one class unreachable within the bounds — this alone can occasionally happen), then
@@ -58,11 +74,13 @@ deliberately constructs a classifier with tiny weights and a large threshold, wh
 boundary never crosses its bounds, and shows the resulting `RuntimeError` being raised and
 caught instead of hanging forever.
 
-## demo: non-representable target
+## demo: XOR linear-classifier ceiling
 
-    . cli demo-nonrepresentable-target
+    . cli demo
 
-Runs `perceptron/demos/demo_nonrepresentable_target.py`. Every other demo's target is a
+Select **XOR: linear-classifier ceiling** from the menu it prints.
+
+Runs `perceptron/demos/demo_xor_linear_classifier_ceiling.py`. Every other demo's target is a
 `LinearClassifierNetwork` of the same architecture the student trains with, so it's always
 representable by construction; this one deliberately isn't. It trains students at
 `cardinality = 1..4`, swept across AND, OR, and (where distinct) majority `required_active`
@@ -82,12 +100,14 @@ many hidden nodes are active - XOR needs the opposite for some units, which no
 (colored by true label) against the best-performing student's hyperplanes, to show the
 mismatch visually.
 
-## demo: backprop XOR
+## demo: XOR backprop convergence
 
-    . cli demo-backprop-xor
+    . cli demo
 
-Runs `perceptron/demos/demo_backprop_xor.py` - the direct counterpart to the demo above, using
-the exact same `XORTarget` (imported from `demo_nonrepresentable_target.py`, not reimplemented)
+Select **XOR: backprop convergence** from the menu it prints.
+
+Runs `perceptron/demos/demo_xor_backprop_convergence.py` - the direct counterpart to the demo above, using
+the exact same `XORTarget` (imported from `demo_xor_linear_classifier_ceiling.py`, not reimplemented)
 and the exact same `random_alternating_training_data`/`train_linear_classifier_network` calls,
 but training a `BackpropClassifierNetwork` (see [structure](structure.md#backprop)) instead of a
 `LinearClassifierNetwork`. Where every configuration in the previous demo plateaus well short of
@@ -98,28 +118,32 @@ as every other training demo, then plots the training data over a probability he
 (`chart.plot_classifier_probability_heatmap`) instead of decision lines, since the learned
 region isn't a union of half-planes a line can represent.
 
-## demo: backprop architecture sweep
+## demo: backprop stripes architecture sweep
 
-    . cli demo-backprop-architecture-sweep
+    . cli demo
 
-Runs `perceptron/demos/demo_backprop_architecture_sweep.py`, which mirrors
-`demo_cardinality_sweep.py`'s pattern (train several configurations against the same target,
+Select **Backprop stripes architecture sweep** from the menu it prints.
+
+Runs `perceptron/demos/demo_backprop_stripes_architecture_sweep.py`, which mirrors
+`demo_linear_classifier_cardinality_sweep.py`'s pattern (train several configurations against the same target,
 overlay smoothed convergence curves) but compares `BackpropClassifierNetwork` architectures -
 `[4]`, `[8]`, `[4, 4]`, `[8, 8]` - instead of `LinearClassifierNetwork` cardinalities. `[8]` and
 `[4, 4]` share the same total node count, as do `[4]` and `[8, 8]`'s first layer vs its second,
 so the comparison is at a matched node budget rather than just "more capacity wins". The target
-is `StripesTarget`, 4 alternating vertical bands - harder than `demo_backprop_xor.py`'s 2-region
+is `StripesTarget`, 4 alternating vertical bands - harder than `demo_xor_backprop_convergence.py`'s 2-region
 XOR, so the architectures actually separate instead of all converging easily. Unseeded, like
 every sweep demo in this codebase: which architecture comes out ahead varies noticeably between
 runs, since plain fixed-learning-rate gradient descent is sensitive to where random
 initialization happens to land - this demo shows that variability rather than asserting depth
 or width is definitively better.
 
-## demo: backprop circular target
+## demo: backprop circular boundary
 
-    . cli demo-backprop-circular-target
+    . cli demo
 
-Runs `perceptron/demos/demo_backprop_circular_target.py`. Every other demo's target boundary,
+Select **Backprop circular boundary** from the menu it prints.
+
+Runs `perceptron/demos/demo_backprop_circular_boundary.py`. Every other demo's target boundary,
 representable or not, is built from straight edges - `LinearClassifierNetwork`'s positive
 region is always a polygon (an intersection of half-planes, see
 `geometry.reference_positive_region_polygon`), so it can only ever facet a curve with more and
@@ -128,11 +152,13 @@ a genuinely curved boundary. Trains a single-hidden-layer `BackpropClassifierNet
 reaches ~0.99 training accuracy) and plots the learned probability heatmap against the training
 data, visibly showing a smooth, rounded decision boundary rather than a faceted polygon.
 
-## demo: backprop vs. linear
+## demo: backprop linear parity check
 
-    . cli demo-backprop-vs-linear
+    . cli demo
 
-Runs `perceptron/demos/demo_backprop_vs_linear.py`. Every other backprop demo picks a target no
+Select **Backprop linear parity check** from the menu it prints.
+
+Runs `perceptron/demos/demo_backprop_linear_parity_check.py`. Every other backprop demo picks a target no
 `LinearClassifierNetwork` can represent well (XOR, stripes, a circle); this one is the opposite
 check - a single half-plane (`cardinality=1`), the easiest possible target and squarely within
 `LinearClassifierNetwork`'s own representational sweet spot. Trains a `LinearClassifierNetwork`
@@ -142,11 +168,13 @@ student's boundary (purple), and the backprop student's boundary as a probabilit
 underneath, all overlaid - a parity check showing backprop learns just as well here, not only on
 the harder targets the other backprop demos focus on.
 
-## demo: digit recognition
+## demo: UCI digit recognition
 
-    . cli demo-digit-recognition
+    . cli demo
 
-Runs `perceptron/demos/demo_digit_recognition.py` - classic-style handwritten digit recognition,
+Select **UCI digit recognition** from the menu it prints.
+
+Runs `perceptron/demos/demo_uci_digit_recognition.py` - classic-style handwritten digit recognition,
 using `MultiClassBackpropClassifierNetwork` (see [structure](structure.md#multi-class)) instead
 of any 2D geometric target. Loads the bundled UCI ML hand-written digits dataset
 (`data/digits/digits.csv` via `digits_data.load_digits_dataset`, 8x8 pixel images, 10 classes,
@@ -159,13 +187,15 @@ retraining. Plots a training-accuracy-by-epoch curve, a confusion matrix
 (`chart.plot_confusion_matrix`), and a grid of sample test predictions
 (`chart.plot_sample_predictions`) colored to flag any incorrect ones.
 
-## demo: digit capture
+## demo: UCI digit capture
 
-    . cli demo-digit-capture
+    . cli demo
 
-Runs `perceptron/demos/demo_digit_capture.py` - an interactive companion to the digit-recognition
+Select **UCI digit capture** from the menu it prints.
+
+Runs `perceptron/demos/demo_uci_digit_capture.py` - an interactive companion to the digit-recognition
 demo above. Loads the model that demo trains and saves (`data/digits/trained_model.json` via
-`MultiClassBackpropClassifierNetwork.load`; run `demo-digit-recognition` first if that file
+`MultiClassBackpropClassifierNetwork.load`; run `. cli demo` and choose **UCI digit recognition** first if that file
 doesn't exist yet), then opens two canvases: a 32x32 grid you paint with the mouse (click or
 click-and-drag - each stroke stamps a `CAPTURE_BRUSH_RADIUS`-wide square, not a single cell; see
 below), and an 8x8 preview next to it showing the result of genuinely reproducing the bundled
@@ -186,11 +216,13 @@ Unlike every other demo, this one needs a display and mouse input - it's not par
 automated test suite (`tests/test_digit_capture.py` covers only the pure grid-flattening/
 coordinate-mapping/downsampling/brush logic behind it, not the tkinter UI itself).
 
-## demo: MNIST recognition
+## demo: MNIST ensemble recognition
 
-    . cli demo-mnist-recognition
+    . cli demo
 
-Runs `perceptron/demos/demo_mnist_recognition.py` - the same shape as the digit-recognition demo
+Select **MNIST ensemble recognition** from the menu it prints.
+
+Runs `perceptron/demos/demo_mnist_ensemble_recognition.py` - the same shape as the digit-recognition demo
 above, but on the real, full-scale MNIST dataset (28x28 pixel images, 60000 train / 10000 test)
 instead of the small bundled UCI set, and using `EnsembleBackpropClassifierNetwork` (see
 [structure](structure.md#multi-class)) instead of `MultiClassBackpropClassifierNetwork`: 10
@@ -210,15 +242,17 @@ digit-recognition demo's), printing how to reload it without retraining. Plots t
 as the digit-recognition demo: a per-digit training-accuracy-by-epoch curve, a confusion matrix,
 and a grid of sample test predictions.
 
-## demo: MNIST capture
+## demo: MNIST ensemble capture
 
-    . cli demo-mnist-capture
+    . cli demo
 
-Runs `perceptron/demos/demo_mnist_capture.py` - an interactive companion to the MNIST-recognition
-demo above, the same overall interaction as `demo_digit_capture.py` but against MNIST's own
+Select **MNIST ensemble capture** from the menu it prints.
+
+Runs `perceptron/demos/demo_mnist_ensemble_capture.py` - an interactive companion to the MNIST-recognition
+demo above, the same overall interaction as `demo_uci_digit_capture.py` but against MNIST's own
 reference preprocessing instead of the UCI dataset's block-counting downsample. Loads the model
 the recognition demo trains and saves (`data/mnist/trained_model.json` via
-`EnsembleBackpropClassifierNetwork.load`; run `demo-mnist-recognition` first if that file doesn't
+`EnsembleBackpropClassifierNetwork.load`; run `. cli demo` and choose **MNIST ensemble recognition** first if that file doesn't
 exist yet), then opens two canvases: a 64x64 grid you paint with the mouse (click or click-and-
 drag - each stroke stamps a `CAPTURE_BRUSH_RADIUS`-wide square), and a 28x28 preview next to it
 showing the result of genuinely reproducing MNIST's own three-step preprocessing on what you drew

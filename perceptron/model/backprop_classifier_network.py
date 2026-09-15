@@ -15,8 +15,8 @@ class BackpropClassifierNetwork:
     gradient-based learning, and every hidden node here can contribute either positively or
     negatively to the output (unlike LinearClassifierNetwork's fixed weight-of-1.0-per-node
     output layer, which can only ever be a monotonically non-decreasing function of how many
-    hidden nodes are active) - see demo_nonrepresentable_target.py for what that restriction
-    can't express, and demo_backprop_xor.py for this class succeeding on exactly that target.
+    hidden nodes are active) - see demo_xor_linear_classifier_ceiling.py for what that restriction
+    can't express, and demo_xor_backprop_convergence.py for this class succeeding on exactly that target.
     """
 
     def __init__(

@@ -5,7 +5,7 @@ CANVAS_SIZE = 28
 
 # the interactive capture tool's own painting resolution - deliberately higher than
 # TARGET_MAX_DIMENSION, so there's real room for scale_to_fit's aspect-preserving normalization
-# to do something meaningful (see demo_mnist_capture.py and docs/structure.md's "MNIST" section)
+# to do something meaningful (see demo_mnist_ensemble_capture.py and docs/structure.md's "MNIST" section)
 CAPTURE_GRID_SIZE = 64
 
 # empirically tuned against a real trained model (mirroring exactly how
@@ -206,7 +206,7 @@ def place_centered(small_grid: list[list[float]], canvas_size: int = CANVAS_SIZE
 
 def preprocess_capture(capture_grid: list[list[float]]) -> list[list[float]]:
     """
-    The full pipeline demo_mnist_capture.py calls on every stroke: crop to the drawn content's
+    The full pipeline demo_mnist_ensemble_capture.py calls on every stroke: crop to the drawn content's
     bounding box, scale_to_fit(..., 20), then place_centered(..., 28) - genuinely reproducing
     MNIST's own three-step reference preprocessing (crop -> aspect-preserving anti-aliased
     scale-to-20 -> center-of-mass placement into 28), not an approximation of it. Returns an

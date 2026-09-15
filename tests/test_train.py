@@ -122,7 +122,7 @@ def test_train_linear_classifier_network_keeps_the_best_epoch_not_the_last():
 
     class XORTarget:
         # not linearly separable, and not representable by an AND/OR/k-of-n gate over
-        # cardinality=3 half-planes either - see demo_nonrepresentable_target.py
+        # cardinality=3 half-planes either - see demo_xor_linear_classifier_ceiling.py
         def __init__(self, bounds):
             self.input_bounds = bounds
 

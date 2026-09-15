@@ -74,89 +74,12 @@ run_tests () {
 demo () {
 
     activate_venv
-    python3 -m perceptron.demos.demo
-    deactivate_venv
-}
-
-demo-cardinality-sweep () {
-
-    activate_venv
-    python3 -m perceptron.demos.demo_cardinality_sweep
-    deactivate_venv
-}
-
-demo-unreachable-class () {
-
-    activate_venv
-    python3 -m perceptron.demos.demo_unreachable_class
-    deactivate_venv
-}
-
-demo-nonrepresentable-target () {
-
-    activate_venv
-    python3 -m perceptron.demos.demo_nonrepresentable_target
-    deactivate_venv
-}
-
-demo-backprop-xor () {
-
-    activate_venv
-    python3 -m perceptron.demos.demo_backprop_xor
-    deactivate_venv
-}
-
-demo-backprop-architecture-sweep () {
-
-    activate_venv
-    python3 -m perceptron.demos.demo_backprop_architecture_sweep
-    deactivate_venv
-}
-
-demo-backprop-circular-target () {
-
-    activate_venv
-    python3 -m perceptron.demos.demo_backprop_circular_target
-    deactivate_venv
-}
-
-demo-backprop-vs-linear () {
-
-    activate_venv
-    python3 -m perceptron.demos.demo_backprop_vs_linear
-    deactivate_venv
-}
-
-demo-digit-recognition () {
-
-    activate_venv
-    python3 -m perceptron.demos.demo_digit_recognition
-    deactivate_venv
-}
-
-demo-digit-capture () {
-
-    activate_venv
-    python3 -m perceptron.demos.demo_digit_capture
-    deactivate_venv
-}
-
-demo-mnist-recognition () {
-
-    activate_venv
-    python3 -m perceptron.demos.demo_mnist_recognition
-    deactivate_venv
-}
-
-demo-mnist-capture () {
-
-    activate_venv
-    python3 -m perceptron.demos.demo_mnist_capture
+    python3 -m perceptron.demos.menu
     deactivate_venv
 }
 
 usage () {
-    echo "usage: invoke [ clean | setup | test | demo | demo-cardinality-sweep | demo-unreachable-class | demo-nonrepresentable-target | demo-backprop-xor | demo-backprop-architecture-sweep | demo-backprop-circular-target | demo-backprop-vs-linear | demo-digit-recognition | demo-digit-capture | demo-mnist-recognition | demo-mnist-capture ]"
+    echo "usage: invoke [ clean | setup | test | demo ]"
 }
 
 case "$option" in
@@ -176,50 +99,6 @@ case "$option" in
 
     demo)
         demo
-    ;;
-
-    demo-cardinality-sweep)
-        demo-cardinality-sweep
-    ;;
-
-    demo-unreachable-class)
-        demo-unreachable-class
-    ;;
-
-    demo-nonrepresentable-target)
-        demo-nonrepresentable-target
-    ;;
-
-    demo-backprop-xor)
-        demo-backprop-xor
-    ;;
-
-    demo-backprop-architecture-sweep)
-        demo-backprop-architecture-sweep
-    ;;
-
-    demo-backprop-circular-target)
-        demo-backprop-circular-target
-    ;;
-
-    demo-backprop-vs-linear)
-        demo-backprop-vs-linear
-    ;;
-
-    demo-digit-recognition)
-        demo-digit-recognition
-    ;;
-
-    demo-digit-capture)
-        demo-digit-capture
-    ;;
-
-    demo-mnist-recognition)
-        demo-mnist-recognition
-    ;;
-
-    demo-mnist-capture)
-        demo-mnist-capture
     ;;
 
     *)
