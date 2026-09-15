@@ -74,12 +74,12 @@ run_tests () {
 demo () {
 
     activate_venv
-    python3 -m perceptron.demos.menu
+    python3 -m perceptron.demos.menu "$@"
     deactivate_venv
 }
 
 usage () {
-    echo "usage: invoke [ clean | setup | test | demo ]"
+    echo "usage: invoke [ clean | setup | test | demo [demo-number] ]"
 }
 
 case "$option" in
@@ -98,7 +98,8 @@ case "$option" in
     ;;
 
     demo)
-        demo
+        shift
+        demo "$@"
     ;;
 
     *)

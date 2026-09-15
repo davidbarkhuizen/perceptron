@@ -12,6 +12,11 @@ table so you can run another one or type `q` to quit - so a session can run seve
 to back without re-invoking the shell command each time. The sections below describe what each
 menu entry does; select it by the title shown here.
 
+The demo number can also be passed directly as an argument - `. cli demo 3` prints that demo's
+description, runs it, and exits immediately, skipping the interactive table/prompt entirely.
+This is the override for scripts and LLMs that already know which demo they want (debugging a
+specific one, or driving it non-interactively) without having to answer a prompt.
+
 ## demo: minimum-disturbance training
 
     . cli demo
