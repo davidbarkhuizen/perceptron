@@ -5,6 +5,7 @@ import pytest
 
 from perceptron.model.array_layer import ArrayLayer, sigmoid
 from perceptron.model.backprop_layer import BackpropLayer
+from perceptron.model.backprop_node import BackpropNode
 from perceptron.model.backprop_node import sigmoid as node_sigmoid
 from perceptron.model.state_layer import StateLayer
 
@@ -79,3 +80,110 @@ def test_forward_batch_matches_forward_run_once_per_row_and_stacked():
     actual = array_layer.forward_batch(X)
 
     assert np.allclose(actual, expected, rtol=1e-9, atol=1e-12)
+
+
+def test_compute_output_delta_matches_node_compute_output_delta_across_a_random_sweep():
+
+    rng = random.Random(3)
+
+    for _ in range(200):
+        a = rng.uniform(0.0, 1.0)
+        reference = rng.uniform(0.0, 1.0)
+
+        node = BackpropNode(input_nodes=[])
+        node._activation = a
+        node.compute_output_delta(reference)
+
+        array_layer = ArrayLayer(1, 0)
+        array_layer.a = np.array([a])
+        array_layer.compute_output_delta(np.array([reference]))
+
+        assert array_layer.delta[0] == pytest.approx(node.delta, abs=1e-12)
+
+
+def test_compute_hidden_delta_matches_node_compute_hidden_delta_across_a_random_sweep():
+
+    rng = random.Random(4)
+    hidden_size = 5
+    next_size = 4
+
+    for _ in range(100):
+        state_layer = StateLayer(hidden_size, [(-10.0, 10.0)] * hidden_size)
+        hidden_layer = BackpropLayer(hidden_size, state_layer)
+        next_layer = BackpropLayer(next_size, hidden_layer)
+
+        for node in next_layer.nodes:
+            node.update_input_weights([rng.uniform(-3.0, 3.0) for _ in range(hidden_size)])
+            node.bias = rng.uniform(-3.0, 3.0)
+            node.delta = rng.uniform(-5.0, 5.0)
+
+        activations = [rng.uniform(0.0, 1.0) for _ in range(hidden_size)]
+        for node, a in zip(hidden_layer.nodes, activations):
+            node._activation = a
+
+        expected = []
+        for i, node in enumerate(hidden_layer.nodes):
+            node.compute_hidden_delta(next_layer.nodes, i)
+            expected.append(node.delta)
+
+        array_hidden = ArrayLayer(hidden_size, hidden_size)
+        array_hidden.a = np.array(activations)
+        array_next = _snapshot_to_array_layer(next_layer)
+        array_next.delta = np.array([node.delta for node in next_layer.nodes])
+
+        array_hidden.compute_hidden_delta(array_next)
+
+        assert np.allclose(array_hidden.delta, expected, rtol=1e-9, atol=1e-12)
+
+
+def test_compute_output_delta_batch_matches_per_row_single_example_results_stacked():
+
+    rng = random.Random(5)
+    size = 4
+    batch_size = 6
+
+    array_layer = ArrayLayer(size, 0)
+    A = np.array([[rng.uniform(0.0, 1.0) for _ in range(size)] for _ in range(batch_size)])
+    reference_batch = np.array([[rng.uniform(0.0, 1.0) for _ in range(size)] for _ in range(batch_size)])
+
+    expected_rows = []
+    for a_row, reference_row in zip(A, reference_batch):
+        array_layer.a = a_row
+        array_layer.compute_output_delta(reference_row)
+        expected_rows.append(array_layer.delta)
+    expected = np.stack(expected_rows)
+
+    array_layer.A = A
+    array_layer.compute_output_delta_batch(reference_batch)
+
+    assert np.allclose(array_layer.delta_batch, expected, rtol=1e-9, atol=1e-12)
+
+
+def test_compute_hidden_delta_batch_matches_per_row_single_example_results_stacked():
+
+    rng = random.Random(6)
+    hidden_size = 5
+    next_size = 3
+    batch_size = 7
+
+    next_layer = ArrayLayer(next_size, hidden_size)
+    next_layer.W = np.array([[rng.uniform(-3.0, 3.0) for _ in range(hidden_size)] for _ in range(next_size)])
+    next_layer.delta_batch = np.array(
+        [[rng.uniform(-5.0, 5.0) for _ in range(next_size)] for _ in range(batch_size)]
+    )
+
+    hidden_layer = ArrayLayer(hidden_size, 0)
+    A = np.array([[rng.uniform(0.0, 1.0) for _ in range(hidden_size)] for _ in range(batch_size)])
+
+    expected_rows = []
+    for row_index in range(batch_size):
+        hidden_layer.a = A[row_index]
+        next_layer.delta = next_layer.delta_batch[row_index]
+        hidden_layer.compute_hidden_delta(next_layer)
+        expected_rows.append(hidden_layer.delta)
+    expected = np.stack(expected_rows)
+
+    hidden_layer.A = A
+    hidden_layer.compute_hidden_delta_batch(next_layer)
+
+    assert np.allclose(hidden_layer.delta_batch, expected, rtol=1e-9, atol=1e-12)
