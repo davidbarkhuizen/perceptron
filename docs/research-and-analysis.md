@@ -381,3 +381,105 @@ Do **not** extend it to `EnsembleBackpropClassifierNetwork`/real-MNIST training 
 work - that needs its own dedicated learning-rate retuning investigation, given the real cost of
 each measurement and the genuine uncertainty (not assumption) about whether the benefit
 transfers from this toy problem to that one.
+
+## the ensemble/real-MNIST investigation
+
+The "own dedicated investigation" deferred above was carried out as a follow-up, in three steps,
+each cheaper than the last one turned out to be necessary before committing to the next.
+
+### step 1: a cheap prerequisite check found a bigger issue than expected
+
+Before comparing loss functions on the ensemble at all, a first check (no training, seconds to
+run): sample real MNIST inputs through a freshly-`randomize()`d `BackpropClassifierNetwork` at
+the ensemble's actual architecture (`layer_sizes=[16]`, `dimension=784`) and measure the
+resulting pre-activation (`z`) distribution. Result: hidden-layer `z` ranged from **-83 to +87**,
+with **83.5% of hidden activations already saturated** (`<0.01` or `>0.99`) *before any training
+happens at all*. This is exactly the failure mode `MultiClassBackpropClassifierNetwork.randomize()`'s
+own docstring already documented and fixed for that class (fan-in-aware `limit = 1/sqrt(fan_in)`
+initialization) - but `BackpropClassifierNetwork`, which every ensemble sub-network uses, still
+uses the original per-dimension-bounds-width scaling, tuned for 1-2D geometric problems, never
+updated for MNIST's 784-dimension fan-in. This is a confound independent of loss function: any
+loss-function comparison run on top of it would be dominated by this pre-existing pathology, not
+by cross-entropy vs quadratic loss.
+
+### step 2: a cheap proxy sweep isolating init from loss function
+
+Before spending real training time, a small, fast proxy (320 real MNIST examples, one digit's
+class-balanced one-vs-rest binary target, built via the same `select_balanced_indices` machinery
+`ensemble_train.py` itself uses, 5 epochs, 5 seeds) tested init scheme and loss function as
+separate factors:
+
+| config | mean test accuracy |
+|---|---|
+| quadratic, current init, learning_rate=0.5 (closest match to current production) | 82.75% |
+| quadratic, **fan-in-aware init**, learning_rate=0.5 | **93.75%** |
+| cross-entropy, current init, learning_rate=0.5 | 87.50% |
+| cross-entropy, fan-in-aware init, learning_rate=0.5 | 92.50% |
+| cross-entropy, fan-in-aware init, learning_rate=0.1 | 93.25% |
+
+Fixing initialization alone - holding quadratic loss, the loss function currently in production,
+fixed - closed an 11-point gap, consistently across all 5 seeds with no overlap between the two
+init schemes' ranges. That is a substantially bigger and more certain effect than the loss
+function switch: once init is fixed, quadratic and cross-entropy come out roughly tied.
+Cross-entropy's one clear edge in this proxy was *robustness* to the current bad
+initialization (87.50% vs 82.75% at current init) - consistent with cross-entropy's gradient not
+vanishing when a node is saturated, the same "learning slowdown" mechanism this whole
+investigation started from.
+
+### step 3: real, full-scale validation
+
+Two real training runs on the actual 60000-image MNIST training set / 10000-image test set, same
+architecture as `demo_mnist_ensemble_recognition.py` (`layer_sizes=[16]`, `learning_rate=0.5`,
+`epochs=5`), `seed=0` for reproducibility, monkeypatching `ensemble_train.BackpropClassifierNetwork`
+to a fan-in-aware-`randomize()` subclass before training (safe because this pipeline's
+multiprocessing is fork-based - forked workers inherit the parent process's already-patched
+module state; confirmed directly with a fast, small-slice, `epochs=0` check before committing to
+the full run, so the weights in the final ensemble were provably drawn from the patched
+`randomize()`, not silently still the default):
+
+| config | wall-clock | test accuracy |
+|---|---|---|
+| current init, quadratic loss (documented baseline, unseeded) | ~31.2 min | 89.4% |
+| **fan-in-aware init, quadratic loss** | 29.6 min | **96.01%** |
+| fan-in-aware init, binary cross-entropy loss (learning_rate=0.5, untuned for cross-entropy) | 33.5 min | 92.82% |
+
+The fan-in-aware-init run reached **96.01% test accuracy** - a 6.6-point improvement over the
+documented baseline, from an initialization fix alone, at the same wall-clock cost, with every
+one of the 10 sub-networks still visibly improving at epoch 5 rather than plateaued (unlike the
+proxy's small scale, a real training run can distinguish this properly) - suggesting there may be
+more headroom left with more epochs, itself worth a future note.
+
+The cross-entropy run, at the same `learning_rate=0.5` used for quadratic loss (not retuned for
+cross-entropy), reached 92.82% - clearly ahead of the *unfixed-init* baseline (89.4%), but 3.19
+points behind fan-in-aware-init quadratic loss at the same real scale. Every per-digit binary
+training accuracy came in lower than quadratic's own (e.g. digit 9: 94.9% vs 98.3%), the same
+pattern the XOR toy problem and the small proxy both already showed: cross-entropy's larger,
+undamped gradient needs a smaller learning rate than whatever is tuned for quadratic loss, or it
+partially overshoots instead of converging as cleanly. This is now confirmed at all three scales
+tested (XOR, small MNIST proxy, full real MNIST) - the same real, replicated effect, not sampling
+noise at any one scale.
+
+### interpretation and decision
+
+The investigation's original question - does binary cross-entropy improve the real MNIST
+ensemble - gets a clear, three-scale-confirmed answer: **not at the learning rate currently
+tuned for quadratic loss**, and retuning it (as the small proxy suggested `learning_rate=0.1`
+might, itself unverified at full scale) would cost at least one more ~30+ minute real run to
+confirm, for a gain that even the best case seen anywhere in this investigation (the proxy's
+93.25%) never exceeded fan-in-aware quadratic loss's real-scale result.
+
+The investigation surfaced a much higher-value, already-confirmed fix instead:
+**`BackpropClassifierNetwork`'s initialization scheme**, unrelated to loss function, is the
+dominant lever - a 6.6-point real-scale improvement (89.4% -> 96.01%) from applying the exact
+same fan-in-aware fix `MultiClassBackpropClassifierNetwork.randomize()` already uses, for the
+identical documented reason (fan-in-dependent sigmoid saturation), now confirmed to apply
+equally to `BackpropClassifierNetwork` at MNIST's 784-dimension scale. This was not the question
+this investigation set out to answer, but the evidence for it is now stronger and cheaper to act
+on than the original loss-function question.
+
+**Decision:** this finding - `BackpropClassifierNetwork`'s init scheme needs the same
+fan-in-aware fix already applied elsewhere - is significant enough to act on as its own,
+separately-scoped piece of work, not folded into this write-up. The binary cross-entropy
+question, on the other hand, is considered adequately answered for now: consistently
+confirmed not to help at production's current learning rate, across three independent scales,
+with no further real-MNIST retuning planned unless a future need specifically calls for it.
