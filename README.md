@@ -18,3 +18,5 @@ retrofit - so it can represent targets (like XOR) the discrete model structurall
   decision, with the measurements that drove it
 - [vectorization](docs/vectorization.md) — analysis and workplan for a hand-built, Rust-backed
   array core, should this repo ever move away from pure Python
+- [mini-batch gradient descent](docs/mini-batch-gradient-descent.md) — workplan for batching
+  gradient updates, to unblock a re-test of momentum under lower-noise gradients
