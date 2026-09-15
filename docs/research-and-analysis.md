@@ -796,3 +796,95 @@ than left uncommitted, for the same reason as momentum: genuinely useful to have
 larger or more overfitting-prone future scenario than this proxy represents, where L2's actual
 mechanism (as directly confirmed here - it does constrain weight magnitude, exactly as designed)
 would have more overfitting to actually correct.
+
+## softmax on real full-scale MNIST
+
+### context
+
+`docs/structure.md`'s "possible next steps" flagged this as worth measuring before committing
+effort: `SoftmaxMultiClassBackpropClassifierNetwork` (built during the "softmax/cross-entropy
+re-alignment" investigation above) was only validated on the small bundled UCI digits set (1797
+samples), where it beat `MultiClassBackpropClassifierNetwork`'s one-vs-rest approach (96.94% vs
+95.54% test accuracy, reaching full training accuracy in about half the epochs). Whether that
+held at MNIST's real full scale (60000 train / 10000 test, 784-dimension input) was untested,
+and unlike the binary cross-entropy investigation's own retuning question, a joint 10-output
+softmax network can't be parallelized across processes the way `EnsembleBackpropClassifierNetwork`
+was specifically built to allow (see "parallelizing MNIST training") - so pure-Python training
+time at this scale was a real, unmeasured risk before committing to the run at all.
+
+A cheap feasibility check first: an isolated 500-record timing test at this session's own
+architecture (`layer_sizes=[16]`, `dimension=784`, matching the ensemble/demo's own config)
+measured 4.03ms/iteration for one-vs-rest and 4.68ms/iteration for softmax - both comfortably
+feasible (~4.0 and ~4.7 min/epoch respectively), a fraction of the older, larger-hidden-layer
+~12.5ms/iteration figure in the "parallelizing MNIST training" entry. Full training-set memory
+footprint was checked too (1861 MB peak RSS for the full 60000-example decoded set, well within
+the 4.1GB free on this machine).
+
+### measured comparison
+
+Full real MNIST (60000 train / 10000 test), same architecture as
+`demo_mnist_ensemble_recognition.py`/the ensemble (`layer_sizes=[16]`, `dimension=784`,
+`learning_rate=0.5`, 5 epochs), both trained sequentially in one process (the ensemble's own
+parallelization strategy doesn't apply here - neither network can be split into independent
+sub-problems the way the ensemble's ten binary classifiers can):
+
+| epoch | one-vs-rest (training accuracy) | softmax (training accuracy) |
+|---|---|---|
+| 1 | 91.26% | 83.67% |
+| 2 | 91.86% | 84.39% |
+| 3 | 92.24% | 88.57% |
+| 4 | 92.64% | 89.69% |
+| 5 | 93.49% | 88.92% |
+
+| | held-out test accuracy | training time |
+|---|---|---|
+| one-vs-rest | 92.75% | 31.4 min |
+| softmax | 89.12% | 35.5 min |
+| ensemble (`FanInAwareBackpropClassifierNetwork` x10, independent, documented baseline) | 96.01% | ~29.6 min |
+
+Two things stand out beyond the headline test-accuracy gap:
+
+- **Softmax's training accuracy isn't monotonic** - it dropped from epoch 4 to epoch 5 (89.69%
+  -> 88.92%), unlike one-vs-rest's clean, monotonic climb every single epoch. (This measurement
+  trains each network directly rather than through `train_linear_classifier_network`'s
+  pocket-algorithm rollback, so the reported softmax network is literally its raw epoch-5 state,
+  including this regression - not rolled back to its best epoch.)
+- **Softmax trails at every epoch measured**, and by a wide margin early on (91.26% vs 83.67% at
+  epoch 1) - the opposite of the small-scale UCI digits result, where softmax led throughout and
+  converged faster.
+
+### interpretation
+
+This is the opposite result from the small-scale UCI digits comparison, but a familiar
+*pattern*, not a new one: this session has now measured the same mechanism three times for a
+different loss function - binary cross-entropy's delta (`activation - target`, no `a(1-a)`
+damping term) needed a substantially lower learning rate than whatever's tuned for quadratic
+loss, at every scale tested (XOR toy problem, small MNIST proxy, and the real full-scale
+ensemble - see "the ensemble/real-MNIST investigation"). Softmax's own delta drops the exact
+same damping term for the exact same reason (see "softmax/cross-entropy re-alignment"'s
+derivation). This run used `learning_rate=0.5` for both networks - tuned for one-vs-rest's
+quadratic loss, never retuned for softmax - and the non-monotonic training-accuracy curve (a
+real regression at epoch 5, not just a slower climb) is consistent with overshooting rather than
+a genuine representational or optimization-landscape disadvantage for softmax at this scale.
+
+Not confirmed: retuning softmax's learning rate at full MNIST scale would need its own real
+~30+ minute run to verify, the same cost/value tradeoff the binary cross-entropy investigation
+already weighed and declined to spend further on ("consistently confirmed not to help at
+production's current learning rate... with no further real-MNIST retuning planned unless a
+future need specifically calls for it"). The same posture applies here.
+
+### decision
+
+`SoftmaxMultiClassBackpropClassifierNetwork` measures as a clean loss against both
+`MultiClassBackpropClassifierNetwork` (92.75%) and the ensemble (96.01%) at real MNIST scale, at
+this codebase's currently-tuned `learning_rate=0.5` - not because softmax is wrong for this
+problem (the smaller-scale UCI digits result, and the underlying cross-entropy-loss-slowdown
+literature, both say otherwise), but plausibly because that learning rate was never tuned for
+it, the same untuned-learning-rate mechanism already confirmed for binary cross-entropy at all
+three scales tested. `MultiClassBackpropClassifierNetwork` remains the better-performing
+full-scale multi-class option of the two at today's tuning; `EnsembleBackpropClassifierNetwork`
+remains the best of all three by a wide margin (96.01%), for the same
+parallelizability-plus-fan-in-aware-init reasons already documented. No further real-MNIST
+retuning of softmax is planned unless a future need specifically calls for it - the question is
+considered adequately answered for now, the same posture the binary cross-entropy investigation
+already settled on.
