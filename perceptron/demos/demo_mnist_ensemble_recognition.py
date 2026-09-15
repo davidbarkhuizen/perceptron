@@ -7,7 +7,13 @@ matplotlib.use("TkAgg")
 from matplotlib import pyplot
 
 from perceptron.ensemble_train import train_ensemble_parallel_from_indices
-from perceptron.graphics.chart import new_axes, new_confusion_matrix_figure, new_figure, sample_predictions_figure
+from perceptron.graphics.chart import (
+    new_axes,
+    new_confusion_matrix_figure,
+    new_figure,
+    sample_predictions_figure,
+    style_dark_legend,
+)
 from perceptron.mnist_data import (
     convert_parquet_to_binary,
     load_mnist_dataset,
@@ -96,10 +102,7 @@ def main() -> None:
         training_curves_axes.plot(range(1, len(accuracies) + 1), accuracies, label=f"digit {label}")
     training_curves_axes.set_xlabel("epoch")
     training_curves_axes.set_ylabel("binary training accuracy")
-    legend = training_curves_axes.legend(fontsize=8)
-    legend.get_frame().set_facecolor("black")
-    for text in legend.get_texts():
-        text.set_color("white")
+    style_dark_legend(training_curves_axes.legend(fontsize=8))
 
     new_confusion_matrix_figure("MNIST recognition: confusion matrix (test set)", matrix)
 

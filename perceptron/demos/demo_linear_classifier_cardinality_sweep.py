@@ -3,24 +3,12 @@ import matplotlib
 matplotlib.use("TkAgg")
 
 from matplotlib import pyplot
-from matplotlib.axes import Axes
 
 from perceptron.evaluate import class_balanced_disagreement_rate, compare_on_random_point, smoothed_series
 from perceptron.geometry import square_bounds
-from perceptron.graphics.chart import disagreement_axis_bounds, new_axes, new_figure
+from perceptron.graphics.chart import disagreement_axis_bounds, new_axes, new_figure, plot_labeled_series
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 from perceptron.train import reachable_reference_and_training_data, train_linear_classifier_network
-
-
-def _plot_convergence(axes: Axes, results: list[tuple[int, str, list[int], list[float]]]) -> None:
-
-    for cardinality, color, n, disagreement in results:
-        axes.plot(n, disagreement, color=color, label=f"cardinality={cardinality}")
-
-    legend = axes.legend()
-    legend.get_frame().set_facecolor("black")
-    for text in legend.get_texts():
-        text.set_color("white")
 
 
 def main() -> None:
@@ -36,7 +24,7 @@ def main() -> None:
     training_set_size: int = 600
     epoch_count: int = 5
 
-    results: list[tuple[int, str, list[int], list[float]]] = []
+    results: list[tuple[str, str, list[int], list[float]]] = []
 
     for cardinality, color in zip(cardinalities, colors):
         reference, training_data = reachable_reference_and_training_data(
@@ -55,7 +43,7 @@ def main() -> None:
 
         n = [x[0] for x in convergence_series]
         disagreement = [x[1] for x in convergence_series]
-        results.append((cardinality, color, n, disagreement))
+        results.append((f"cardinality={cardinality}", color, n, disagreement))
 
         # measured fresh against the actual final student, not convergence_series[-1][1] -
         # that's the raw last training iteration's disagreement, sampled before
@@ -76,7 +64,7 @@ def main() -> None:
     x_max = float(training_set_size * epoch_count)
 
     smoothed_results = [
-        (cardinality, color, n, smoothed_series(disagreement)) for cardinality, color, n, disagreement in results
+        (label, color, n, smoothed_series(disagreement)) for label, color, n, disagreement in results
     ]
 
     print(
@@ -88,7 +76,7 @@ def main() -> None:
 
     smoothed_figure = new_figure("convergence by cardinality (smoothed)")
     smoothed_axes = new_axes(smoothed_figure, disagreement_axis_bounds(x_max), scaled=False)
-    _plot_convergence(smoothed_axes, smoothed_results)
+    plot_labeled_series(smoothed_axes, smoothed_results)
 
     print(
         "smoothed log-scale convergence chart: the same smoothed curves as above, with a "
@@ -100,7 +88,7 @@ def main() -> None:
     smoothed_log_figure = new_figure("convergence by cardinality (smoothed, log scale)")
     smoothed_log_axes = new_axes(smoothed_log_figure, disagreement_axis_bounds(x_max, log=True), scaled=False)
     smoothed_log_axes.set_yscale("log")
-    _plot_convergence(smoothed_log_axes, smoothed_results)
+    plot_labeled_series(smoothed_log_axes, smoothed_results)
 
     pyplot.show()
 
