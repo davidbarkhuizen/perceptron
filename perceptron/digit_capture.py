@@ -1,3 +1,5 @@
+from perceptron.capture_common import stamp_brush
+
 GRID_SIZE = 8
 
 # matches the actual reference work this codebase's bundled training data comes from (see
@@ -82,9 +84,6 @@ def paint_brush_stroke(
     grid: list[list[float]], row: int, col: int, radius: int = CAPTURE_BRUSH_RADIUS
 ) -> list[list[float]]:
     """
-    Returns a new capture grid (grid itself is left untouched) with a radius-cell square brush
-    stamped fully on, centered at (row, col), clipped to the grid's bounds.
-
     Needed because a single mouse-driven cell toggle only ever paints a stroke 1 capture-cell
     wide - once downsample_to_target_grid block-counts that down, it comes out far fainter
     (measured directly: ~25% of full intensity at best) than any real training example, which
@@ -99,22 +98,15 @@ def paint_brush_stroke(
     digit's negative space - e.g. an unfilled "0"'s hole. A radius of 3 or more starts filling
     that hole in too, which visibly hurts classification (a hand-simulated "0" correctly
     classified at radius=2 misclassified as "4" at radius=3 and radius=4, in testing before
-    this constant was chosen).
+    this constant was chosen). The actual stamping is shared with mnist_capture.paint_brush_stroke
+    via capture_common.stamp_brush - only this size-specific validation lives here.
     """
 
     assert len(grid) == CAPTURE_GRID_SIZE and all(
         len(r) == CAPTURE_GRID_SIZE for r in grid
     ), "grid must be CAPTURE_GRID_SIZE x CAPTURE_GRID_SIZE"
-    assert 0 <= row < CAPTURE_GRID_SIZE and 0 <= col < CAPTURE_GRID_SIZE, f"(row, col) must be within the grid; got ({row}, {col})"
 
-    new_grid = [list(r) for r in grid]
-    for delta_row in range(-radius, radius + 1):
-        for delta_col in range(-radius, radius + 1):
-            brush_row, brush_col = row + delta_row, col + delta_col
-            if 0 <= brush_row < CAPTURE_GRID_SIZE and 0 <= brush_col < CAPTURE_GRID_SIZE:
-                new_grid[brush_row][brush_col] = 1.0
-
-    return new_grid
+    return stamp_brush(grid, row, col, radius)
 
 
 def intensity_to_color(intensity: float) -> str:
