@@ -1,5 +1,7 @@
 import math
 
+from perceptron.capture_common import stamp_brush
+
 TARGET_MAX_DIMENSION = 20
 CANVAS_SIZE = 28
 
@@ -20,25 +22,17 @@ def paint_brush_stroke(
 ) -> list[list[float]]:
     """
     Returns a new capture grid (grid itself is left untouched) with a radius-cell square brush
-    stamped fully on, centered at (row, col), clipped to the grid's bounds - the same approach
-    digit_capture.paint_brush_stroke uses for the smaller UCI-digits capture tool, kept as an
-    independent copy here (not shared) since the two capture pipelines' grid sizes and
-    downstream processing are different enough that forcing a shared abstraction isn't worth it.
+    stamped fully on, centered at (row, col), clipped to the grid's bounds - the same actual
+    stamping algorithm digit_capture.paint_brush_stroke uses for the smaller UCI-digits capture
+    tool, shared via capture_common.stamp_brush; only this grid-size-specific validation lives
+    here.
     """
 
     assert len(grid) == CAPTURE_GRID_SIZE and all(
         len(r) == CAPTURE_GRID_SIZE for r in grid
     ), "grid must be CAPTURE_GRID_SIZE x CAPTURE_GRID_SIZE"
-    assert 0 <= row < CAPTURE_GRID_SIZE and 0 <= col < CAPTURE_GRID_SIZE, f"(row, col) must be within the grid; got ({row}, {col})"
 
-    new_grid = [list(r) for r in grid]
-    for delta_row in range(-radius, radius + 1):
-        for delta_col in range(-radius, radius + 1):
-            brush_row, brush_col = row + delta_row, col + delta_col
-            if 0 <= brush_row < CAPTURE_GRID_SIZE and 0 <= brush_col < CAPTURE_GRID_SIZE:
-                new_grid[brush_row][brush_col] = 1.0
-
-    return new_grid
+    return stamp_brush(grid, row, col, radius)
 
 
 def bounding_box(grid: list[list[float]]) -> tuple[int, int, int, int] | None:
