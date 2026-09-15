@@ -888,3 +888,104 @@ parallelizability-plus-fan-in-aware-init reasons already documented. No further 
 retuning of softmax is planned unless a future need specifically calls for it - the question is
 considered adequately answered for now, the same posture the binary cross-entropy investigation
 already settled on.
+
+## momentum under mini-batch gradients: suggestive, but confounded by an untuned learning rate
+
+### context
+
+The "momentum" entry above left one question open: momentum's canonical coefficient (α=0.9)
+robustly *hurt* under this codebase's per-example online SGD, with the leading candidate
+explanation being that per-example gradients are noisier than the mini-batch gradients
+momentum's own literature is validated against -
+`MomentumBackpropClassifierNetwork` was kept specifically to retest once mini-batch gradients
+existed (see that entry's own "decision," and `momentum_backprop_classifier_network.py`'s
+docstring). [Mini-batch gradient descent](mini-batch-gradient-descent.md) built exactly that
+capability (`BackpropNode.accumulate_gradient`/`apply_accumulated_gradient`, `learn_batch`,
+`train.train_backprop_network_mini_batch` - see that document's own "status" section for what
+was built, across three PRs). This entry is that retest - stage 6 of that workplan.
+
+Same proxy as the original momentum investigation: 320 real MNIST examples, digit 3's
+class-balanced one-vs-rest target (`ensemble_train.select_balanced_indices`), fan-in-aware
+init, `learning_rate=0.5`, 5 epochs, `layer_sizes=[16]`. Two differences from the original,
+both because that investigation's own script was an isolated, uncommitted prototype (like
+several other entries in this document - see "Xavier/Glorot", "momentum" itself) rather than
+something this session could re-run byte-for-byte: test accuracy here is measured against a
+fixed ~2020-example class-balanced set built from the real MNIST *test* split (the original's
+own test-set construction wasn't preserved), and momentum coefficients (0.0, 0.3, 0.5, 0.7,
+0.9) crossed with four batch sizes (1, 8, 32, 128), 10 seeds each, 200 runs total, in parallel
+across an 8-core process pool (the same fork-based-sharing pattern `ensemble_train.py` already
+uses for independent training runs) - about 24 minutes wall-clock.
+
+### measured comparison
+
+Mean test accuracy ± stdev, n=10 seeds per cell:
+
+| momentum | batch_size=1 | batch_size=8 | batch_size=32 | batch_size=128 |
+|---|---|---|---|---|
+| 0.0 | 91.43% ± 1.19% | 91.39% ± 0.87% | 84.65% ± 6.78% | 71.24% ± 13.75% |
+| 0.3 | 91.39% ± 1.05% | 91.50% ± 0.76% | 88.30% ± 2.79% | 72.26% ± 16.03% |
+| 0.5 | 91.65% ± 0.95% | 91.59% ± 0.79% | 89.75% ± 1.21% | 77.02% ± 12.45% |
+| 0.7 | 91.74% ± 1.07% | 91.85% ± 0.73% | 90.82% ± 1.12% | 84.29% ± 6.29% |
+| 0.9 | 89.06% ± 1.46% | 90.82% ± 1.17% | 91.64% ± 0.77% | **87.66% ± 2.62%** |
+
+Two patterns stand out:
+
+- **`batch_size=1` replicates the original investigation's own qualitative finding**, as a
+  methodology sanity check: momentum=0.9 measurably hurts (89.06% vs the 91.43% baseline, a
+  2.4-point drop, the same direction and a comparable magnitude to the original's own
+  91.75%-vs-93.75% first-pass gap), while 0.3-0.7 cluster within noise of the baseline (91.39%
+  to 91.74%, inside each other's stdev) - the same flat, statistically indistinguishable
+  landscape the original's own 15-seed second pass found. Absolute accuracy differs from the
+  original (93.75%/93.83% baseline vs 91.43% here), expected given the different,
+  independently-reconstructed test set - the *pattern* replicates, which is what matters for
+  trusting the rest of this sweep's methodology.
+- **Accuracy at fixed `learning_rate=0.5` collapses as `batch_size` grows, at every momentum
+  value** - baseline (momentum=0.0) drops from 91.43% at `batch_size=1` to a wildly unstable
+  71.24% ± 13.75% at `batch_size=128` (some seeds are catastrophically undertrained, others
+  aren't - hence the huge stdev). **Momentum visibly rescues this**, and does so
+  monotonically: at `batch_size=32`, accuracy climbs cleanly from 84.65% (momentum=0.0) to
+  91.64% (momentum=0.9), with stdev *shrinking* the same direction (6.78% -> 0.77%) - the
+  clearest, most orderly pattern in this entire sweep. `batch_size=128` shows the same shape,
+  more extreme (71.24% -> 87.66%, stdev 13.75% -> 2.62%).
+
+### interpretation
+
+The `batch_size=32`/`128` rescue effect is real and reproducible (tight stdevs at high
+momentum, n=10), but it isn't clean evidence for the original hypothesis (momentum helps more
+under lower-noise mini-batch gradients) on its own - it's confounded with a much more standard,
+well-known effect this sweep didn't control for: **`learning_rate=0.5` was never scaled up for
+larger batch sizes**. A batch of `b` examples produces `320/b` weight-update steps per epoch
+instead of `320` - at `batch_size=128`, only ~15 update steps happen across all 5 epochs, versus
+1600 at `batch_size=1`. With a fixed per-step learning rate, far fewer steps means far less
+total displacement in weight-space per epoch of data seen, unless the learning rate is scaled
+up to compensate (the standard "linear scaling rule" for mini-batch SGD - e.g. Goyal et al.,
+2017, "Accurate, Large Minibatch SGD"). Momentum's velocity term, which lets a step's effective
+displacement keep growing across consecutive similarly-directed updates, is a plausible partial
+substitute for that missing learning-rate scaling - which would explain the rescue effect
+*without it being evidence specifically about gradient noise*, the mechanism the original
+investigation's momentum-retest motivation was actually about (see "context" above). This is
+the same category of confound the "softmax on real full-scale MNIST" entry above flagged for
+itself (`learning_rate=0.5`, tuned for one-vs-rest's quadratic loss, never retuned for
+softmax) - a batch-size sweep at one fixed learning rate is really answering "how much does an
+untuned learning rate hurt as batch size grows," not cleanly isolating momentum's effect from
+that confound.
+
+`batch_size=1`/`8`'s own flat, momentum-doesn't-clearly-help result (closest to the original
+per-example-SGD regime this session's own hypothesis was about) is the cleaner read of the two:
+still no evidence momentum helps once gradients are only mildly less noisy than fully
+per-example - consistent with, not yet a reversal of, the original investigation's own null
+finding.
+
+### decision
+
+Not a clean confirmation or reversal of the original "momentum: measured, not worth adopting"
+finding - momentum still isn't a demonstrated win at the batch sizes closest to the original's
+own regime (1, 8), and the striking rescue effect at 32/128 is real but plausibly explained by
+an untuned learning rate rather than by gradient noise specifically, the actual mechanism this
+retest was designed to isolate. `MomentumBackpropClassifierNetwork` remains not adopted as a
+default, for the same reason as before: no configuration measured here cleanly beats a properly
+tuned baseline. A follow-up sweep that scales `learning_rate` with `batch_size` (the standard
+mini-batch SGD practice this one didn't apply) - rather than more epochs, which would multiply
+this sweep's already-24-minute cost considerably for the larger batch sizes - is the natural
+next step to actually isolate momentum's effect from the learning-rate confound, but hasn't
+been run; this entry reports what was measured, not what a corrected sweep would show.
