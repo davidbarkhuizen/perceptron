@@ -12,7 +12,7 @@ from perceptron.geometry import square_bounds
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 from perceptron.train import reachable_reference_and_training_data
 
-from helpers import classifier_with_tiny_bounded_region
+from helpers import classifier_with_tiny_bounded_region, unreachable_class_classifier
 
 
 def test_sample_class_balanced_states_succeeds_within_a_tight_budget_for_a_tiny_region():
@@ -69,13 +69,7 @@ def test_class_balanced_disagreement_rate_detects_error_the_old_metric_missed():
 
 def test_class_balanced_disagreement_rate_raises_for_an_unreachable_reference_class():
 
-    bounds = square_bounds(10.0)
-    unreachable = LinearClassifierNetwork(1, 2, bounds)
-    node = unreachable.hidden_layer.nodes[0]
-    # tiny weights + a large threshold mean the decision boundary never crosses these
-    # bounds, so one class can never be sampled
-    node.update_input_weights([0.01, 0.01])
-    node.threshold = -5.0
+    unreachable = unreachable_class_classifier(square_bounds(10.0))
 
     with pytest.raises(RuntimeError):
         class_balanced_disagreement_rate(unreachable, unreachable, per_class_sample_count=10, max_attempts=200)

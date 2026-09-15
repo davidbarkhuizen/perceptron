@@ -10,7 +10,7 @@ from perceptron.train import (
     train_linear_classifier_network,
 )
 
-from helpers import classifier_with_tiny_bounded_region
+from helpers import classifier_with_tiny_bounded_region, unreachable_class_classifier
 
 
 def _training_accuracy(student, training_data):
@@ -76,13 +76,7 @@ def test_reachable_reference_and_training_data_respects_is_valid():
 
 def test_random_alternating_training_data_raises_for_an_unreachable_class():
 
-    bounds = square_bounds(10.0)
-    unreachable = LinearClassifierNetwork(1, 2, bounds)
-    node = unreachable.hidden_layer.nodes[0]
-    # tiny weights + a large threshold mean the decision boundary never crosses these
-    # bounds, so one class can never be sampled
-    node.update_input_weights([0.01, 0.01])
-    node.threshold = -5.0
+    unreachable = unreachable_class_classifier(square_bounds(10.0))
 
     with pytest.raises(RuntimeError):
         random_alternating_training_data(200, unreachable, max_attempts=200)
