@@ -1,3 +1,4 @@
+import math
 import pickle
 import random
 
@@ -13,6 +14,7 @@ from perceptron.ensemble_train import (
     train_ensemble_parallel_from_indices,
 )
 from perceptron.geometry import square_bounds
+from perceptron.model.fan_in_aware_backprop_classifier_network import FanInAwareBackpropClassifierNetwork
 
 
 def _synthetic_dataset(counts: dict[int, int]) -> list[tuple[tuple[float, ...], int]]:
@@ -235,6 +237,39 @@ def test_train_ensemble_parallel_produces_a_working_ensemble():
     assert ensemble.classify_state((-5.0, -5.0)) == 0
     assert ensemble.classify_state((5.0, 5.0)) == 1
     assert ensemble.classify_state((5.0, -5.0)) == 2
+
+
+def test_train_ensemble_parallel_respects_a_custom_classifier_cls():
+
+    # confirms classifier_cls actually reaches the forked worker processes, not just the main
+    # one - epochs=0 leaves every sub-network's weights exactly at randomize()'s own output, so
+    # the resulting weight magnitude cleanly distinguishes FanInAwareBackpropClassifierNetwork's
+    # scheme (limit=1/sqrt(dimension)=1/sqrt(2)=0.707) from the default BackpropClassifierNetwork
+    # scheme this test's dimension/bounds would otherwise produce (2.0/half_width=2.0/10.0=0.2 for
+    # the first hidden layer, but unbounded beyond it - the fan-in-aware ceiling is the
+    # unambiguous signal here since it applies uniformly to every layer, including the output
+    # layer, where the default scheme instead draws from a fixed uniform(-1.0, 1.0))
+    dataset = _synthetic_multiclass_dataset()
+    bounds = square_bounds(10.0)
+
+    ensemble, _ = train_ensemble_parallel(
+        dataset,
+        class_count=3,
+        layer_sizes=[4],
+        dimension=2,
+        input_bounds=bounds,
+        learning_rate=0.5,
+        epochs=0,
+        worker_count=2,
+        seed=0,
+        classifier_cls=FanInAwareBackpropClassifierNetwork,
+    )
+
+    limit = 1.0 / math.sqrt(2)
+    for classifier in ensemble.classifiers:
+        assert isinstance(classifier, FanInAwareBackpropClassifierNetwork)
+        for node in classifier.output_layer.nodes:
+            assert all(-limit <= w <= limit for w in node.input_node_weights)
 
 
 def test_train_ensemble_parallel_gives_each_worker_independent_initial_weights():

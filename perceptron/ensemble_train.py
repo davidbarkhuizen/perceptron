@@ -103,14 +103,16 @@ def _train_classifier_on_binary_dataset(
     learning_rate: float,
     epochs: int,
     seed: int | None,
+    classifier_cls: type[BackpropClassifierNetwork],
 ) -> tuple[int, list[list[tuple[list[float], float]]], TrainingDiagnostic]:
     """
     The actual training work shared by both multiprocessing.Pool worker functions below
     (_train_one_classifier, _train_one_indexed_classifier), once each has its own binary_dataset
-    in hand: trains one class's binary BackpropClassifierNetwork completely independently - no
-    state is shared with any other worker, which is what makes this genuinely (not just
-    approximately) parallelizable - see docs/research-and-analysis.md's "parallelizing MNIST
-    training" entry.
+    in hand: trains one class's binary classifier_cls (a BackpropClassifierNetwork, or a
+    subclass - e.g. FanInAwareBackpropClassifierNetwork, see train_ensemble_parallel_from_indices's
+    own classifier_cls parameter) completely independently - no state is shared with any other
+    worker, which is what makes this genuinely (not just approximately) parallelizable - see
+    docs/research-and-analysis.md's "parallelizing MNIST training" entry.
 
     Explicitly seeds this process's own random state before building anything - confirmed
     directly this session that fork-based multiprocessing workers are not guaranteed to diverge
@@ -121,14 +123,24 @@ def _train_classifier_on_binary_dataset(
     """
 
     random.seed(seed)
-    student = BackpropClassifierNetwork.randomized(layer_sizes, dimension, input_bounds)
+    student = classifier_cls.randomized(layer_sizes, dimension, input_bounds)
     result = train_linear_classifier_network(student, binary_dataset, learning_rate=learning_rate, epochs=epochs)
 
     return label, student.snapshot(), result.diagnostic
 
 
 def _train_one_classifier(
-    args: tuple[int, list[tuple[tuple[float, ...], float]], list[int], int, list[tuple[float, float]], float, int, int | None],
+    args: tuple[
+        int,
+        list[tuple[tuple[float, ...], float]],
+        list[int],
+        int,
+        list[tuple[float, float]],
+        float,
+        int,
+        int | None,
+        type[BackpropClassifierNetwork],
+    ],
 ) -> tuple[int, list[list[tuple[list[float], float]]], TrainingDiagnostic]:
     """
     The multiprocessing.Pool worker - a plain module-level function, required for picklability -
@@ -136,16 +148,26 @@ def _train_one_classifier(
     training work.
     """
 
-    label, binary_dataset, layer_sizes, dimension, input_bounds, learning_rate, epochs, seed = args
+    label, binary_dataset, layer_sizes, dimension, input_bounds, learning_rate, epochs, seed, classifier_cls = args
 
     return _train_classifier_on_binary_dataset(
-        label, binary_dataset, layer_sizes, dimension, input_bounds, learning_rate, epochs, seed
+        label, binary_dataset, layer_sizes, dimension, input_bounds, learning_rate, epochs, seed, classifier_cls
     )
 
 
 def _train_one_indexed_classifier(
     args: tuple[
-        int, str, RecordLoader, list[tuple[int, float]], list[int], int, list[tuple[float, float]], float, int, int | None
+        int,
+        str,
+        RecordLoader,
+        list[tuple[int, float]],
+        list[int],
+        int,
+        list[tuple[float, float]],
+        float,
+        int,
+        int | None,
+        type[BackpropClassifierNetwork],
     ],
 ) -> tuple[int, list[list[tuple[list[float], float]]], TrainingDiagnostic]:
     """
@@ -160,9 +182,19 @@ def _train_one_indexed_classifier(
     explicit per-process random seeding _train_one_classifier uses, for the same reason.
     """
 
-    label, path, record_loader, index_category_pairs, layer_sizes, dimension, input_bounds, learning_rate, epochs, seed = (
-        args
-    )
+    (
+        label,
+        path,
+        record_loader,
+        index_category_pairs,
+        layer_sizes,
+        dimension,
+        input_bounds,
+        learning_rate,
+        epochs,
+        seed,
+        classifier_cls,
+    ) = args
 
     # index_category_pairs already arrives shuffled (select_balanced_indices' own last step) -
     # loading records in that same order, via zip below, needs no further shuffling here
@@ -172,7 +204,7 @@ def _train_one_indexed_classifier(
     binary_dataset = [(state, category) for (state, _label), category in zip(records, categories_in_order)]
 
     return _train_classifier_on_binary_dataset(
-        label, binary_dataset, layer_sizes, dimension, input_bounds, learning_rate, epochs, seed
+        label, binary_dataset, layer_sizes, dimension, input_bounds, learning_rate, epochs, seed, classifier_cls
     )
 
 
@@ -245,13 +277,18 @@ def _collect_ensemble_results(
     layer_sizes: list[int],
     dimension: int,
     input_bounds: list[tuple[float, float]],
+    classifier_cls: type[BackpropClassifierNetwork],
 ) -> tuple[EnsembleBackpropClassifierNetwork, dict[int, TrainingDiagnostic]]:
     """
     The shared tail of both train_ensemble_parallel and train_ensemble_parallel_from_indices,
     once each has its own pool, worker function, and jobs iterable ready: dispatches worker_fn
     over jobs via pool.imap, sorts the results back into label order, rebuilds each label's
-    BackpropClassifierNetwork from the weight snapshot its worker returned, and assembles the
-    final EnsembleBackpropClassifierNetwork.
+    classifier_cls instance from the weight snapshot its worker returned (harmless if
+    classifier_cls's own randomize() differs from whatever the worker actually used to train it -
+    restore() only ever sets weights/bias directly, and inference (classify_state/
+    predict_probability) reads only the same weights via the identical sigmoid forward pass
+    every BackpropClassifierNetwork subclass shares, regardless of which randomize() built the
+    now-overwritten initial weights), and assembles the final EnsembleBackpropClassifierNetwork.
     """
 
     results = list(pool.imap(worker_fn, jobs))
@@ -260,7 +297,7 @@ def _collect_ensemble_results(
     classifiers = []
     diagnostics: dict[int, TrainingDiagnostic] = {}
     for label, snapshot, diagnostic in results:
-        student = BackpropClassifierNetwork(layer_sizes, dimension, input_bounds)
+        student = classifier_cls(layer_sizes, dimension, input_bounds)
         student.restore(snapshot)
         classifiers.append(student)
         diagnostics[label] = diagnostic
@@ -278,12 +315,20 @@ def train_ensemble_parallel(
     epochs: int,
     worker_count: int | None = None,
     seed: int | None = None,
+    classifier_cls: type[BackpropClassifierNetwork] = BackpropClassifierNetwork,
 ) -> tuple[EnsembleBackpropClassifierNetwork, dict[int, TrainingDiagnostic]]:
     """
-    Trains one BackpropClassifierNetwork per class completely independently - dispatched across
+    Trains one classifier_cls instance per class completely independently - dispatched across
     a multiprocessing.Pool, since nothing needs to be synchronized between them (unlike the
     data-parallel weight-averaging approach rejected in docs/research-and-analysis.md, this has
     no communication cost beyond the one-time dispatch and final collection).
+
+    classifier_cls defaults to BackpropClassifierNetwork (every existing caller's behavior is
+    unchanged) but accepts any subclass with a matching constructor/randomized() signature - e.g.
+    FanInAwareBackpropClassifierNetwork, whose init scheme was measured directly to matter at
+    real MNIST scale (see docs/research-and-analysis.md's "ensemble/real-MNIST investigation"
+    entry) in a way BackpropClassifierNetwork's own default scheme, tuned for 1-2D geometric
+    problems, does not.
 
     worker_count is capped by _select_worker_count using both CPU count *and* an estimate of
     available memory, not cores alone - a worker deserializing its own dataset copy over IPC
@@ -316,10 +361,22 @@ def train_ensemble_parallel(
         for label in range(class_count):
             binary_dataset = build_balanced_binary_dataset(dataset, label, class_count, rng)
             job_seed = rng.randrange(2**31) if seed is not None else None
-            yield (label, binary_dataset, layer_sizes, dimension, input_bounds, learning_rate, epochs, job_seed)
+            yield (
+                label,
+                binary_dataset,
+                layer_sizes,
+                dimension,
+                input_bounds,
+                learning_rate,
+                epochs,
+                job_seed,
+                classifier_cls,
+            )
 
     with multiprocessing.Pool(actual_worker_count) as pool:
-        return _collect_ensemble_results(pool, _train_one_classifier, jobs(), layer_sizes, dimension, input_bounds)
+        return _collect_ensemble_results(
+            pool, _train_one_classifier, jobs(), layer_sizes, dimension, input_bounds, classifier_cls
+        )
 
 
 def train_ensemble_parallel_from_indices(
@@ -334,6 +391,7 @@ def train_ensemble_parallel_from_indices(
     epochs: int,
     worker_count: int | None = None,
     seed: int | None = None,
+    classifier_cls: type[BackpropClassifierNetwork] = BackpropClassifierNetwork,
 ) -> tuple[EnsembleBackpropClassifierNetwork, dict[int, TrainingDiagnostic]]:
     """
     The large-dataset counterpart to train_ensemble_parallel: instead of a fully-decoded
@@ -350,7 +408,9 @@ def train_ensemble_parallel_from_indices(
     docs/research-and-analysis.md's "parallelizing MNIST training" entry.
 
     record_loader must be a plain, module-level function (not a closure or lambda) for
-    multiprocessing picklability, same as every worker function in this module.
+    multiprocessing picklability, same as every worker function in this module. classifier_cls -
+    see train_ensemble_parallel's own docstring - is the same extension point, used by
+    demo_mnist_ensemble_recognition.py (real MNIST is exactly the case this path exists for).
     """
 
     rng = random.Random(seed)
@@ -378,9 +438,10 @@ def train_ensemble_parallel_from_indices(
                 learning_rate,
                 epochs,
                 job_seed,
+                classifier_cls,
             )
 
     with multiprocessing.Pool(actual_worker_count) as pool:
         return _collect_ensemble_results(
-            pool, _train_one_indexed_classifier, jobs(), layer_sizes, dimension, input_bounds
+            pool, _train_one_indexed_classifier, jobs(), layer_sizes, dimension, input_bounds, classifier_cls
         )
