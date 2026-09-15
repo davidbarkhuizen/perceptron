@@ -53,6 +53,15 @@ def compare_on_random_point(
     return state, reference.classify_state(state), student.classify_state(state)
 
 
+def agreement_label(reference_category: float, student_category: float) -> str:
+    """
+    Shared by every demo that reports compare_on_random_point's result - "agree" or "disagree",
+    one place for the wording and the equality check to live instead of a ternary copy-pasted
+    at each call site.
+    """
+    return "agree" if reference_category == student_category else "disagree"
+
+
 def smoothed_series(values: list[float], window: int = 31) -> list[float]:
 
     # trailing moving average - only ever looks backward, so it stays a fair comparison

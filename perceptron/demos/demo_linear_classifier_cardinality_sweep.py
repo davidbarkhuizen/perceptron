@@ -4,7 +4,7 @@ matplotlib.use("TkAgg")
 
 from matplotlib import pyplot
 
-from perceptron.evaluate import class_balanced_disagreement_rate, compare_on_random_point, smoothed_series
+from perceptron.evaluate import agreement_label, class_balanced_disagreement_rate, compare_on_random_point, smoothed_series
 from perceptron.geometry import square_bounds
 from perceptron.graphics.chart import disagreement_axis_bounds, new_axes, new_figure, plot_labeled_series
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
@@ -54,7 +54,7 @@ def main() -> None:
         final_disagreement = class_balanced_disagreement_rate(reference, student, per_class_sample_count=300)
 
         new_state, reference_category, student_category = compare_on_random_point(reference, student)
-        agreement = "agree" if reference_category == student_category else "disagree"
+        agreement = agreement_label(reference_category, student_category)
         print(
             f"cardinality={cardinality}: disagreement {convergence_series[0][1]:.3f} -> "
             f"{final_disagreement:.3f}, prediction on new point: reference={reference_category}, "
