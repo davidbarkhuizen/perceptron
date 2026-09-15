@@ -155,6 +155,7 @@ cython_debug/
 # trained-model export (regenerable build artifact - see
 # MultiClassBackpropClassifierNetwork.save()/demo_digit_recognition.py)
 data/digits/trained_model.json
+data/digits/trained_model_vectorized.json
 
 # MNIST source data (supplied locally) and its derived/regenerable artifacts - not committed
 # (large binary data; see perceptron/mnist_data.py's convert_parquet_to_binary)
