@@ -6,7 +6,7 @@ from matplotlib import pyplot
 
 from perceptron.evaluate import agreement_label, class_balanced_disagreement_rate, compare_on_random_point, smoothed_series
 from perceptron.geometry import square_bounds
-from perceptron.graphics.chart import disagreement_axis_bounds, new_axes, new_figure, plot_labeled_series
+from perceptron.graphics.chart import new_convergence_chart_pair, plot_labeled_series
 from perceptron.model.linear_classifier_network import LinearClassifierNetwork
 from perceptron.train import reachable_reference_and_training_data, train_linear_classifier_network
 
@@ -74,10 +74,6 @@ def main() -> None:
         "noise from class_balanced_disagreement_rate's small per-class sample count"
     )
 
-    smoothed_figure = new_figure("convergence by cardinality (smoothed)")
-    smoothed_axes = new_axes(smoothed_figure, disagreement_axis_bounds(x_max), scaled=False)
-    plot_labeled_series(smoothed_axes, smoothed_results)
-
     print(
         "smoothed log-scale convergence chart: the same smoothed curves as above, with a "
         "log-scaled y-axis - useful for comparing how fast each cardinality converges, "
@@ -85,9 +81,10 @@ def main() -> None:
         "its disagreement reaches exactly zero, which has no position on a log axis"
     )
 
-    smoothed_log_figure = new_figure("convergence by cardinality (smoothed, log scale)")
-    smoothed_log_axes = new_axes(smoothed_log_figure, disagreement_axis_bounds(x_max, log=True), scaled=False)
-    smoothed_log_axes.set_yscale("log")
+    smoothed_axes, smoothed_log_axes = new_convergence_chart_pair(
+        "convergence by cardinality (smoothed)", "convergence by cardinality (smoothed, log scale)", x_max
+    )
+    plot_labeled_series(smoothed_axes, smoothed_results)
     plot_labeled_series(smoothed_log_axes, smoothed_results)
 
     pyplot.show()

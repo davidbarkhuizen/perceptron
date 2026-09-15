@@ -3,13 +3,12 @@ import matplotlib
 matplotlib.use("TkAgg")
 
 from matplotlib import pyplot
-from matplotlib.axes import Axes
 
 from perceptron.evaluate import agreement_label, compare_on_random_point, smoothed_series
 from perceptron.geometry import is_positive_region_bounded, square_bounds
 from perceptron.graphics.chart import (
-    disagreement_axis_bounds,
     new_axes,
+    new_convergence_chart_pair,
     new_figure,
     plot_linear_classifier_network,
     plot_training_data,
@@ -83,14 +82,13 @@ def main() -> None:
         "means the student more closely matches the reference"
     )
 
-    linear_convergence_figure = new_figure("convergence (linear scale)")
+    linear_convergence_axes, log_convergence_axes = new_convergence_chart_pair(
+        "convergence (linear scale)", "convergence (log scale)", float(training_set_size)
+    )
 
-    linear_convergence_bounds = disagreement_axis_bounds(float(training_set_size))
-
-    linear_convergence_axes: Axes = new_axes(linear_convergence_figure, linear_convergence_bounds, scaled=False)
     linear_convergence_axes.plot(n, disagreement)
 
-    pyplot.get_current_fig_manager().window.wm_geometry("+800+0")
+    linear_convergence_axes.figure.canvas.manager.window.wm_geometry("+800+0")
     pyplot.show(block=False)
 
     print(
@@ -100,15 +98,9 @@ def main() -> None:
         "reaches exactly zero, which has no position on a log axis"
     )
 
-    log_convergence_figure = new_figure("convergence (log scale)")
-
-    log_convergence_bounds = disagreement_axis_bounds(float(training_set_size), log=True)
-
-    log_convergence_axes: Axes = new_axes(log_convergence_figure, log_convergence_bounds, scaled=False)
-    log_convergence_axes.set_yscale("log")
     log_convergence_axes.plot(n, disagreement)
 
-    pyplot.get_current_fig_manager().window.wm_geometry("+800+500")
+    log_convergence_axes.figure.canvas.manager.window.wm_geometry("+800+500")
     pyplot.show(block=False)
 
     # ---------------------
