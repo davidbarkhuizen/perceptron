@@ -32,6 +32,12 @@ class ArrayLayer:
         self.W: np.ndarray = np.zeros((size, input_size))
         self.b: np.ndarray = np.zeros(size)
 
+        # accumulated by accumulate_gradient(), consumed and reset by
+        # apply_accumulated_gradient() - the array-valued analogue of BackpropNode's own
+        # _weight_gradient_accum/_bias_gradient_accum pair
+        self._grad_W: np.ndarray = np.zeros((size, input_size))
+        self._grad_b: np.ndarray = np.zeros(size)
+
     def forward(self, x: np.ndarray) -> np.ndarray:
         self.z = self.W @ x + self.b
         self.a = sigmoid(self.z)
@@ -62,3 +68,19 @@ class ArrayLayer:
         # compute_hidden_delta's single-example downstream computation over every batch row
         downstream = next_layer.delta_batch @ next_layer.W
         self.delta_batch = downstream * self.A * (1.0 - self.A)
+
+    def accumulate_gradient(self, input_activation: np.ndarray) -> None:
+        # called once per example, whether one example (learn) or every example in a batch
+        # (learn_batch) - the same accumulate/apply split BackpropNode already uses, one array
+        # op (an outer product) instead of a double Python loop over (node, input_node) pairs
+        self._grad_W += np.outer(self.delta, input_activation)
+        self._grad_b += self.delta
+
+    def apply_accumulated_gradient(self, learning_rate: float, batch_size: int) -> None:
+        self.W -= learning_rate * self._grad_W / batch_size
+        self.b -= learning_rate * self._grad_b / batch_size
+        self._reset_gradient_accum()
+
+    def _reset_gradient_accum(self) -> None:
+        self._grad_W = np.zeros((self.size, self.input_size))
+        self._grad_b = np.zeros(self.size)
