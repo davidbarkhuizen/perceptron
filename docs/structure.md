@@ -536,4 +536,6 @@ finding here, not by priority.
   dependency, everything hand-built." NumPy isn't itself an ML framework, but adding any array
   library is a values question for whoever maintains this repo to decide deliberately, not
   something to assume is wanted just because it would be faster - flagged, not recommended
-  outright.
+  outright. See [vectorization](vectorization.md) for a function-level analysis of what would
+  need vectorizing, and a workplan for one specific alternative to adopting real NumPy: a
+  hand-built, tightly-scoped array core in Rust, wrapped for Python via PyO3.
