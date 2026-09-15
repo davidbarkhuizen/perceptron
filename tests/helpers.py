@@ -12,6 +12,25 @@ def assert_randomize_breaks_symmetry(network) -> None:
     assert len(set(weight_sets)) == len(weight_sets)
 
 
+def assert_snapshot_restore_round_trip(network, step, times: int = 5) -> None:
+    """
+    Shared by every *_backprop_model.py's/ensemble's/conv sibling's
+    test_snapshot_and_restore_round_trip: snapshot, apply `step` `times` times (confirming the
+    network actually moved), restore, and confirm the snapshot matches the pre-training one
+    exactly again.
+    """
+    before = network.snapshot()
+
+    for _ in range(times):
+        step()
+
+    assert network.snapshot() != before
+
+    network.restore(before)
+
+    assert network.snapshot() == before
+
+
 def classifier_with_bounded_square_region(bounds: list[tuple[float, float]]) -> LinearClassifierNetwork:
 
     # positive region is exactly the square [-1, 1] x [-1, 1]: x > -1, x < 1, y > -1, y < 1

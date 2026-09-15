@@ -2,6 +2,7 @@ import random
 
 import pytest
 
+from helpers import assert_snapshot_restore_round_trip
 from perceptron.digits_data import load_digits_dataset, split_train_test
 from perceptron.model.backprop_layer import BackpropLayer
 from perceptron.model.conv_layer import ConvLayer
@@ -152,11 +153,9 @@ def test_snapshot_and_restore_round_trip_through_the_conv_layer_too():
     assert len(snapshot[0]) == network.channel_count  # the conv layer's own entry: one per kernel
 
     state = tuple(random.uniform(0.0, 1.0) for _ in range(64))
-    network.learn(learning_rate=0.1, state=state, category=3)
-    assert network.snapshot() != snapshot  # actually moved
-
-    network.restore(snapshot)
-    assert network.snapshot() == snapshot
+    assert_snapshot_restore_round_trip(
+        network, lambda: network.learn(learning_rate=0.1, state=state, category=3), times=1
+    )
 
 
 def test_save_and_load_round_trip(tmp_path):
