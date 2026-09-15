@@ -3,6 +3,7 @@ from __future__ import annotations
 import random
 
 from perceptron.model.association_layer import AssociationLayer
+from perceptron.model.bounds import half_widths as _half_widths
 from perceptron.model.bounds import validate_input_bounds
 from perceptron.model.state_layer import StateLayer
 
@@ -74,7 +75,7 @@ class LinearClassifierNetwork:
         responsible_node.learn(learning_rate, category)
 
     def half_widths(self) -> list[float]:
-        return [(hi - lo) / 2.0 for lo, hi in self.input_bounds]
+        return _half_widths(self.input_bounds)
 
     def randomize(self) -> None:
         # each weight's range scales inversely with its own dimension's half-width, so that

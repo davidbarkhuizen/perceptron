@@ -4,6 +4,7 @@ import random
 from typing import Sequence
 
 from perceptron.model.backprop_network_base import BackpropNetworkBase
+from perceptron.model.bounds import half_widths as _half_widths
 
 
 class BackpropClassifierNetwork(BackpropNetworkBase):
@@ -59,7 +60,7 @@ class BackpropClassifierNetwork(BackpropNetworkBase):
         self._backward_hidden_layers()
 
     def half_widths(self) -> list[float]:
-        return [(hi - lo) / 2.0 for lo, hi in self.input_bounds]
+        return _half_widths(self.input_bounds)
 
     def randomize(self) -> None:
         # first hidden layer: same scale-invariance rationale as
