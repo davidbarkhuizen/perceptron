@@ -22,7 +22,7 @@ class ArrayLayer:
     One backprop layer's weights/activations as whole arrays, not `size` separate BackpropNode
     objects - see docs/vectorized-array-classes.md's "class design" section for the full
     forward/backward/gradient formula table this class implements incrementally, stage by stage.
-    This first stage is construction plus the single-example forward pass only.
+    Built incrementally: single-example forward() first, then this stage's forward_batch().
     """
 
     def __init__(self, size: int, input_size: int) -> None:
@@ -36,3 +36,10 @@ class ArrayLayer:
         self.z = self.W @ x + self.b
         self.a = sigmoid(self.z)
         return self.a
+
+    def forward_batch(self, X: np.ndarray) -> np.ndarray:
+        # X.shape == (batch_size, input_size); numpy broadcasts + self.b across every row, the
+        # same formula as forward() applied to a whole batch at once instead of once per example
+        self.Z = X @ self.W.T + self.b
+        self.A = sigmoid(self.Z)
+        return self.A
