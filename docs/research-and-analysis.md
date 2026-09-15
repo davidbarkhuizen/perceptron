@@ -205,3 +205,89 @@ estimate for this approach.
 wrong. Each hypothesis here was cheap to test in isolation and expensive to have shipped
 untested - the pyarrow theory in particular "felt right" and would have been easy to stop
 investigating at, had it not been measured directly against a synthetic-data control.
+
+## softmax/cross-entropy re-alignment
+
+### context
+
+An audit of the backprop implementation against canonical literature (Rumelhart/Hinton/
+Williams's generalized delta rule; Nielsen's *Neural Networks and Deep Learning*, whose BP1-BP4
+equations `backprop_node.py`'s forward/backward math matches essentially exactly - confirmed
+both by direct derivation and by this codebase's own independently hand-computed, pinned
+regression tests) found the core math correct, but flagged one deliberate deviation:
+`MultiClassBackpropClassifierNetwork` treats multi-class classification as one-vs-rest -
+`class_count` independent sigmoid output nodes, each trained against a one-hot target with
+quadratic (MSE) loss via the same `BackpropNode.compute_output_delta` every binary network uses.
+The canonical treatment for a *mutually exclusive* multi-class target (exactly what digit
+classification is - one true label per image) is a softmax output layer with cross-entropy loss,
+where the delta simplifies to `activation - target` with no extra sigmoid-derivative factor.
+
+Checking every place this one-vs-rest choice is explained (the class's own docstring,
+`docs/structure.md`'s existing "multi-class" section) found only incidental reasons -
+"`compute_output_delta` needed no changes" - never an argument that one-vs-rest+MSE is the
+statistically right model for a mutually-exclusive target. That reads as an unexamined default,
+not a considered tradeoff, and was worth fixing.
+
+### why the ensemble is correctly out of scope
+
+`EnsembleBackpropClassifierNetwork`'s own one-vs-rest design (see "parallelizing MNIST
+training" above) is a *different*, independently measured tradeoff: removing the shared hidden
+layer entirely is what makes its 10 sub-networks genuinely trainable in separate processes with
+zero communication. Softmax reintroduces exactly the cross-output coupling that split was built
+to eliminate - applying it there would either do nothing (each sub-network has a single output
+node; softmax over one logit is a constant 1.0) or require sharing state across independently-
+trained processes, undoing the measured design. This re-alignment is scoped to
+`MultiClassBackpropClassifierNetwork` (the shared-hidden-layer sibling) only.
+
+### the architectural question, and why it turned out simple
+
+Softmax's cross-node coupling (`a_i = e^z_i / Σ_j e^z_j` needs every sibling's `z_j`) only
+affects the **forward** pass. Once every node's activation is computed, softmax+cross-entropy's
+delta is `activation - target` - a function of that node's own (already-joint) activation and
+its own target alone, exactly as per-node-independent as the one-vs-rest delta it replaces. So
+`BackpropNetworkBase`'s backward-pass plumbing (`_backward_hidden_layers`, `_apply_gradients`,
+`snapshot`/`restore`) needed zero changes. The only place genuinely needing whole-layer (not
+per-node) computation is the output layer's own `forward()`.
+
+That made this purely additive: two small extension points
+(`BackpropLayer._node_cls`, `BackpropNetworkBase.output_layer_cls`, both defaulting to the
+existing classes - zero behavior change for anything that doesn't override them), a new
+`SoftmaxOutputNode`/`SoftmaxOutputLayer` (`perceptron/model/softmax_output_layer.py`), and
+`SoftmaxMultiClassBackpropClassifierNetwork` (`perceptron/model/softmax_multiclass_backprop_classifier_network.py`)
+- which is a *single* class-attribute override (`output_layer_cls = SoftmaxOutputLayer`) on top
+of `MultiClassBackpropClassifierNetwork`, since every other method (`learn`, `_backward`,
+`randomize`, `randomized`, `snapshot`, `restore`, `save`, `load`) already worked polymorphically
+through `cls(...)`/`self.output_layer_cls` and needed no override at all.
+
+`MultiClassBackpropClassifierNetwork` itself is kept, completely unchanged - existing demos and
+already-saved models keep working, and it remains a legitimate, simpler reference point to
+contrast the softmax sibling against, the same way this codebase already keeps
+`EnsembleBackpropClassifierNetwork`'s differently-motivated design alongside both.
+
+### measured comparison
+
+Same architecture, same seed, same everything except the output layer/loss, trained on the full
+bundled UCI digits set (1797 samples, 80/20 split, matching `demo_uci_digit_recognition.py`'s
+own 32-node hidden layer / 30 epochs / learning_rate=0.5):
+
+| | training accuracy | best epoch | held-out test accuracy |
+|---|---|---|---|
+| one-vs-rest (MSE) | 99.51% | 22/30 | 95.54% |
+| softmax (cross-entropy) | 100.00% | 11/30 | 96.94% |
+
+Softmax reached full training accuracy in about half the epochs and generalized slightly better
+on this run. Not a claim that softmax is *always* better - 1797 samples is small, and one seeded
+A/B run isn't a statistically powered comparison - but real, reproducible evidence it isn't worse
+here, on top of the semantic correctness win (`predict_probabilities()` now genuinely sums to
+1.0, unlike one-vs-rest's independent sigmoids) and avoiding quadratic loss's documented
+"learning slowdown" pathology (a confidently-wrong, saturated sigmoid neuron produces a tiny
+gradient exactly when the error is largest; cross-entropy's `activation - target` delta doesn't).
+
+### deferred: the binary case
+
+`BackpropClassifierNetwork` (used directly, and inside every `EnsembleBackpropClassifierNetwork`
+sub-network) still uses quadratic loss for genuinely binary classification. The canonical fix
+there is *binary* cross-entropy, not softmax - it collapses to the same clean `activation -
+target` delta for a single sigmoid unit. That's a separate, much larger-blast-radius change
+(every binary backprop demo and test in this codebase depends on `BackpropClassifierNetwork`'s
+current behavior) and was deliberately left out of this re-alignment.
