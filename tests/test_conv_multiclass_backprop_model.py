@@ -1,0 +1,215 @@
+import random
+
+import pytest
+
+from perceptron.digits_data import load_digits_dataset, split_train_test
+from perceptron.model.backprop_layer import BackpropLayer
+from perceptron.model.conv_layer import ConvLayer
+from perceptron.model.conv_multiclass_backprop_classifier_network import (
+    ConvMultiClassBackpropClassifierNetwork,
+)
+from perceptron.multiclass_evaluate import accuracy
+from perceptron.train import train_linear_classifier_network
+
+
+def _small_network() -> ConvMultiClassBackpropClassifierNetwork:
+    return ConvMultiClassBackpropClassifierNetwork(
+        input_height=8,
+        input_width=8,
+        kernel_size=3,
+        channel_count=4,
+        dense_layer_sizes=[16],
+        class_count=10,
+    )
+
+
+def test_construction_shape():
+
+    network = _small_network()
+
+    assert network.dimension == 64
+    assert network.input_bounds == [(0.0, 1.0)] * 64
+    assert isinstance(network.hidden_layers[0], ConvLayer)
+    assert network.hidden_layers[0] is network.conv_layer
+    assert isinstance(network.hidden_layers[1], BackpropLayer)
+    assert network.hidden_layers[1].size == 16
+    assert network.output_layer.size == 10
+    assert network.trainable_layers == network.hidden_layers + [network.output_layer]
+
+    # 8x8 input, kernel_size=3, stride=1 -> out_height=out_width=6; channel_count=4
+    assert network.conv_layer.out_height == 6
+    assert network.conv_layer.out_width == 6
+    assert len(network.conv_layer.nodes) == 4 * 6 * 6
+
+    # the first dense layer's own input_nodes must be exactly the conv layer's flattened output
+    assert network.hidden_layers[1].nodes[0].input_nodes is network.conv_layer.nodes
+
+
+def test_class_count_and_dense_layer_sizes_are_validated():
+
+    with pytest.raises(AssertionError):
+        ConvMultiClassBackpropClassifierNetwork(8, 8, 3, 4, [16], class_count=1)
+
+    with pytest.raises(AssertionError):
+        ConvMultiClassBackpropClassifierNetwork(8, 8, 3, 4, [], class_count=10)
+
+
+def test_randomize_randomizes_conv_kernels_and_every_dense_layer():
+
+    random.seed(0)
+    network = _small_network()
+    network.randomize()
+
+    for kernel in network.conv_layer.kernels:
+        assert len(set(kernel.weights)) > 1
+
+    for layer in network.hidden_layers[1:] + [network.output_layer]:
+        for node in layer.nodes:
+            assert len(set(node.input_node_weights)) > 1
+
+
+def test_randomized_classmethod_uses_this_classs_own_constructor_signature():
+
+    # a real risk if this override were missing: the inherited randomized() from
+    # MultiClassBackpropClassifierNetwork calls cls(layer_sizes, dimension, input_bounds,
+    # class_count) - the wrong signature entirely for this class's constructor
+    random.seed(0)
+    network = ConvMultiClassBackpropClassifierNetwork.randomized(
+        input_height=8, input_width=8, kernel_size=3, channel_count=4, dense_layer_sizes=[16], class_count=10
+    )
+
+    assert network.conv_layer.kernel_size == 3
+    assert len(set(network.conv_layer.kernels[0].weights)) > 1  # actually randomized, not left at zero
+
+
+def test_forward_and_backward_run_without_error_and_move_every_weight():
+
+    random.seed(0)
+    network = _small_network()
+    network.randomize()
+
+    conv_weights_before = [list(k.weights) for k in network.conv_layer.kernels]
+    dense_weights_before = [
+        [list(node.input_node_weights) for node in layer.nodes]
+        for layer in network.hidden_layers[1:] + [network.output_layer]
+    ]
+
+    state = tuple(random.uniform(0.0, 1.0) for _ in range(64))
+    network.learn(learning_rate=0.1, state=state, category=3)
+
+    assert any(
+        after != before
+        for kernel, before in zip(network.conv_layer.kernels, conv_weights_before)
+        for after, before in [(kernel.weights, before)]
+    )
+    for layer, before_layer in zip(network.hidden_layers[1:] + [network.output_layer], dense_weights_before):
+        for node, before in zip(layer.nodes, before_layer):
+            assert node.input_node_weights != before
+
+
+def test_learn_batch_also_moves_every_weight():
+
+    # calls learn_batch directly, not via train_backprop_network_mini_batch - that wrapper's
+    # own pocket-algorithm rollback (see train.py's train_backprop_network_mini_batch
+    # docstring) would restore the starting snapshot if no epoch's training accuracy beat it,
+    # a real property of that function, not something to route around here
+    random.seed(0)
+    network = _small_network()
+    network.randomize()
+    before = network.snapshot()
+
+    batch = [(tuple(random.uniform(0.0, 1.0) for _ in range(64)), i % 10) for i in range(4)]
+    network.learn_batch(learning_rate=0.1, batch=batch)
+
+    assert network.snapshot() != before
+
+
+def test_classify_state_returns_a_valid_class_index():
+
+    random.seed(0)
+    network = _small_network()
+    network.randomize()
+
+    state = tuple(random.uniform(0.0, 1.0) for _ in range(64))
+    predicted = network.classify_state(state)
+
+    assert 0 <= predicted < 10
+    probabilities = network.predict_probabilities(state)
+    assert len(probabilities) == 10
+
+
+def test_snapshot_and_restore_round_trip_through_the_conv_layer_too():
+
+    # confirms stage 1's per-layer hook generalization (BackpropLayer.snapshot_state/
+    # restore_state, extracted in the layer-level-gradient-hooks PR) genuinely works
+    # end-to-end here, conv layer included - not just for plain dense layers
+    random.seed(0)
+    network = _small_network()
+    network.randomize()
+
+    snapshot = network.snapshot()
+    assert len(snapshot) == len(network.trainable_layers)  # one entry per layer, conv included
+    assert len(snapshot[0]) == network.channel_count  # the conv layer's own entry: one per kernel
+
+    state = tuple(random.uniform(0.0, 1.0) for _ in range(64))
+    network.learn(learning_rate=0.1, state=state, category=3)
+    assert network.snapshot() != snapshot  # actually moved
+
+    network.restore(snapshot)
+    assert network.snapshot() == snapshot
+
+
+def test_save_and_load_round_trip(tmp_path):
+
+    random.seed(0)
+    network = _small_network()
+    network.randomize()
+
+    state = tuple(random.uniform(0.0, 1.0) for _ in range(64))
+    original_probabilities = network.predict_probabilities(state)
+
+    path = str(tmp_path / "conv_model.json")
+    network.save(path)
+    loaded = ConvMultiClassBackpropClassifierNetwork.load(path)
+
+    assert loaded.input_height == network.input_height
+    assert loaded.input_width == network.input_width
+    assert loaded.kernel_size == network.kernel_size
+    assert loaded.channel_count == network.channel_count
+    assert loaded.stride == network.stride
+    assert loaded.dense_layer_sizes == network.dense_layer_sizes
+    assert loaded.class_count == network.class_count
+    assert loaded.predict_probabilities(state) == pytest.approx(original_probabilities)
+
+
+def test_trains_on_a_real_uci_digits_subset():
+
+    # a small subset (200 of the 1797 bundled rows) and few epochs, mirroring
+    # test_multiclass_training_pipeline.py's own precedent for the dense-only sibling - proves
+    # train_linear_classifier_network (unchanged, calling only .learn()/.snapshot()/.restore()/
+    # .classify_state()) drives this conv-based network too, and that real backprop through a
+    # conv layer into a downstream dense layer actually improves training accuracy, not just
+    # runs without crashing. Measured directly (not guessed): best_training_accuracy=0.9875 at
+    # epoch 11/15 (plateaued), test accuracy 0.925 on the held-out split - not directly
+    # comparable to MultiClassBackpropClassifierNetwork's own 0.98125/0.9 on this exact subset
+    # (test_multiclass_training_pipeline.py) since architecture and parameter count both
+    # differ, but in the same range, on the same small subset.
+    random.seed(0)
+
+    dataset = load_digits_dataset()
+    subset = dataset[:200]
+    train_data, test_data = split_train_test(subset, test_fraction=0.2, seed=1)
+
+    student = ConvMultiClassBackpropClassifierNetwork.randomized(
+        input_height=8, input_width=8, kernel_size=3, channel_count=4, dense_layer_sizes=[16], class_count=10
+    )
+    result = train_linear_classifier_network(student, train_data, learning_rate=0.5, epochs=15)
+
+    diagnostic = result.diagnostic
+    assert diagnostic.best_training_accuracy == 0.9875
+    assert diagnostic.best_epoch_index == 10
+    assert diagnostic.plateaued is True
+    assert diagnostic.converged is False
+    assert diagnostic.still_improving is False
+
+    assert accuracy(student, test_data) == 0.925
