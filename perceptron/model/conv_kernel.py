@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import math
-import random
 from typing import Sequence
+
+from perceptron.model.backprop_network_base import fan_in_aware_weights_and_bias
 
 
 class ConvKernel:
@@ -50,14 +50,11 @@ class ConvKernel:
         self._bias_gradient_accum: float = 0.0
 
     def randomize_fan_in_aware(self) -> None:
-        # limit = 1/sqrt(fan_in), the same formula as randomize_fan_in_aware
-        # (backprop_network_base.py) - a kernel's own fan-in is exactly its receptive field
-        # size (kernel_size**2 * in_channels), not the whole previous layer's size, since every
-        # weight only ever multiplies one of that many input values
-        fan_in = len(self.weights)
-        limit = 1.0 / math.sqrt(fan_in)
-        self.weights = [random.uniform(-limit, limit) for _ in range(fan_in)]
-        self.bias = random.uniform(-limit, limit)
+        # fan_in_aware_weights_and_bias (backprop_network_base.py) - a kernel's own fan-in is
+        # exactly its receptive field size (kernel_size**2 * in_channels), not the whole
+        # previous layer's size, since every weight only ever multiplies one of that many input
+        # values
+        self.weights, self.bias = fan_in_aware_weights_and_bias(len(self.weights))
 
     def accumulate_gradient(self, delta: float, receptive_field_values: Sequence[float]) -> None:
         assert len(receptive_field_values) == len(self.weights)

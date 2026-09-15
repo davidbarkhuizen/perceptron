@@ -95,6 +95,20 @@ class BackpropNetworkBase:
             layer.restore_state(layer_snapshot)
 
 
+def fan_in_aware_weights_and_bias(fan_in: int) -> tuple[list[float], float]:
+    """
+    Draws fan_in weights plus one bias uniformly from [-limit, limit], limit = 1/sqrt(fan_in) -
+    the shared core of every fan-in-aware initialization scheme in this codebase: dense layers
+    below (randomize_fan_in_aware), ConvKernel.randomize_fan_in_aware (conv_kernel.py), and
+    ConvMultiClassBackpropClassifierNetwork.randomize's own dense tail
+    (conv_multiclass_backprop_classifier_network.py) - one formula, one place to change it.
+    """
+    limit = 1.0 / math.sqrt(fan_in)
+    weights = [random.uniform(-limit, limit) for _ in range(fan_in)]
+    bias = random.uniform(-limit, limit)
+    return weights, bias
+
+
 def randomize_fan_in_aware(network: BackpropNetworkBase) -> None:
     """
     Fan-in-aware weight/bias initialization (limit = 1/sqrt(fan_in) per layer) - each weight
@@ -116,8 +130,8 @@ def randomize_fan_in_aware(network: BackpropNetworkBase) -> None:
 
     previous_size = network.dimension
     for layer in network.trainable_layers:
-        limit = 1.0 / math.sqrt(previous_size)
         for node in layer.nodes:
-            node.update_input_weights([random.uniform(-limit, limit) for _ in range(previous_size)])
-            node.bias = random.uniform(-limit, limit)
+            weights, bias = fan_in_aware_weights_and_bias(previous_size)
+            node.update_input_weights(weights)
+            node.bias = bias
         previous_size = layer.size
