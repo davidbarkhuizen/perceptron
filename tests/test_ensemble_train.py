@@ -12,6 +12,7 @@ from perceptron.ensemble_train import (
     train_ensemble_parallel,
     train_ensemble_parallel_from_indices,
 )
+from perceptron.geometry import square_bounds
 
 
 def _synthetic_dataset(counts: dict[int, int]) -> list[tuple[tuple[float, ...], int]]:
@@ -173,15 +174,58 @@ def _synthetic_multiclass_dataset() -> list[tuple[tuple[float, float], int]]:
     return dataset
 
 
+def _train_synthetic(
+    dataset: list[tuple[tuple[float, float], int]],
+    bounds: list[tuple[float, float]],
+    *,
+    epochs: int,
+    seed: int | None,
+):
+    # the fixed class_count/layer_sizes/dimension/learning_rate/worker_count every test in this
+    # file trains the synthetic 3-cluster dataset with - only epochs/seed actually vary per test
+    return train_ensemble_parallel(
+        dataset,
+        class_count=3,
+        layer_sizes=[4],
+        dimension=2,
+        input_bounds=bounds,
+        learning_rate=0.5,
+        epochs=epochs,
+        worker_count=2,
+        seed=seed,
+    )
+
+
+def _train_synthetic_from_indices(
+    path: str,
+    labels: list[int],
+    bounds: list[tuple[float, float]],
+    *,
+    epochs: int,
+    seed: int | None,
+):
+    # the index-based counterpart to _train_synthetic, same fixed parameter set
+    return train_ensemble_parallel_from_indices(
+        path,
+        load_test_records_at_indices,
+        labels,
+        class_count=3,
+        layer_sizes=[4],
+        dimension=2,
+        input_bounds=bounds,
+        learning_rate=0.5,
+        epochs=epochs,
+        worker_count=2,
+        seed=seed,
+    )
+
+
 def test_train_ensemble_parallel_produces_a_working_ensemble():
 
     dataset = _synthetic_multiclass_dataset()
-    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+    bounds = square_bounds(10.0)
 
-    ensemble, diagnostics = train_ensemble_parallel(
-        dataset, class_count=3, layer_sizes=[4], dimension=2, input_bounds=bounds,
-        learning_rate=0.5, epochs=5, worker_count=2, seed=0,
-    )
+    ensemble, diagnostics = _train_synthetic(dataset, bounds, epochs=5, seed=0)
 
     assert ensemble.class_count == 3
     assert set(diagnostics.keys()) == {0, 1, 2}
@@ -204,12 +248,9 @@ def test_train_ensemble_parallel_gives_each_worker_independent_initial_weights()
     # since post-training divergence from each sub-network's different binary dataset masked
     # the identical initial weights)
     dataset = _synthetic_multiclass_dataset()
-    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+    bounds = square_bounds(10.0)
 
-    ensemble, _ = train_ensemble_parallel(
-        dataset, class_count=3, layer_sizes=[4], dimension=2, input_bounds=bounds,
-        learning_rate=0.5, epochs=0, worker_count=2, seed=0,
-    )
+    ensemble, _ = _train_synthetic(dataset, bounds, epochs=0, seed=0)
 
     weight_sets = [
         tuple(classifier.hidden_layers[0].nodes[0].input_node_weights) for classifier in ensemble.classifiers
@@ -220,16 +261,10 @@ def test_train_ensemble_parallel_gives_each_worker_independent_initial_weights()
 def test_train_ensemble_parallel_is_reproducible_under_a_fixed_seed():
 
     dataset = _synthetic_multiclass_dataset()
-    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+    bounds = square_bounds(10.0)
 
-    ensemble_a, _ = train_ensemble_parallel(
-        dataset, class_count=3, layer_sizes=[4], dimension=2, input_bounds=bounds,
-        learning_rate=0.5, epochs=3, worker_count=2, seed=7,
-    )
-    ensemble_b, _ = train_ensemble_parallel(
-        dataset, class_count=3, layer_sizes=[4], dimension=2, input_bounds=bounds,
-        learning_rate=0.5, epochs=3, worker_count=2, seed=7,
-    )
+    ensemble_a, _ = _train_synthetic(dataset, bounds, epochs=3, seed=7)
+    ensemble_b, _ = _train_synthetic(dataset, bounds, epochs=3, seed=7)
 
     assert ensemble_a.snapshot() == ensemble_b.snapshot()
 
@@ -240,12 +275,9 @@ def test_train_ensemble_parallel_from_indices_produces_a_working_ensemble(tmp_pa
     labels = [label for _, label in dataset]
     path = str(tmp_path / "records.pkl")
     write_test_records(path, dataset)
-    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+    bounds = square_bounds(10.0)
 
-    ensemble, diagnostics = train_ensemble_parallel_from_indices(
-        path, load_test_records_at_indices, labels, class_count=3, layer_sizes=[4], dimension=2,
-        input_bounds=bounds, learning_rate=0.5, epochs=5, worker_count=2, seed=0,
-    )
+    ensemble, diagnostics = _train_synthetic_from_indices(path, labels, bounds, epochs=5, seed=0)
 
     assert ensemble.class_count == 3
     assert set(diagnostics.keys()) == {0, 1, 2}
@@ -264,16 +296,10 @@ def test_train_ensemble_parallel_from_indices_matches_the_fully_decoded_path(tmp
     labels = [label for _, label in dataset]
     path = str(tmp_path / "records.pkl")
     write_test_records(path, dataset)
-    bounds = [(-10.0, 10.0), (-10.0, 10.0)]
+    bounds = square_bounds(10.0)
 
-    indexed_ensemble, _ = train_ensemble_parallel_from_indices(
-        path, load_test_records_at_indices, labels, class_count=3, layer_sizes=[4], dimension=2,
-        input_bounds=bounds, learning_rate=0.5, epochs=3, worker_count=2, seed=7,
-    )
-    direct_ensemble, _ = train_ensemble_parallel(
-        dataset, class_count=3, layer_sizes=[4], dimension=2, input_bounds=bounds,
-        learning_rate=0.5, epochs=3, worker_count=2, seed=7,
-    )
+    indexed_ensemble, _ = _train_synthetic_from_indices(path, labels, bounds, epochs=3, seed=7)
+    direct_ensemble, _ = _train_synthetic(dataset, bounds, epochs=3, seed=7)
 
     assert indexed_ensemble.snapshot() == direct_ensemble.snapshot()
 
