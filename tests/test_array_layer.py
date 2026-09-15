@@ -187,3 +187,99 @@ def test_compute_hidden_delta_batch_matches_per_row_single_example_results_stack
     hidden_layer.compute_hidden_delta_batch(next_layer)
 
     assert np.allclose(hidden_layer.delta_batch, expected, rtol=1e-9, atol=1e-12)
+
+
+def test_accumulate_then_apply_at_batch_size_one_matches_backprop_node_across_a_random_sweep():
+
+    rng = random.Random(7)
+    dimension = 5
+    size = 4
+
+    for _ in range(100):
+        state_layer = StateLayer(dimension, [(-10.0, 10.0)] * dimension)
+        backprop_layer = BackpropLayer(size, state_layer)
+
+        for node in backprop_layer.nodes:
+            node.update_input_weights([rng.uniform(-3.0, 3.0) for _ in range(dimension)])
+            node.bias = rng.uniform(-3.0, 3.0)
+            node.delta = rng.uniform(-5.0, 5.0)
+
+        x = [rng.uniform(-10.0, 10.0) for _ in range(dimension)]
+        state_layer.update_state(tuple(x))
+        learning_rate = rng.uniform(0.001, 1.0)
+
+        array_layer = _snapshot_to_array_layer(backprop_layer)
+        array_layer.delta = np.array([node.delta for node in backprop_layer.nodes])
+
+        for node in backprop_layer.nodes:
+            node.accumulate_gradient()
+            node.apply_accumulated_gradient(learning_rate, batch_size=1)
+        array_layer.accumulate_gradient(np.array(x))
+        array_layer.apply_accumulated_gradient(learning_rate, batch_size=1)
+
+        expected_W = np.array([node.input_node_weights for node in backprop_layer.nodes])
+        expected_b = np.array([node.bias for node in backprop_layer.nodes])
+
+        assert np.allclose(array_layer.W, expected_W, rtol=1e-9, atol=1e-12)
+        assert np.allclose(array_layer.b, expected_b, rtol=1e-9, atol=1e-12)
+
+
+def test_accumulate_across_a_batch_then_apply_matches_backprop_node_across_a_random_sweep():
+
+    # multiple examples accumulated (different input, different delta each time) before any
+    # weight is written, then one apply at batch_size>1 - mirrors mini-batch gradient descent's
+    # own accumulate/apply split (see tests/test_gradient_accumulation.py's batched cases)
+    rng = random.Random(8)
+    dimension = 4
+    size = 3
+    batch_size = 6
+
+    state_layer = StateLayer(dimension, [(-10.0, 10.0)] * dimension)
+    backprop_layer = BackpropLayer(size, state_layer)
+    for node in backprop_layer.nodes:
+        node.update_input_weights([rng.uniform(-3.0, 3.0) for _ in range(dimension)])
+        node.bias = rng.uniform(-3.0, 3.0)
+
+    array_layer = _snapshot_to_array_layer(backprop_layer)
+    learning_rate = rng.uniform(0.001, 1.0)
+
+    examples = [
+        ([rng.uniform(-10.0, 10.0) for _ in range(dimension)], [rng.uniform(-5.0, 5.0) for _ in range(size)])
+        for _ in range(batch_size)
+    ]
+
+    for x, deltas in examples:
+        state_layer.update_state(tuple(x))
+        for node, delta in zip(backprop_layer.nodes, deltas):
+            node.delta = delta
+            node.accumulate_gradient()
+
+        array_layer.delta = np.array(deltas)
+        array_layer.accumulate_gradient(np.array(x))
+
+    for node in backprop_layer.nodes:
+        node.apply_accumulated_gradient(learning_rate, batch_size)
+    array_layer.apply_accumulated_gradient(learning_rate, batch_size)
+
+    expected_W = np.array([node.input_node_weights for node in backprop_layer.nodes])
+    expected_b = np.array([node.bias for node in backprop_layer.nodes])
+
+    assert np.allclose(array_layer.W, expected_W, rtol=1e-9, atol=1e-12)
+    assert np.allclose(array_layer.b, expected_b, rtol=1e-9, atol=1e-12)
+
+
+def test_apply_accumulated_gradient_resets_the_accumulator():
+
+    array_layer = ArrayLayer(2, 3)
+    array_layer.delta = np.array([0.2, -0.1])
+    array_layer.accumulate_gradient(np.array([1.0, 1.0, 1.0]))
+    array_layer.apply_accumulated_gradient(0.1, batch_size=1)
+
+    weights_after_first_apply = array_layer.W.copy()
+    bias_after_first_apply = array_layer.b.copy()
+
+    # a second apply with nothing accumulated in between must be a no-op
+    array_layer.apply_accumulated_gradient(0.1, batch_size=1)
+
+    assert np.array_equal(array_layer.W, weights_after_first_apply)
+    assert np.array_equal(array_layer.b, bias_after_first_apply)
