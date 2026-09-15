@@ -2,11 +2,14 @@
 
 [← back to README](../README.md)
 
-Analysis and workplan only - not a decision to build anything here, and nothing in
-`perceptron/` changes as a result of this document. `docs/structure.md`'s "possible next
-steps" flags NumPy vectorization as a values question ("no ML framework dependency,
-everything hand-built" is this repo's own stated identity) rather than a recommendation; this
-document, and the three it links to below, are the detailed analysis behind that flag.
+Originally analysis and workplan only. Document 1's build has since been greenlit and completed
+(numpy-array-backed classes now exist in `perceptron/`, purely additively - see its own "measured
+results"); documents 2 and 3 remain analysis and workplan only, not a decision to build. See
+"decision: not made here" below for exactly what is, and isn't, decided.
+`docs/structure.md`'s "possible next steps" flags NumPy vectorization as a values question
+("no ML framework dependency, everything hand-built" is this repo's own stated identity) rather
+than a recommendation; this document, and the three it links to below, are the detailed analysis
+behind that flag.
 
 ## why not just adopt real NumPy
 
@@ -67,10 +70,28 @@ learning-rate-vs-batch-size follow-up the mini-batch momentum retest's own confo
 (see [structure](structure.md#possible-next-steps)), from a logistical constraint worth
 scheduling to something fast enough to iterate on interactively.
 
+**Update - real, not extrapolated, measurement now exists.** [Document 1](vectorized-array-classes.md#measured-results)'s
+build has been completed and run end to end against real numpy (not yet the Rust core above -
+that swap is still undecided): one full real-MNIST epoch (`[30]`-hidden-layer architecture,
+batch-size-1 SGD, the practical case, not a forward-pass-only microbenchmark) measured
+**33.87x**, landing inside this section's own 15-45x practical-win range. That real run's
+pure-Python side took 18.45 minutes (`learn()` plus the same run's own end-of-epoch training-
+accuracy pass), not this section's "~4.0 minutes" - flagged here rather than silently left
+stale, since re-checking a documented estimate against a real measurement once one exists is
+this codebase's own convention (`docs/research-and-analysis.md`'s own ~12.5-minutes/epoch figure
+for the identical architecture is closer, though still not identical, likely because it excludes
+that same end-of-epoch accuracy pass). The vectorized side measured 32.7s for the whole epoch -
+above this section's own "under 15 seconds" extrapolation, but still a 33.87x real speedup, and
+still the difference between an epoch fitting inside a coffee break and one taking most of a
+half hour.
+
 ## decision: not made here
 
-Whether to pursue any of this - vs. plain `numpy` (permanently, not just as document 1's
-prototyping vehicle), vs. leaving the codebase pure Python - remains the explicitly flagged,
-undecided question in [structure](structure.md#possible-next-steps): any array-library
-dependency, hand-built or adopted, temporary or permanent, is a deliberate choice for whoever
-maintains this repo, not something to assume is wanted just because it would be faster.
+Document 1's own build has since been greenlit and completed (see its "measured results") - that
+narrow decision (build and prove out the array-based classes, against real numpy, as a scoped
+prototyping vehicle) is no longer open. What's still explicitly undecided: whether `numpy`
+becomes more than that prototyping vehicle (a permanent dependency), vs. swapping to
+[the Rust core](rust-array-core.md), vs. reverting to pure Python - the question
+[structure](structure.md#possible-next-steps) raises for vectorization as a whole. Any of those
+is a deliberate choice for whoever maintains this repo, not something to assume is wanted just
+because it would be faster.

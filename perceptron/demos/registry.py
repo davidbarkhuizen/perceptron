@@ -163,6 +163,23 @@ DEMOS: list[DemoInfo] = [
         ),
     ),
     DemoInfo(
+        module="perceptron.demos.demo_vectorized_mnist_recognition",
+        title="Vectorized MNIST recognition (numpy)",
+        summary="One real epoch on full MNIST, pure-Python vs. numpy-array-backed - accuracy and wall-clock.",
+        description=(
+            "Vectorization phase-1 validation at real MNIST scale (docs/vectorized-array-classes.md). "
+            "Headless, console-only - trains MultiClassBackpropClassifierNetwork and "
+            "VectorizedMultiClassBackpropClassifierNetwork for one real epoch each over the full 60000-example "
+            "MNIST training set (same 30-node-hidden-layer architecture docs/research-and-analysis.md's own "
+            "~12.5-minutes/epoch pure-Python baseline used, so the pure-Python number here is directly "
+            "comparable to that already-documented figure), then reports each one's test accuracy and "
+            "wall-clock epoch time side by side - the real, measured number behind "
+            "docs/vectorized-array-classes.md's own extrapolated speedup ceiling. Also times "
+            "load_mnist_dataset_as_array's bulk-decode against load_mnist_dataset's tuple-per-example decode "
+            "on the same file. Takes on the order of 15-20 minutes to run (mostly the pure-Python epoch)."
+        ),
+    ),
+    DemoInfo(
         module="perceptron.demos.demo_mnist_ensemble_capture",
         title="MNIST ensemble capture",
         summary="Interactive mouse-painted digit capture, classified live by the MNIST ensemble model.",
