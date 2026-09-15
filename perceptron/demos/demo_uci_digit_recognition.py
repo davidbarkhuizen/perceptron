@@ -5,7 +5,7 @@ matplotlib.use("TkAgg")
 from matplotlib import pyplot
 
 from perceptron.digits_data import load_digits_dataset, split_train_test
-from perceptron.graphics.chart import new_axes, new_figure, plot_confusion_matrix, plot_sample_predictions
+from perceptron.graphics.chart import new_axes, new_confusion_matrix_figure, new_figure, sample_predictions_figure
 from perceptron.model.multiclass_backprop_classifier_network import MultiClassBackpropClassifierNetwork
 from perceptron.multiclass_evaluate import accuracy, confusion_matrix
 from perceptron.train import train_linear_classifier_network
@@ -54,16 +54,9 @@ def main() -> None:
     training_curve_axes.set_xlabel("epoch")
     training_curve_axes.set_ylabel("training accuracy")
 
-    confusion_figure = new_figure("digit recognition: confusion matrix (test set)")
-    confusion_axes = new_axes(confusion_figure, scaled=False)
-    plot_confusion_matrix(confusion_axes, matrix)
+    new_confusion_matrix_figure("digit recognition: confusion matrix (test set)", matrix)
 
-    sample_count = min(16, len(test_data))
-    samples = [
-        (state, student.classify_state(state), true_label) for state, true_label in test_data[:sample_count]
-    ]
-    samples_figure = new_figure("digit recognition: sample test predictions")
-    plot_sample_predictions(samples_figure, samples)
+    sample_predictions_figure("digit recognition: sample test predictions", test_data, student.classify_state)
 
     pyplot.show()
 
