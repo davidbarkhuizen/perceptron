@@ -1,6 +1,6 @@
 import pytest
 
-from helpers import assert_randomize_breaks_symmetry
+from helpers import assert_randomize_breaks_symmetry, assert_snapshot_restore_round_trip
 from perceptron.geometry import square_bounds
 from perceptron.model.momentum_backprop_classifier_network import MomentumBackpropClassifierNetwork
 
@@ -85,13 +85,4 @@ def test_randomize_breaks_symmetry_between_nodes_in_the_same_layer():
 def test_snapshot_and_restore_round_trip():
 
     network = MomentumBackpropClassifierNetwork.randomized([3, 2], 2, square_bounds(10.0), momentum=0.5)
-    before = network.snapshot()
-
-    for _ in range(5):
-        network.learn(0.1, (1.0, -2.0), 1.0)
-
-    assert network.snapshot() != before
-
-    network.restore(before)
-
-    assert network.snapshot() == before
+    assert_snapshot_restore_round_trip(network, lambda: network.learn(0.1, (1.0, -2.0), 1.0))

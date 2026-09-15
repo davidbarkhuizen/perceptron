@@ -1,6 +1,6 @@
 import pytest
 
-from helpers import assert_randomize_breaks_symmetry
+from helpers import assert_randomize_breaks_symmetry, assert_snapshot_restore_round_trip
 from perceptron.geometry import square_bounds
 from perceptron.model.softmax_multiclass_backprop_classifier_network import (
     SoftmaxMultiClassBackpropClassifierNetwork,
@@ -90,16 +90,7 @@ def test_randomize_breaks_symmetry_between_nodes_in_the_same_layer():
 def test_snapshot_and_restore_round_trip():
 
     network = SoftmaxMultiClassBackpropClassifierNetwork.randomized([3, 2], 2, square_bounds(10.0), 4)
-    before = network.snapshot()
-
-    for _ in range(5):
-        network.learn(0.1, (1.0, -2.0), 2)
-
-    assert network.snapshot() != before
-
-    network.restore(before)
-
-    assert network.snapshot() == before
+    assert_snapshot_restore_round_trip(network, lambda: network.learn(0.1, (1.0, -2.0), 2))
 
 
 def test_save_and_load_round_trip(tmp_path):

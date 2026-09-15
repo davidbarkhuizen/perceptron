@@ -1,5 +1,6 @@
 import pytest
 
+from helpers import assert_snapshot_restore_round_trip
 from perceptron.model.backprop_classifier_network import BackpropClassifierNetwork
 from perceptron.model.ensemble_backprop_classifier_network import EnsembleBackpropClassifierNetwork
 
@@ -56,17 +57,12 @@ def test_snapshot_and_restore_round_trip():
     ensemble = EnsembleBackpropClassifierNetwork(
         [BackpropClassifierNetwork.randomized([3], 2, [(-10.0, 10.0), (-10.0, 10.0)]) for _ in range(3)]
     )
-    before = ensemble.snapshot()
 
-    for classifier in ensemble.classifiers:
-        for _ in range(5):
+    def step():
+        for classifier in ensemble.classifiers:
             classifier.learn(0.1, (1.0, -2.0), 1.0)
 
-    assert ensemble.snapshot() != before
-
-    ensemble.restore(before)
-
-    assert ensemble.snapshot() == before
+    assert_snapshot_restore_round_trip(ensemble, step)
 
 
 def test_save_and_load_round_trip(tmp_path):
