@@ -99,8 +99,9 @@ Grounded in the actual current implementation (`perceptron/model/backprop_node.p
   reproduce `learn()`'s current bit-for-bit output at `batch_size=1` before anything else is
   trusted - a random-weight/random-input sweep comparing old `apply_gradient` against new
   `accumulate_gradient` + `apply_accumulated_gradient(batch_size=1)`, for all three node
-  variants (plain, momentum, L2), the same discipline `vectorization.md`'s own numerical-risk
-  section applies to its Rust operations.
+  variants (plain, momentum, L2), the same discipline
+  [the Rust implementation plan](rust-array-core.md)'s own numerical-risk section applies to its
+  operations.
 - **Accumulation-order rounding.** Summing gradients across a batch in a Python loop may not
   associate identically to how a single-example update would (trivial at `batch_size=1`, a real
   question at `batch_size>1`) - the same category of float64 rounding-order issue that got an
@@ -116,12 +117,12 @@ Grounded in the actual current implementation (`perceptron/model/backprop_node.p
   under-penalize by a factor of `batch_size`. Worth its own explicit unit test, not just
   inference from the algebra.
 - **Averaging vs. summing changes the effective step size.** `grad / batch_size` (averaging,
-  matching `vectorization.md`'s own `grad_W = (delta_batch.T @ x_batch) / batch_size`) keeps
-  `learning_rate`'s meaning comparable to today's tuned per-example values as `batch_size`
-  varies; summing instead would make the effective step scale with `batch_size` and require
-  re-tuning `learning_rate` per batch size to compare fairly. This document picks averaging
-  for consistency with the vectorization workplan's own formula, but it's a real design
-  decision, not the only valid one.
+  matching [vectorized array-based model classes](vectorized-array-classes.md)'s own
+  `grad_W = (delta_batch.T @ X_batch) / batch_size`) keeps `learning_rate`'s meaning comparable
+  to today's tuned per-example values as `batch_size` varies; summing instead would make the
+  effective step scale with `batch_size` and require re-tuning `learning_rate` per batch size to
+  compare fairly. This document picks averaging for consistency with that workplan's own
+  formula, but it's a real design decision, not the only valid one.
 - **Momentum's own premise is what's being tested here, not assumed to now work.** The whole
   point of this workplan is to re-run momentum's measurement under lower-noise batch gradients
   - the outcome (does momentum help now?) is genuinely open, not a predetermined result to
@@ -135,10 +136,11 @@ Python object at a time; only the *timing* of the weight write changes (once per
 of once per example). No meaningful wall-clock speedup should be expected from this workplan
 on its own, and it may even be marginally slower (extra accumulator bookkeeping per example).
 The actual goal is unblocking the momentum retest above, plus laying groundwork that's a
-prerequisite for (but independent of) `vectorization.md`'s own batched design: that document's
-`grad_W = (delta_batch.T @ x_batch) / batch_size` only becomes a meaningful replacement once
-the training loop is already batch-shaped at the Python level - vectorizing an already-batched
-loop is a separate, later step, not something this workplan does itself.
+prerequisite for (but independent of)
+[vectorized array-based model classes](vectorized-array-classes.md)'s own batched design: that
+document's `grad_W = (delta_batch.T @ X_batch) / batch_size` only becomes a meaningful
+replacement once the training loop is already batch-shaped at the Python level - vectorizing an
+already-batched loop is a separate, later step, not something this workplan does itself.
 
 ## decision
 
@@ -214,10 +216,11 @@ gradients let momentum's literature-cited benefit show up here, rather than assu
 
 ### 7. what stays explicitly out of scope for this workplan
 
-- **Vectorized/batched matmul.** `grad_W = (delta_batch.T @ x_batch) / batch_size` and any
-  NumPy- or Rust-backed batch computation belong to `vectorization.md`'s own separate workplan
-  - this one is pure-Python, algorithmic-only, and produces the batch-shaped loop that
-  workplan would eventually replace the internals of.
+- **Vectorized/batched matmul.** `grad_W = (delta_batch.T @ X_batch) / batch_size` and any
+  NumPy- or Rust-backed batch computation belong to
+  [vectorized array-based model classes](vectorized-array-classes.md)'s own separate workplan -
+  this one is pure-Python, algorithmic-only, and produces the batch-shaped loop that workplan
+  would eventually replace the internals of.
 - **Changes to `ensemble_train.py`'s parallelization.** That pipeline is already parallel by
   class (one process per binary sub-classifier); mini-batching is an orthogonal, within-worker
   change to how each sub-classifier's own training loop is shaped, not a change to how workers
