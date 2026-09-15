@@ -124,6 +124,20 @@ DEMOS: list[DemoInfo] = [
         ),
     ),
     DemoInfo(
+        module="perceptron.demos.demo_vectorized_uci_digit_recognition",
+        title="Vectorized UCI digit recognition (numpy)",
+        summary="Trains pure-Python and numpy-array-backed networks on UCI digits; compares accuracy and wall-clock.",
+        description=(
+            "Vectorization phase-1 validation (docs/vectorized-array-classes.md). Trains "
+            "MultiClassBackpropClassifierNetwork and its numpy-array-backed sibling "
+            "VectorizedMultiClassBackpropClassifierNetwork on the same UCI digits split, at the same seed and "
+            "hyperparameters, reporting each one's measured training/test accuracy and wall-clock training "
+            "time side by side - the doc's own 'identical accuracy trajectory, honestly measured' claim, "
+            "checked here rather than assumed. Then plots both training-accuracy-by-epoch curves overlaid, "
+            "a confusion matrix, and sample test predictions for the vectorized network."
+        ),
+    ),
+    DemoInfo(
         module="perceptron.demos.demo_uci_digit_capture",
         title="UCI digit capture",
         summary="Interactive mouse-painted digit capture, classified live by the UCI digit-recognition model.",
