@@ -270,6 +270,21 @@ saturation at every node) once fan-in reaches the tens or hundreds, as it does f
 digit image. Also new: `save()`/`load()` (plain JSON) - trained-model persistence, so a trained
 network can be reused without retraining.
 
+`SoftmaxMultiClassBackpropClassifierNetwork` is an additive sibling of
+`MultiClassBackpropClassifierNetwork` using softmax + cross-entropy instead of one-vs-rest
+sigmoid + quadratic loss - the canonical treatment for a mutually-exclusive multi-class target
+like digit classification (see `docs/research-and-analysis.md`'s "softmax/cross-entropy
+re-alignment" entry for the full derivation and measured comparison). Structurally it's a single
+class-attribute override (`output_layer_cls = SoftmaxOutputLayer`, see
+`perceptron/model/softmax_output_layer.py`) - softmax's cross-node coupling only touches the
+forward pass (each node's activation needs every sibling's pre-activation `z`), so
+`BackpropNetworkBase`'s existing backward-pass plumbing needed no changes at all; the
+softmax+cross-entropy output delta (`activation - target`) is exactly as per-node-independent
+as `MultiClassBackpropClassifierNetwork`'s own one-vs-rest delta. `EnsembleBackpropClassifierNetwork`
+(below) is deliberately untouched by this - its own one-vs-rest design is a different,
+independently-motivated tradeoff (parallelizability across completely independent processes),
+not a literature-alignment gap.
+
 `digits_data.py` bundles a small, classic dataset - the UCI ML hand-written digits set (8x8
 pixel images, 10 classes, 1797 samples), extracted once, offline, from
 `sklearn.datasets.load_digits()` into `data/digits/digits.csv`. scikit-learn was only ever a
