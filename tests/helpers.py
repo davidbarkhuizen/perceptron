@@ -31,6 +31,22 @@ def assert_snapshot_restore_round_trip(network, step, times: int = 5) -> None:
     assert network.snapshot() == before
 
 
+def wire_fixed_single_hidden_node(network) -> None:
+    """
+    Shared single-hidden-node/single-output-node weight wiring behind every
+    *_backprop_model.py's own _fixed_network(): hidden weight=0.5, bias=0.1, output weight=0.8,
+    bias=-0.2 - the exact values test_backprop_model.py's own hand-computed forward/backward
+    tests derive their expected numbers from, reused by every sibling that needs the identical
+    starting point for a side-by-side comparison.
+    """
+    hidden_node = network.hidden_layers[0].nodes[0]
+    output_node = network.output_layer.nodes[0]
+    hidden_node.update_input_weights([0.5])
+    hidden_node.bias = 0.1
+    output_node.update_input_weights([0.8])
+    output_node.bias = -0.2
+
+
 def classifier_with_bounded_square_region(bounds: list[tuple[float, float]]) -> LinearClassifierNetwork:
 
     # positive region is exactly the square [-1, 1] x [-1, 1]: x > -1, x < 1, y > -1, y < 1

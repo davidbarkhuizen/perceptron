@@ -1,6 +1,6 @@
 import pytest
 
-from helpers import assert_randomize_breaks_symmetry, assert_snapshot_restore_round_trip
+from helpers import assert_randomize_breaks_symmetry, assert_snapshot_restore_round_trip, wire_fixed_single_hidden_node
 from perceptron.geometry import square_bounds
 from perceptron.model.backprop_classifier_network import BackpropClassifierNetwork
 from perceptron.model.l2_regularized_backprop_classifier_network import L2RegularizedBackpropClassifierNetwork
@@ -10,12 +10,7 @@ def _fixed_network(l2_lambda: float = 0.1) -> L2RegularizedBackpropClassifierNet
     # same dimension=1, one hidden node, one output node, and same starting weights as
     # test_backprop_model.py's own hand-computed fixture
     network = L2RegularizedBackpropClassifierNetwork([1], 1, [(-10.0, 10.0)], l2_lambda)
-    hidden_node = network.hidden_layers[0].nodes[0]
-    output_node = network.output_layer.nodes[0]
-    hidden_node.update_input_weights([0.5])
-    hidden_node.bias = 0.1
-    output_node.update_input_weights([0.8])
-    output_node.bias = -0.2
+    wire_fixed_single_hidden_node(network)
     return network
 
 
@@ -58,18 +53,15 @@ def test_l2_lambda_zero_matches_the_plain_sgd_sibling_bit_for_bit():
 
     l2_network = _fixed_network(l2_lambda=0.0)
     plain_network = BackpropClassifierNetwork([1], 1, [(-10.0, 10.0)])
-    plain_hidden = plain_network.hidden_layers[0].nodes[0]
-    plain_output = plain_network.output_layer.nodes[0]
-    plain_hidden.update_input_weights([0.5])
-    plain_hidden.bias = 0.1
-    plain_output.update_input_weights([0.8])
-    plain_output.bias = -0.2
+    wire_fixed_single_hidden_node(plain_network)
 
     l2_network.learn(0.1, (2.0,), 1.0)
     plain_network.learn(0.1, (2.0,), 1.0)
 
     l2_hidden = l2_network.hidden_layers[0].nodes[0]
     l2_output = l2_network.output_layer.nodes[0]
+    plain_hidden = plain_network.hidden_layers[0].nodes[0]
+    plain_output = plain_network.output_layer.nodes[0]
     assert l2_hidden.input_node_weights[0] == pytest.approx(plain_hidden.input_node_weights[0])
     assert l2_hidden.bias == pytest.approx(plain_hidden.bias)
     assert l2_output.input_node_weights[0] == pytest.approx(plain_output.input_node_weights[0])

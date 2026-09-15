@@ -1,6 +1,6 @@
 import pytest
 
-from helpers import assert_randomize_breaks_symmetry, assert_snapshot_restore_round_trip
+from helpers import assert_randomize_breaks_symmetry, assert_snapshot_restore_round_trip, wire_fixed_single_hidden_node
 from perceptron.geometry import square_bounds
 from perceptron.model.momentum_backprop_classifier_network import MomentumBackpropClassifierNetwork
 
@@ -9,12 +9,7 @@ def _fixed_network(momentum: float = 0.9) -> MomentumBackpropClassifierNetwork:
     # same dimension=1, one hidden node, one output node, and same starting weights as
     # test_backprop_model.py's own hand-computed fixture
     network = MomentumBackpropClassifierNetwork([1], 1, [(-10.0, 10.0)], momentum)
-    hidden_node = network.hidden_layers[0].nodes[0]
-    output_node = network.output_layer.nodes[0]
-    hidden_node.update_input_weights([0.5])
-    hidden_node.bias = 0.1
-    output_node.update_input_weights([0.8])
-    output_node.bias = -0.2
+    wire_fixed_single_hidden_node(network)
     return network
 
 

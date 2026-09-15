@@ -1,8 +1,17 @@
 import pytest
 
-from helpers import assert_randomize_breaks_symmetry, assert_snapshot_restore_round_trip
+from helpers import assert_randomize_breaks_symmetry, assert_snapshot_restore_round_trip, wire_fixed_single_hidden_node
 from perceptron.geometry import square_bounds
 from perceptron.model.backprop_classifier_network import BackpropClassifierNetwork
+
+
+def _fixed_network() -> BackpropClassifierNetwork:
+    # dimension=1, one hidden node, one output node - small enough to state the whole
+    # forward/backward pass exactly; every *_backprop_model.py sibling wires the identical
+    # starting weights (wire_fixed_single_hidden_node) for a side-by-side comparison
+    network = BackpropClassifierNetwork([1], 1, [(-10.0, 10.0)])
+    wire_fixed_single_hidden_node(network)
+    return network
 
 
 def test_layer_sizes_must_specify_at_least_one_hidden_layer():
@@ -41,13 +50,7 @@ def test_predict_probability_matches_a_hand_computed_forward_pass():
     # x=2.0: z_h=1.1, a_h=sigmoid(1.1)=0.7502601055951177, z_o=0.8*a_h-0.2=0.4002080844760941,
     # a_o=sigmoid(z_o)=0.5987376536170401 (independently computed, not re-derived from the
     # implementation under test).
-    network = BackpropClassifierNetwork([1], 1, [(-10.0, 10.0)])
-    hidden_node = network.hidden_layers[0].nodes[0]
-    output_node = network.output_layer.nodes[0]
-    hidden_node.update_input_weights([0.5])
-    hidden_node.bias = 0.1
-    output_node.update_input_weights([0.8])
-    output_node.bias = -0.2
+    network = _fixed_network()
 
     assert network.predict_probability((2.0,)) == pytest.approx(0.5987376536170401)
 
@@ -79,13 +82,9 @@ def test_learn_matches_the_backprop_update_rule_by_hand():
     # test): delta_o=-0.09640363012729687, delta_h=-0.014450509251916271, giving
     # new_w_h=0.5028901018503833, new_b_h=0.10144505092519163, new_w_o=0.8072327797719059,
     # new_b_o=-0.19035963698727032.
-    network = BackpropClassifierNetwork([1], 1, [(-10.0, 10.0)])
+    network = _fixed_network()
     hidden_node = network.hidden_layers[0].nodes[0]
     output_node = network.output_layer.nodes[0]
-    hidden_node.update_input_weights([0.5])
-    hidden_node.bias = 0.1
-    output_node.update_input_weights([0.8])
-    output_node.bias = -0.2
 
     network.learn(0.1, (2.0,), 1.0)
 

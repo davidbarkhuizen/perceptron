@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from helpers import assert_randomize_breaks_symmetry, assert_snapshot_restore_round_trip
+from helpers import assert_randomize_breaks_symmetry, assert_snapshot_restore_round_trip, wire_fixed_single_hidden_node
 from perceptron.geometry import square_bounds
 from perceptron.model.fan_in_aware_backprop_classifier_network import FanInAwareBackpropClassifierNetwork
 
@@ -13,12 +13,7 @@ def test_predict_probability_is_identical_to_the_default_init_sibling():
     # must produce exactly the same prediction as BackpropClassifierNetwork's own hand-computed
     # forward-pass test (test_backprop_model.py::test_predict_probability_matches_a_hand_computed_forward_pass)
     network = FanInAwareBackpropClassifierNetwork([1], 1, [(-10.0, 10.0)])
-    hidden_node = network.hidden_layers[0].nodes[0]
-    output_node = network.output_layer.nodes[0]
-    hidden_node.update_input_weights([0.5])
-    hidden_node.bias = 0.1
-    output_node.update_input_weights([0.8])
-    output_node.bias = -0.2
+    wire_fixed_single_hidden_node(network)
 
     assert network.predict_probability((2.0,)) == pytest.approx(0.5987376536170401)
 
