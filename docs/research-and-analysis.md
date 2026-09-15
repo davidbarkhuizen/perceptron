@@ -542,3 +542,95 @@ that spending ~30 minutes of real training time to re-confirm a null result alre
 would not be a good use of that time. `randomize_fan_in_aware` and
 `FanInAwareBackpropClassifierNetwork` stay as they are; this remains a documented, measured "no"
 rather than an untested assumption either way.
+
+## momentum: measured, not worth adopting
+
+### context
+
+A third backprop-literature audit noticed that `docs/research-and-analysis.md`'s own first audit
+entry cites Rumelhart, Hinton & Williams 1986 ("Learning representations by back-propagating
+errors" - the founding backprop paper) as this implementation's reference for the "generalized
+delta rule." That paper's actual generalized delta rule includes a momentum term the codebase
+doesn't implement:
+
+```
+Δw_ji(n) = η·δ_j·a_i + α·Δw_ji(n-1)
+```
+
+`BackpropNode.apply_gradient` only ever implements the first term. Unlike every prior addition in
+this investigation series, momentum needs genuine new persistent per-node state (a running
+`previous_weight_delta`/`previous_bias_delta`, not present anywhere in the current node classes)
+rather than just a method override - so before building anything committed, the question was
+measured with a throwaway prototype first (a `MomentumBackpropNode` monkeypatched into
+`BackpropLayer._node_cls` for the duration of an isolated script, the same technique used to
+validate `FanInAwareBackpropClassifierNetwork` before it existed as a real class).
+
+### measured comparison
+
+Same proxy as the earlier investigations (320 real MNIST examples, digit 3's class-balanced
+one-vs-rest target, `FanInAwareBackpropClassifierNetwork`'s already-adopted init).
+
+**First pass** - Rumelhart et al.'s own cited momentum coefficient (α=0.9) across a learning-rate
+sweep, 5 seeds each, 5 epochs unless noted:
+
+| config | mean test accuracy |
+|---|---|
+| no momentum, learning_rate=0.5 (baseline) | 93.75% |
+| momentum=0.9, learning_rate=0.5 | 91.75% |
+| momentum=0.9, learning_rate=0.25 | 90.75% |
+| momentum=0.9, learning_rate=0.1 | 91.50% |
+| momentum=0.9, learning_rate=0.05 | 91.25% |
+| no momentum, learning_rate=0.5, 20 epochs | 90.75% |
+| momentum=0.9, learning_rate=0.1, 20 epochs | 92.50% |
+
+α=0.9 robustly *hurt* relative to the baseline across a 10x learning-rate range - unlike the
+binary cross-entropy investigation, where a lower learning rate fully recovered the baseline's
+performance, no learning rate tested here closed the gap. More epochs helped momentum relatively
+(92.50% at 20 epochs vs the 20-epoch no-momentum baseline's own 90.75%) but the original 5-epoch,
+no-momentum baseline (93.75%) was never matched by any α=0.9 configuration tested.
+
+**Second pass**, testing whether α=0.9 (tuned for the batch/mini-batch regime the original paper
+mostly discusses) was simply too aggressive for this codebase's *per-example online* SGD, where
+each individual gradient is far noisier than a batch-averaged one: a finer sweep of lower
+coefficients at the original tuned `learning_rate=0.5`, with more seeds (15, not 5) for
+statistical confidence after a smaller-sample run initially looked promising:
+
+| momentum | mean test accuracy | stdev |
+|---|---|---|
+| 0.0 (baseline) | 93.83% | 0.57% |
+| 0.3 | 93.83% | 1.10% |
+| 0.4 | 93.67% | 1.10% |
+| 0.5 | 94.00% | 0.70% |
+| 0.6 | 93.67% | 1.20% |
+| 0.7 | 93.67% | 1.10% |
+
+All six configurations land within 0.33 percentage points of each other, well inside the noise
+band given stdevs of 0.57-1.2% at n=15 - a flat, statistically indistinguishable landscape, not a
+real effect. (An earlier 5-seed-only run of momentum=0.5 showed 94.50%, apparently beating the
+baseline - re-run at n=15 it settled to 94.00%, within noise of the baseline's 93.83%. Exactly
+the kind of small-sample mirage this investigation's own methodology - re-measuring before
+trusting a result - exists to catch.)
+
+### interpretation
+
+Momentum's canonical value (α=0.9) is actively harmful here, robustly across learning rates -
+plausibly because per-example online SGD's individual gradients are noisier than the
+mini-batch/batch gradients momentum's literature is more commonly validated against, so
+accumulating velocity across noisy individual steps amplifies noise rather than smoothing signal.
+Lower coefficients (0.3-0.7) avoid that harm but show no measurable benefit either - consistent
+with the Xavier/Glorot finding above: this codebase's shallow, single-hidden-layer networks
+likely don't have the ravine-shaped/ill-conditioned loss surfaces momentum is specifically
+designed to help traverse.
+
+### decision
+
+Not adopted. No real-scale validation run was spent - unlike the original fan-in-aware fix (an
+unambiguous proxy-scale win later confirmed at real scale), nothing in either sweep here showed a
+signal worth that confirmation cost. Worth recording for any future revisit: momentum's
+persistent per-node state raises a genuine design question this measurement's throwaway
+prototype never had to resolve properly - whether that state belongs in `snapshot()`/`restore()`
+(model state) or should reset on restore (the more common convention, treating it as pure
+optimizer state) - since `train_linear_classifier_network`'s own pocket-algorithm rollback
+already calls `restore()` mid-training, and the prototype's momentum state was silently left
+stale across that rollback without affecting this measurement's result (inference never reads it)
+but would need a real answer if momentum were ever built for real.
