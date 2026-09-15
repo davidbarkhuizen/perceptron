@@ -19,12 +19,22 @@ class ReLUBackpropClassifierNetwork(BackpropClassifierNetwork):
     in this codebase's sibling classes: this class keeps BackpropClassifierNetwork's own
     (unmodified) randomize() scheme and quadratic output loss, so a real measurement against it
     tests ReLU specifically, not ReLU bundled with an init-scheme or loss-function change at the
-    same time. See docs/research-and-analysis.md's "ReLU hidden-layer activation" entry for the
-    measured comparison against the sigmoid-hidden-layer baseline.
+    same time.
+
+    Measured directly (see docs/research-and-analysis.md's "ReLU hidden-layer activation" entry):
+    at BackpropClassifierNetwork's own demo-tuned learning_rate=1.0, this class trains to a
+    meaningfully *lower* training accuracy on a fixed XOR scenario (74.03% vs 97.80% mean over 10
+    seeds) - not because of dead ReLU units (checked directly: only 1/8), but because ReLU's flat,
+    undamped active-region gradient needs a smaller learning rate than whatever's already tuned
+    for sigmoid's self-limiting a(1-a) factor - the same mechanism BinaryCrossEntropyBackpropClassifierNetwork's
+    own docstring describes. Retuned to learning_rate=0.1, this class doesn't just recover
+    sigmoid's tuned performance - it exceeds it (99.27% mean), a genuine, positive result on this
+    scenario, not merely "didn't lose."
 
     Deliberately not a replacement for BackpropClassifierNetwork, and not (yet) used by any
     existing demo - the same additive, keep-both pattern as every other sibling class in this
-    codebase.
+    codebase. Needs its own tuned learning_rate wherever it's actually used, same caveat as the
+    binary cross-entropy sibling.
     """
 
     hidden_layer_cls = ReLULayer

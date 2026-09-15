@@ -634,3 +634,88 @@ optimizer state) - since `train_linear_classifier_network`'s own pocket-algorith
 already calls `restore()` mid-training, and the prototype's momentum state was silently left
 stale across that rollback without affecting this measurement's result (inference never reads it)
 but would need a real answer if momentum were ever built for real.
+
+## ReLU hidden-layer activation: a clean win, once retuned
+
+### context
+
+`docs/structure.md`'s "possible next steps" flagged ReLU as a hidden-layer activation worth
+adding, directly motivated by this session's own sigmoid-saturation findings (the fan-in-aware
+init fix was the single biggest real-scale accuracy win any investigation here found). Unlike
+the momentum and Xavier/Glorot investigations, this one was built as a real, committed sibling
+class first (`ReLUBackpropClassifierNetwork`, with a new `hidden_layer_cls` extension point on
+`BackpropNetworkBase`) rather than only measured via a throwaway prototype, since it's a genuine
+architectural capability worth having on its own terms regardless of what any one measurement
+shows - the measurement below is what decides whether it's *used* anywhere, not whether it
+exists.
+
+### measured comparison: untuned, ReLU loses badly; retuned, it wins
+
+Same XOR scenario as the binary cross-entropy investigation (`BackpropClassifierNetwork([8], 2,
+square_bounds(10.0))`, 100 epochs, 10 (data-generation seed, weight-init seed) pairs), sigmoid
+hidden layers vs `ReLUBackpropClassifierNetwork`'s ReLU hidden layers, both at the demo-tuned
+`learning_rate=1.0`:
+
+| seed | sigmoid | ReLU (lr=1.0, untuned) |
+|---|---|---|
+| 0 | 97.00% | 73.67% |
+| 1 | 98.33% | 74.67% |
+| 2 | 97.33% | 75.67% |
+| 3 | 97.33% | 75.67% |
+| 4 | 98.33% | 75.67% |
+| 5 | 98.33% | 74.00% |
+| 6 | 99.33% | 71.67% |
+| 7 | 96.67% | 73.33% |
+| 8 | 96.67% | 71.67% |
+| 9 | 98.67% | 74.33% |
+| **mean** | **97.80%** | **74.03%** |
+
+A large, consistent gap - every seed, not a fluke. Before concluding ReLU is simply worse here,
+the same two hypotheses the binary cross-entropy and momentum investigations already validated
+as real mechanisms were checked directly rather than assumed away:
+
+- **Dead units**: checked directly (a unit whose activation is exactly 0.0 across the entire
+  training set, after training) - only 1 of 8 hidden units was dead at `learning_rate=1.0`.
+  Not nothing, but nowhere near enough to explain a 24-point gap on its own.
+- **Learning rate**: swept down, same 10 seeds each:
+
+| learning_rate | mean training accuracy |
+|---|---|
+| 1.0 | 74.03% |
+| 0.5 | 82.60% |
+| 0.25 | 97.73% |
+| 0.1 | 99.27% |
+| 0.05 | 99.20% |
+| 0.01 | 99.47% |
+
+At `learning_rate=0.1`, ReLU's mean (99.27%) doesn't just recover to sigmoid's tuned performance
+(97.80%) - it exceeds it, and stays high down to `learning_rate=0.01`. Checked the dead-unit
+count again at `learning_rate=0.1` for the same seed=0 run: still 1 of 8 - unchanged from
+`learning_rate=1.0`, confirming dead units aren't the mechanism behind the learning-rate
+sensitivity either.
+
+### interpretation: the same root cause connects three separate findings
+
+ReLU's derivative in its active region is a flat 1.0 - no damping term the way sigmoid's
+`a(1-a)` provides (which shrinks toward zero as a unit saturates, naturally limiting how far a
+confident unit's weights move in one step). That is *exactly* the same mechanism identified
+independently in two earlier entries: binary cross-entropy's delta drops the same `a(1-a)`
+factor (for a different reason - the loss function's own derivative, not the activation's), and
+momentum's canonical coefficient amplified per-example gradient noise because it, too, had
+nothing damping how far weights moved per step. All three needed a smaller learning rate than
+whatever was already tuned for plain sigmoid + quadratic loss + no momentum - not because
+anything was wrong with them, but because removing any part of sigmoid's self-limiting factor
+from the update rule increases the effective step size for the same nominal `learning_rate`,
+and this codebase's existing tuned rates were never tuned for that.
+
+### decision
+
+Adopted as a genuine, positive finding - `ReLUBackpropClassifierNetwork` at `learning_rate=0.1`
+outperforms the sigmoid baseline at its own tuned `learning_rate=1.0` (99.27% vs 97.80% mean),
+a real result on real (if small-scale) data, not just "didn't lose." Unlike the binary
+cross-entropy and momentum investigations, this is being recorded as a genuine capability
+worth highlighting, not just a class that exists to lose a documented comparison. Still,
+consistent with every other sibling class in this codebase: not wired into any existing demo
+by default, and `BackpropClassifierNetwork` itself is completely unchanged - this needs its own
+tuned `learning_rate` wherever it's actually used, the same caveat binary cross-entropy already
+carries, not a drop-in replacement for the sigmoid default.
