@@ -75,7 +75,9 @@ perceptron/
   demos/
     menu.py                                      the . cli demo entrypoint: a text REPL that lists every demo
                                                  (from registry.py), lets you pick one by number, prints its
-                                                 longer description, runs it, then loops back until you quit
+                                                 longer description, runs it, then loops back until you quit -
+                                                 or pass a demo number directly (. cli demo 3) to skip the menu
+                                                 and run just that one demo
     registry.py                                  the DEMOS list menu.py renders and runs: each entry's module
                                                  path, title, one-line summary and longer description
     demo_minimum_disturbance_training.py         standalone script that trains a classifier and plots the

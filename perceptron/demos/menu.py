@@ -1,4 +1,5 @@
 import importlib
+import sys
 import textwrap
 
 from perceptron.demos.registry import DEMOS
@@ -58,7 +59,26 @@ def _run_demo(index: int) -> None:
     print(f"{demo.title} finished.")
 
 
-def main() -> None:
+def _parse_direct_selection(raw: str) -> int:
+
+    if not raw.isdigit() or not (1 <= int(raw) <= len(DEMOS)):
+        print(f"'{raw}' isn't a valid demo number - pass a number from 1 to {len(DEMOS)}.")
+        _print_table()
+        sys.exit(1)
+
+    return int(raw)
+
+
+def main(argv: list[str] | None = None) -> None:
+
+    argv = sys.argv[1:] if argv is None else argv
+
+    if argv:
+        # a demo number was passed directly (e.g. `./cli demo 3`) - run it and exit, skipping
+        # the interactive menu entirely, so scripts/LLMs can launch a specific demo without
+        # driving a prompt loop
+        _run_demo(_parse_direct_selection(argv[0]))
+        return
 
     print("perceptron demos")
     print("select a demo to run; after it finishes you can run another or quit.")
