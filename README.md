@@ -20,3 +20,5 @@ retrofit - so it can represent targets (like XOR) the discrete model structurall
   array core, should this repo ever move away from pure Python
 - [mini-batch gradient descent](docs/mini-batch-gradient-descent.md) — workplan for batching
   gradient updates, to unblock a re-test of momentum under lower-noise gradients
+- [convolutional layers](docs/convolutional-layers.md) — workplan for a from-scratch conv
+  layer, local receptive fields and weight sharing, on the existing image datasets

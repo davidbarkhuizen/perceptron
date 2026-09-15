@@ -543,6 +543,8 @@ priority.
   capable model classes (`LinearClassifierNetwork` -> `BackpropClassifierNetwork` -> multi-class
   siblings) and its "hand-build everything, no ML framework" identity - a bigger effort than
   anything above, needing new node/layer abstractions for 2D receptive fields and weight sharing.
+  See [convolutional layers](convolutional-layers.md) for a function-level workplan, scoped to
+  avoid backprop-through-convolution entirely by starting with exactly one conv layer.
 - **NumPy vectorization** - would meaningfully speed up training (the ~30-minute MNIST ensemble
   runs are pure-Python-bound), but this repo's stated identity is explicitly "no ML framework
   dependency, everything hand-built." NumPy isn't itself an ML framework, but adding any array
