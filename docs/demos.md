@@ -157,11 +157,11 @@ a genuinely curved boundary. Trains a single-hidden-layer `BackpropClassifierNet
 reaches ~0.99 training accuracy) and plots the learned probability heatmap against the training
 data, visibly showing a smooth, rounded decision boundary rather than a faceted polygon.
 
-## demo: backprop linear parity check
+## demo: backprop vs linear parity check
 
     . cli demo
 
-Select **Backprop linear parity check** from the menu it prints.
+Select **Backprop vs linear parity check** from the menu it prints.
 
 Runs `perceptron/demos/demo_backprop_linear_parity_check.py`. Every other backprop demo picks a target no
 `LinearClassifierNetwork` can represent well (XOR, stripes, a circle); this one is the opposite
@@ -231,18 +231,23 @@ Runs `perceptron/demos/demo_mnist_ensemble_recognition.py` - the same shape as t
 above, but on the real, full-scale MNIST dataset (28x28 pixel images, 60000 train / 10000 test)
 instead of the small bundled UCI set, and using `EnsembleBackpropClassifierNetwork` (see
 [structure](structure.md#multi-class)) instead of `MultiClassBackpropClassifierNetwork`: 10
-completely independent `BackpropClassifierNetwork`s, one per digit, each trained on its own
-small, class-balanced binary dataset, with no shared hidden layer and no synchronization between
-them at all - trained as 10 parallel `multiprocessing` jobs
-(`ensemble_train.train_ensemble_parallel_from_indices`), memory-aware worker count included. The
-design behind this, and a real memory-exhaustion failure hit (and genuinely fixed, not just
-worked around) while building it at full scale, are written up in
+completely independent `FanInAwareBackpropClassifierNetwork`s (see
+[structure](structure.md#backprop-siblings) - a fan-in-aware-init sibling of
+`BackpropClassifierNetwork`, opted into via `ensemble_train.py`'s `classifier_cls` parameter),
+one per digit, each trained on its own small, class-balanced binary dataset, with no shared
+hidden layer and no synchronization between them at all - trained as 10 parallel
+`multiprocessing` jobs (`ensemble_train.train_ensemble_parallel_from_indices`), memory-aware
+worker count included. The design behind this, and a real memory-exhaustion failure hit (and
+genuinely fixed, not just worked around) while building it at full scale, are written up in
 [research and analysis](research-and-analysis.md#parallelizing-mnist-training). One-time setup:
 converts the supplied `data/mnist/mnist-{train,test}.parquet` files to a flat binary format
 (`mnist_data.convert_parquet_to_binary`) the first time it's run, so training itself never needs
-`pyarrow`. Measured on this machine: ~31 minutes wall-clock for the full training run, memory
-stable throughout, 89.4% held-out test accuracy, no digit's confusion-matrix row or column
-collapsed. Saves the trained model to `data/mnist/trained_model.json` (gitignored, same as the
+`pyarrow`. Measured on this machine: 29.6 minutes wall-clock for the full training run, memory
+stable throughout, 96.01% held-out test accuracy - up from 89.4% before switching to the
+fan-in-aware sibling (a real, +6.6-point improvement from the init fix alone, at the same
+wall-clock cost - see [research and
+analysis](research-and-analysis.md#the-ensemblereal-mnist-investigation)). Saves the trained
+model to `data/mnist/trained_model.json` (gitignored, same as the
 digit-recognition demo's), printing how to reload it without retraining. Plots the same chart set
 as the digit-recognition demo: a per-digit training-accuracy-by-epoch curve, a confusion matrix,
 and a grid of sample test predictions.
@@ -284,3 +289,35 @@ own input happens to be in - not always `[0.0, 1.0]`).
 Unlike every other demo, this one needs a display and mouse input - it's not part of the
 automated test suite (`tests/test_mnist_capture.py` covers only the pure
 crop/scale/center-of-mass/brush logic behind it, not the tkinter UI itself).
+
+## demo: backprop variant comparison
+
+    . cli demo
+
+Select **Backprop variant comparison** from the menu it prints.
+
+Runs `perceptron/demos/demo_backprop_variant_comparison.py`, which reproduces three A/B
+comparisons [research and analysis](research-and-analysis.md) documents from one-off,
+never-saved investigation scripts - as a permanent, re-runnable demo instead of numbers you can
+only read about. Trains all seven variants fresh (no new library code beyond the demo itself -
+every network class it uses already exists and is already tested elsewhere), prints each
+comparison's measured accuracy, and plots a training-accuracy-by-epoch chart per section:
+
+- **Multi-class loss function** - `MultiClassBackpropClassifierNetwork` (one-vs-rest, MSE) vs
+  `SoftmaxMultiClassBackpropClassifierNetwork` (softmax, cross-entropy) on the full UCI digits
+  set, matching `demo_uci_digit_recognition.py`'s own architecture and hyperparameters exactly
+  (see [research and analysis](research-and-analysis.md#softmax-cross-entropy-re-alignment)).
+- **Binary loss function** - `BackpropClassifierNetwork` (quadratic) vs
+  `BinaryCrossEntropyBackpropClassifierNetwork` (cross-entropy) on the XOR target, at both the
+  shared learning rate and cross-entropy's own retuned rate (see
+  [research and analysis](research-and-analysis.md#binary-cross-entropy-for-backpropclassifiernetwork)).
+- **Weight-init scheme** - this codebase's fan-in-aware production default vs a Xavier/Glorot
+  variant implemented only locally in this demo file (not a real library class, since it was
+  measured not worth adopting - see
+  [research and analysis](research-and-analysis.md#xavierglorot-init-measured-not-worth-adopting)),
+  on UCI digits.
+
+Takes about 4 minutes end to end (measured directly). Unlike the other backprop demos, this one
+doesn't train against a single target with one clear answer - each section is a comparison, and
+the point is to let the documented findings be checked directly rather than assumed to still
+hold.
