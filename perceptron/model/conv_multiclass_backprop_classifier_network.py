@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import json
-
 from perceptron.model.backprop_layer import BackpropLayer
 from perceptron.model.backprop_network_base import fan_in_aware_weights_and_bias
 from perceptron.model.conv_layer import ConvLayer
+from perceptron.model.model_io import load_json, save_json
 from perceptron.model.multiclass_backprop_classifier_network import MultiClassBackpropClassifierNetwork
 from perceptron.model.state_layer import StateLayer
 
@@ -127,23 +126,23 @@ class ConvMultiClassBackpropClassifierNetwork(MultiClassBackpropClassifierNetwor
         # unchanged from BackpropNetworkBase) already works correctly here, conv layer
         # included, purely because ConvLayer implements snapshot_state() itself - the
         # per-layer hook stage 1 of this workplan built for exactly this kind of sibling.
-        state = {
-            "input_height": self.input_height,
-            "input_width": self.input_width,
-            "kernel_size": self.kernel_size,
-            "channel_count": self.channel_count,
-            "stride": self.stride,
-            "dense_layer_sizes": self.dense_layer_sizes,
-            "class_count": self.class_count,
-            "snapshot": self.snapshot(),
-        }
-        with open(path, "w") as f:
-            json.dump(state, f)
+        save_json(
+            path,
+            {
+                "input_height": self.input_height,
+                "input_width": self.input_width,
+                "kernel_size": self.kernel_size,
+                "channel_count": self.channel_count,
+                "stride": self.stride,
+                "dense_layer_sizes": self.dense_layer_sizes,
+                "class_count": self.class_count,
+                "snapshot": self.snapshot(),
+            },
+        )
 
     @classmethod
     def load(cls, path: str) -> "ConvMultiClassBackpropClassifierNetwork":
-        with open(path) as f:
-            state = json.load(f)
+        state = load_json(path)
 
         network = cls(
             input_height=state["input_height"],
