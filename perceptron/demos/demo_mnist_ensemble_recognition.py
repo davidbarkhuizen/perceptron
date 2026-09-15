@@ -7,7 +7,7 @@ matplotlib.use("TkAgg")
 from matplotlib import pyplot
 
 from perceptron.ensemble_train import train_ensemble_parallel_from_indices
-from perceptron.graphics.chart import new_axes, new_figure, plot_confusion_matrix, plot_sample_predictions
+from perceptron.graphics.chart import new_axes, new_confusion_matrix_figure, new_figure, sample_predictions_figure
 from perceptron.mnist_data import (
     convert_parquet_to_binary,
     load_mnist_dataset,
@@ -101,16 +101,11 @@ def main() -> None:
     for text in legend.get_texts():
         text.set_color("white")
 
-    confusion_figure = new_figure("MNIST recognition: confusion matrix (test set)")
-    confusion_axes = new_axes(confusion_figure, scaled=False)
-    plot_confusion_matrix(confusion_axes, matrix)
+    new_confusion_matrix_figure("MNIST recognition: confusion matrix (test set)", matrix)
 
-    sample_count = min(16, len(test_data))
-    samples = [
-        (state, ensemble.classify_state(state), true_label) for state, true_label in test_data[:sample_count]
-    ]
-    samples_figure = new_figure("MNIST recognition: sample test predictions")
-    plot_sample_predictions(samples_figure, samples, image_shape=IMAGE_SHAPE)
+    sample_predictions_figure(
+        "MNIST recognition: sample test predictions", test_data, ensemble.classify_state, image_shape=IMAGE_SHAPE
+    )
 
     pyplot.show()
 

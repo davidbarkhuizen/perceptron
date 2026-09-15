@@ -1,4 +1,5 @@
 import math
+from typing import Callable
 
 from matplotlib import lines, pyplot
 from matplotlib.axes import Axes
@@ -158,6 +159,41 @@ def plot_confusion_matrix(axes: Axes, matrix: list[list[int]], class_labels: lis
             # dark text on the heatmap's bright cells, light text on its dark ones
             text_color = "black" if row_max[true_label] and count > row_max[true_label] / 2 else "white"
             axes.text(predicted_label, true_label, str(count), ha="center", va="center", color=text_color)
+
+
+def new_confusion_matrix_figure(
+    title: str, matrix: list[list[int]], class_labels: list[str] | None = None
+) -> Figure:
+    """
+    Bundles the new_figure -> new_axes(scaled=False) -> plot_confusion_matrix sequence every
+    recognition demo repeats verbatim, since the only piece that actually varies between them is
+    the title, the matrix itself, and (optionally) class_labels.
+    """
+
+    figure = new_figure(title)
+    axes = new_axes(figure, scaled=False)
+    plot_confusion_matrix(axes, matrix, class_labels)
+    return figure
+
+
+def sample_predictions_figure(
+    title: str,
+    test_data: list[tuple[tuple[float, ...], int]],
+    classify_fn: Callable[[tuple[float, ...]], int],
+    count: int = 16,
+    image_shape: tuple[int, int] = (8, 8),
+) -> Figure:
+    """
+    Bundles the "classify the first count test examples, build (pixels, predicted, true) samples,
+    plot_sample_predictions" sequence every recognition demo repeats verbatim - classify_fn is
+    whichever trained classifier's own classify_state (or equivalent) the caller wants sampled.
+    """
+
+    sample_count = min(count, len(test_data))
+    samples = [(state, classify_fn(state), true_label) for state, true_label in test_data[:sample_count]]
+    figure = new_figure(title)
+    plot_sample_predictions(figure, samples, image_shape=image_shape)
+    return figure
 
 
 def plot_sample_predictions(
