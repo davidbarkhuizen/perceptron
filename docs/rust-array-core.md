@@ -4,20 +4,27 @@
 
 Part 3 of 3 in the [vectorization](vectorization.md) workplan split: a plan for implementing
 [the numpy interface subset](numpy-interface-subset.md)'s exact operation list as a hand-built,
-tightly-scoped array core in Rust, wrapped for Python via PyO3/maturin - rather than adopting
-real `numpy` as a permanent dependency. Analysis and workplan only - not a decision to build
-anything, and nothing in `perceptron/` changes as a result of this document.
+tightly-scoped array core in Rust, wrapped for Python via PyO3/maturin - this codebase's decided
+production array backend going forward, per [vectorization](vectorization.md)'s own "decision",
+kept alongside real `numpy`'s own now-permanent role as a performance-benchmarking mirror rather
+than replacing it outright. Still a workplan, not an implementation - nothing in `perceptron/`
+changes as a result of this document itself; the PR-staged plan below is what building it
+actually looks like.
 
 ## what this replaces, and when
 
 [vectorized array-based model classes](vectorized-array-classes.md) is built and validated
 against real `numpy` first, deliberately - see that document's own "why numpy here, now". This
-document's array core is the intended eventual replacement for that dependency, not a
-parallel or competing effort: once built and proven correct against
-[the numpy interface subset](numpy-interface-subset.md)'s exact contract, swapping
-`vectorized-array-classes.md`'s classes from `numpy` to this core is the natural follow-on - see
-"what stays explicitly out of scope" below for why that swap isn't part of *this* document's own
-workplan either.
+document's array core becomes this codebase's production array backend, per the decision recorded
+in [vectorization](vectorization.md#decision-numpy-stays-permanently-as-a-benchmark-mirror-the-rust-core-becomes-production) -
+not a replacement for the numpy-backed classes, a parallel implementation kept permanently
+alongside them. Once built and proven correct against
+[the numpy interface subset](numpy-interface-subset.md)'s exact contract, production code paths
+(training runs, demos) route through this core instead of `numpy`;
+`vectorized-array-classes.md`'s numpy-backed classes stay in the codebase indefinitely as the
+benchmarking mirror this core's own future performance claims get measured against, not
+deprecated once this core exists - see "what stays explicitly out of scope" below for why the
+actual production cutover still isn't part of *this* document's own workplan.
 
 ## why not just keep using real NumPy
 
@@ -26,9 +33,13 @@ goal is faster training. This document exists because this repo's own identity t
 "just fast math" dependency as a deliberate choice, not a default - the same posture that's kept
 scikit-learn as a one-time, offline, non-runtime extraction tool (`digits_data.py`) rather than a
 real dependency, and pyarrow as a one-time conversion step
-(`mnist_data.convert_parquet_to_binary`) rather than something training itself ever imports. If a
-future maintainer decides plain `numpy` is the right call - including leaving
-`vectorized-array-classes.md`'s own classes on it permanently - this entire document is moot.
+(`mnist_data.convert_parquet_to_binary`) rather than something training itself ever imports. As of
+[vectorization](vectorization.md)'s own recorded decision, plain `numpy` staying permanently
+*isn't* the call made for production - `vectorized-array-classes.md`'s classes stay on it
+permanently, but scoped to a benchmarking-mirror role, not production; this document's core is
+what becomes production instead. This section's original framing (moot if a future maintainer
+picks plain numpy for everything) no longer applies to *that* choice, though it would still apply
+if a future maintainer later decided to walk back the production half of that decision.
 
 ## decision: a hand-built Rust core (via PyO3/maturin), not C, not real NumPy
 
@@ -300,12 +311,13 @@ gets checked instead.
 
 ### 5. what stays explicitly out of scope for this workplan
 
-- **Swapping [vectorized array-based model classes](vectorized-array-classes.md)'s own classes
-  from `numpy` to this core.** That document's classes are built and validated against real numpy
-  independently of this one - retargeting their array backend once this core exists and passes
-  its own parity checks is a small, mechanical follow-on (an import swap plus a fresh parity
-  re-run against the pure-Python reference), but still its own step, not assumed to happen
-  automatically or be part of "building the core."
+- **Retargeting production code paths to this core.** [vectorization](vectorization.md#decision-numpy-stays-permanently-as-a-benchmark-mirror-the-rust-core-becomes-production)
+  records *that* this core becomes production and `vectorized-array-classes.md`'s numpy-backed
+  classes stay on as a permanent benchmark mirror - but the actual cutover (updating whichever
+  training/demo entrypoints should route through this core once it exists and passes its own
+  parity checks) is a small, mechanical follow-on of its own (a new call path alongside the
+  existing numpy one, not an import swap that removes it - the numpy version is being kept, not
+  retired), not something this workplan does or assumes as part of "building the core."
 - **BLAS-competitive matmul performance.** Naive-but-correct first; any tuning is a
   separately-measured follow-up, not bundled into "does it work."
 - **Any operation outside [the numpy interface subset](numpy-interface-subset.md)'s own table.**
@@ -318,10 +330,10 @@ gets checked instead.
 
 ## what this document is not
 
-An analysis and a workplan, not an implementation, not a migration plan, and not a decision to
-build. Whether to pursue this at all - vs. leaving
-[vectorized array-based model classes](vectorized-array-classes.md) on real `numpy`
-indefinitely, vs. never building those classes at all - remains the explicitly flagged, undecided
-question in [structure](structure.md#possible-next-steps): any array-library dependency, hand-built
-or adopted, permanent or prototype-only, is a deliberate choice for whoever maintains this repo,
-not something to assume is wanted just because it would be faster.
+Still an analysis and a workplan, not an implementation and not a migration plan - none of the
+PR-staged plan above has been built yet. What's no longer true: "not a decision to build." Per
+[vectorization](vectorization.md#decision-numpy-stays-permanently-as-a-benchmark-mirror-the-rust-core-becomes-production)'s
+own recorded decision, this core is greenlit as this codebase's production array backend, kept
+alongside (not instead of) [vectorized array-based model classes](vectorized-array-classes.md)'s
+numpy-backed classes, which remain a permanent benchmarking mirror. What's still open is only the
+*how and when* of the build itself - the PR-staged plan above - not whether it happens.

@@ -4,8 +4,11 @@
 
 Originally analysis and workplan only. Document 1's build has since been greenlit and completed
 (numpy-array-backed classes now exist in `perceptron/`, purely additively - see its own "measured
-results"); documents 2 and 3 remain analysis and workplan only, not a decision to build. See
-"decision: not made here" below for exactly what is, and isn't, decided.
+results") and is now being kept permanently, not as a temporary prototype - see "decision" below.
+Document 3's Rust core is now greenlit to build too, as this codebase's intended production array
+backend, going alongside document 1's numpy-backed classes rather than replacing them. Document 2
+remains what it always was: the formal contract document 3's build has to satisfy, not itself a
+decision point.
 `docs/structure.md`'s "possible next steps" flags NumPy vectorization as a values question
 ("no ML framework dependency, everything hand-built" is this repo's own stated identity) rather
 than a recommendation; this document, and the three it links to below, are the detailed analysis
@@ -85,13 +88,21 @@ above this section's own "under 15 seconds" extrapolation, but still a 33.87x re
 still the difference between an epoch fitting inside a coffee break and one taking most of a
 half hour.
 
-## decision: not made here
+## decision: numpy stays permanently as a benchmark mirror; the Rust core becomes production
 
 Document 1's own build has since been greenlit and completed (see its "measured results") - that
 narrow decision (build and prove out the array-based classes, against real numpy, as a scoped
-prototyping vehicle) is no longer open. What's still explicitly undecided: whether `numpy`
-becomes more than that prototyping vehicle (a permanent dependency), vs. swapping to
-[the Rust core](rust-array-core.md), vs. reverting to pure Python - the question
-[structure](structure.md#possible-next-steps) raises for vectorization as a whole. Any of those
-is a deliberate choice for whoever maintains this repo, not something to assume is wanted just
-because it would be faster.
+prototyping vehicle) is no longer open. The broader question this section used to leave open -
+whether `numpy` becomes more than that prototyping vehicle, vs. swapping to
+[the Rust core](rust-array-core.md), vs. reverting to pure Python - is now decided too, and not as
+an either/or: both are kept, permanently, each for a different purpose.
+
+`VectorizedMultiClassBackpropClassifierNetwork` and its real-numpy backend
+([vectorized array-based model classes](vectorized-array-classes.md)) are retained indefinitely as
+a standing performance-benchmarking mirror - the reference point any future backend's own speed
+claim gets measured against - not a throwaway prototype superseded once something faster exists.
+[The Rust core](rust-array-core.md), once built per its own PR-staged workplan, becomes this
+codebase's production array backend - the implementation actual training/demo code routes
+through. This resolves [structure](structure.md#possible-next-steps)'s own framing of this as a
+still-open values question for whoever maintains this repo: it's been decided, by whoever
+maintains this repo, in favor of keeping both side by side rather than one replacing the other.

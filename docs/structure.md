@@ -557,18 +557,16 @@ priority.
   first deciding how a fresh checkout gets that data (a public mirror to fetch from? a repo
   secret + private download step? committing a small stratified subset instead of the full
   dataset?) means shipping CI that quietly can't protect part of the suite, not a real fix.
-- **NumPy vectorization** - would meaningfully speed up training (the ~30-minute MNIST ensemble
-  runs are pure-Python-bound), but this repo's stated identity is explicitly "no ML framework
-  dependency, everything hand-built." NumPy isn't itself an ML framework, but adding any array
-  library is a values question for whoever maintains this repo to decide deliberately, not
-  something to assume is wanted just because it would be faster - flagged, not recommended
-  outright. See [vectorization](vectorization.md) for the overview, split into three workplans:
-  [vectorized array-based model classes](vectorized-array-classes.md) (new model classes, built
-  against real numpy first), [the numpy interface subset](numpy-interface-subset.md) (exactly
-  which numpy operations those classes need), and
-  [the Rust implementation plan](rust-array-core.md) (a hand-built, tightly-scoped array core in
-  Rust, wrapped for Python via PyO3, implementing that exact subset as numpy's eventual
-  replacement). The first of those three has since been built as a scoped, real-numpy prototype
-  (`perceptron/model/array_layer.py`, `vectorized_multiclass_backprop_classifier_network.py` -
-  see that document's own "measured results"); whether numpy becomes more than a prototyping
-  vehicle remains exactly the undecided values question above.
+- **The Rust array core's own build** - would meaningfully speed up production training (the
+  ~30-minute MNIST ensemble runs are pure-Python-bound), and is no longer an open values question:
+  [vectorization](vectorization.md#decision-numpy-stays-permanently-as-a-benchmark-mirror-the-rust-core-becomes-production)
+  records the decision that `numpy` is kept permanently but scoped to a performance-benchmarking
+  role, while [the Rust implementation plan](rust-array-core.md) - a hand-built, tightly-scoped
+  array core in Rust, wrapped for Python via PyO3, implementing
+  [the numpy interface subset](numpy-interface-subset.md)'s exact contract - is greenlit as this
+  codebase's production array backend. [Vectorized array-based model classes](vectorized-array-classes.md)
+  (`perceptron/model/array_layer.py`, `vectorized_multiclass_backprop_classifier_network.py` - see
+  that document's own "measured results") is the numpy-backed half of that decision, already built
+  and kept indefinitely as the benchmark mirror. What's still open, and still real work: the Rust
+  core itself hasn't been built yet - see that document's own PR-staged workplan for what building
+  it actually looks like.
