@@ -113,9 +113,11 @@ to iterate on interactively instead.
 
 Fixed `f64` dtype, up to 2D (matrix) + 1D (vector), row-major contiguous storage - exactly
 [the numpy interface subset](numpy-interface-subset.md)'s own table, nothing more: array
-construction (from data, zero-filled), shape/transpose, single-index write, matmul, elementwise
-`+ - * /` with the two scoped broadcasting cases, in-place accumulate, `exp`, `outer`, `argmax`,
-a uniform RNG, `.copy()`, raw-byte decode/reshape/slice/cast, and a Python-list round-trip for
+construction (from data, zero-filled), shape/transpose, single-element write (both the 1D
+scalar-index and 2D tuple-index shapes - see that document's own "re-checked against the built
+implementation" note), matmul, elementwise `+ - * /` with the two scoped broadcasting cases,
+in-place accumulate, `exp`, `outer`, a fixed-axis (`axis=0`) row-sum reduction, `argmax`, a
+uniform RNG, `.copy()`, raw-byte decode/reshape/slice/cast, and a Python-list round-trip for
 serialization.
 
 ### 1. crate structure
@@ -132,9 +134,12 @@ prematurely.
 - `src/array.rs` - the core type: a plain struct wrapping a flat `Vec<f64>` buffer plus a
   `shape: (usize, usize)` (or an enum distinguishing the 1D/2D cases actually used - no reason to
   build general N-dimensional machinery [the numpy interface subset](numpy-interface-subset.md)
-  never needs), with `.copy()`/`.reshape()`/slicing/transpose and single-index read/write.
+  never needs), with `.copy()`/`.reshape()`/slicing/transpose and single-element read/write -
+  `__setitem__` needs to accept *both* a bare integer index (1D) and a `(row, col)` tuple index
+  (2D, `target_batch[row, category] = 1.0`) - two argument shapes to dispatch on, not one.
 - `src/ops.rs` - elementwise `+ - * /`, restricted to exactly the two broadcasting cases the
-  interface subset names (vector+vector, matrix+row-vector) - not general N-d broadcasting.
+  interface subset names (vector+vector, matrix+row-vector), plus scalar operands on either side
+  (`learning_rate * grad_W`, `grad_W / batch_size`) - not general N-d broadcasting.
 - `src/linalg.rs` - matmul (naive triple loop first; a cache-friendlier loop order as a later,
   separately-measured refinement, not bundled into "get it correct" - matches this session's own
   "measure before assuming" posture, applied to performance instead of ML results) and `outer`.
@@ -142,7 +147,10 @@ prematurely.
   out of scope regardless of language; the realistic target is "meaningfully faster than pure
   Python."
 - `src/ufuncs.rs` - `exp`, `argmax` (no axis parameter needed - see
-  [the numpy interface subset](numpy-interface-subset.md)'s own "explicitly not required").
+  [the numpy interface subset](numpy-interface-subset.md)'s own "explicitly not required"), and
+  `sum_axis0` (a 2D array's rows summed into a 1D vector - the one fixed-axis reduction that
+  document's table does require, added after cross-checking `array_layer.py`'s actual
+  `accumulate_gradient_batch`, not assumed from its own original design-doc-only derivation).
 - `src/random.rs` - a hand-rolled PRNG (a small, well-known public-domain algorithm - e.g.
   xorshift128+ or PCG32 - implemented directly, not pulled from the `rand` crate) plus a
   uniform-range array-fill function.
@@ -167,18 +175,110 @@ prematurely.
 ### 3. build order
 
 Each stage independently testable before the next starts - no stage depends on an unvalidated
-earlier one:
+earlier one - and, per this repo's own "finish one unit of work, PR it, merge it" practice
+(see every prior workplan's own PR-per-stage history: mini-batch's #139-#141, conv layers' five
+PRs), each stage below is sized to be its own PR, not batched with its neighbors. Tests for a
+crate this document's own "crate structure" section keeps standalone-buildable, not yet dropped
+into `perceptron/`, live under the crate's own `rust/perceptron_array/tests/` (pytest against the
+built extension via `maturin develop`), not the top-level `tests/` directory - that move is part
+of the eventual, explicitly out-of-scope "swap the backend" follow-on, not this workplan.
 
-1. Array construction/shape/indexing only, no math yet - prove the Python<->Rust round-trip
-   (construct from a Python list, read values back) works first.
-2. Elementwise ops + the two scoped broadcasting cases.
-3. `exp` (needed together with the sigmoid-overflow question below).
-4. matmul + `outer`.
-5. `argmax`, `.copy()`.
-6. RNG.
-7. MNIST byte decode/reshape/slice/cast.
-8. The Python-list round-trip (`.tolist()`-equivalent / construct-from-nested-list), for
-   `save()`/`load()`.
+**PR 0 - crate scaffolding and build integration.** `rust/perceptron_array/` with `Cargo.toml`
+(`pyo3` only), an empty `#[pymodule]` in `src/lib.rs` that imports successfully, `maturin develop`
+wired into `cli setup`/a new `cli build-rust`, and the `.gitignore`/`requirements.txt` changes
+from "build integration" above. No array type yet - this stage's only claim is "the toolchain
+works end to end," proven by one trivial `#[pyfunction]` (e.g. a `ping() -> str`) importable and
+callable from a Python REPL. Nothing to parity-check yet.
+
+**PR 1 - array construction, shape, and single-element read/write.** `src/array.rs`: a
+`#[pyclass]` (working name `RustArray`, avoiding collision with real numpy's own `PyArray`) with
+`#[new]` from a nested Python list, `#[staticmethod] zeros(shape: (usize, usize))` (a 1D
+`zeros(n)` and a 2D `zeros((n, m))` overload - or two named constructors, `zeros_vector`/
+`zeros_matrix`, if PyO3 overload dispatch turns out awkward - resolved during implementation, not
+before), a `shape` getter, `__getitem__`/`__setitem__` accepting *both* argument shapes flagged
+above (bare int for 1D, `(row, col)` tuple for 2D - two branches in one method, not two methods,
+matching how Python's own `arr[i]` vs. `arr[i, j]` dispatch through the same `__getitem__`/
+`__setitem__` slot), `.copy()`, and `.reshape(shape)`. Test
+(`rust/perceptron_array/tests/test_array_basics.py`): construct from a Python list/nested list,
+read every element back, write and re-read at both index shapes, copy-then-mutate showing
+independence, reshape then re-read - the Python<->Rust round-trip proven before any arithmetic
+exists to get wrong.
+
+**PR 2 - `.T`, slicing, and dtype cast.** `.T` (a no-op on a 1D array, a real transpose on 2D -
+both cases exercised, not just the 2D one), `arr[:, :-1]` (contiguous slice along one axis -
+`start:stop` step-1 slices only, no general Python slice semantics), and `.astype`-equivalent
+(trivial for a fixed-`f64`-dtype core except where MNIST's `uint8` source needs the cast - see PR
+7). Test: transpose-of-transpose round-trips to the original on both 1D and 2D; slicing against a
+hand-constructed small 2D array with a known, distinctive pattern (mirroring
+[convolutional layers](convolutional-layers.md#numerical-and-behavioral-risks)'s own
+hot-pixel-test discipline for exactly this kind of "is the indexing convention right" risk).
+
+**PR 3 - elementwise `+ - * /`, both broadcasting cases, plus scalar operands.** `src/ops.rs`:
+vector+vector and matrix+row-vector for `+`, same-shape and scalar-operand for `- * /`
+(`learning_rate * grad_W`, `grad_W / batch_size`), and `__iadd__` for in-place accumulate
+(`self._grad_W += ...`). `__isub__` is *not* required to be a true in-place op for correctness -
+Python's `a -= b` falls back to `a = a - b` when `__isub__` isn't defined - but implementing it
+anyway avoids an unnecessary allocation on every `apply_accumulated_gradient` call, worth doing
+here rather than deferred. Test (`test_array_ops.py`): a randomized-input sweep against real numpy
+for every operator and both broadcasting cases, including the scalar-operand cases explicitly
+(not just same-shape elementwise).
+
+**PR 4 - `exp`.** `src/ufuncs.rs::exp`. The one operation with a documented numerical-parity
+trap already flagged twice over (`vectorized-array-classes.md`'s "numerical parity validation",
+`array_layer.py`'s own `sigmoid` docstring): does Rust's `f64::exp` saturate to `f64::INFINITY`
+for large arguments the same way numpy's `np.exp` does (both should, per IEEE 754, but "should"
+is exactly the kind of claim this codebase's own convention is to check, not assume - see
+"numerical parity validation" below). Test (`test_ufuncs_exp.py`): the same large-`z`
+overflow-boundary sweep `tests/test_array_layer.py` already runs for `sigmoid`, run here directly
+against `exp` before `sigmoid` itself is ever built on top of it.
+
+**PR 5 - matmul, `outer`, and `sum_axis0`.** `src/linalg.rs::matmul` (dispatching on operand
+shapes - 1D×2D, 2D×1D, 2D×2D - the three cases `ArrayLayer`'s formulas actually use, not a fully
+general BLAS-style routine) and `::outer`; `src/ufuncs.rs::sum_axis0` (the corrected addition -
+see [the numpy interface subset](numpy-interface-subset.md)'s "re-checked against the built
+implementation" note). Test (`test_linalg.py`): a three-way match (Rust core, real numpy, and the
+pure-Python `BackpropNode` reference formulas directly) on randomized weights/inputs - strictly
+stronger evidence than a two-way Rust-vs-numpy check alone, per "numerical parity validation"
+below.
+
+**PR 6 - `argmax`.** `src/ufuncs.rs::argmax` (1D only, ties broken the same way numpy's own
+first-occurrence rule does - a real behavioral detail to match, not assume). Test: randomized
+sweep plus an explicit tied-maximum case.
+
+**PR 7 - RNG and MNIST byte decode.** Grouped into one PR since both are self-contained,
+no-dependency additions on top of everything above, not because they're related to each other.
+`src/random.rs` - a hand-rolled PRNG (xorshift128+ or PCG32) plus `uniform(low, high, shape)`.
+**This is the one operation in the whole subset where "parity" cannot mean bit-identical output
+against numpy**, unlike every other stage here: a hand-rolled generator can never reproduce
+numpy's Mersenne Twister bit-for-bit, seeded or not. That has a real, load-bearing consequence
+flagged nowhere else in this workplan - [vectorized array-based model classes](vectorized-array-classes.md)'s
+own "identical accuracy trajectory" claim and every other workplan's "same seed -> same weights"
+regression gate (mini-batch's batch-size-1 parity check, this document's own "numerical parity
+validation" below) depend on bit-identical *initial* weights, which `randomize()`'s RNG call
+supplies. Swapping the array backend to this core, once it exists, would still change the exact
+trained weights from a fixed seed even if every other operation matches numpy exactly - not a
+bug, but a fact worth stating before anyone is surprised by it. This stage's own test therefore
+checks range bounds and statistical properties (mean/variance within tolerance across a large
+`N`) against numpy's `np.random.uniform`, not per-draw equality - a different, weaker bar than
+every other stage's three-way exact-match test, called out explicitly rather than silently
+applying the wrong bar. `src/mnist.rs::decode` - the `u8` buffer decode/reshape/slice/`/255.0`
+cast, tested against `load_mnist_dataset_as_array`'s real output on a small real MNIST sample,
+exact match expected here (integer-to-float conversion and division have no RNG-style
+irreproducibility).
+
+**PR 8 - the Python-list round-trip.** `.tolist()`-equivalent (1D -> flat list, 2D -> nested
+list of lists - two shapes, matching the single-element write split from PR 1) and
+construct-from-nested-list (extending PR 1's flat-list constructor to accept nesting). Test:
+round-trip a 1D and a 2D array through list-and-back and confirm bit-identical recovery -
+straightforward, but still exercised explicitly rather than assumed to fall out of PR 1's
+constructor plus `tolist`'s obvious inverse.
+
+**PR 9 - the consolidated numerical parity suite.** Not new functionality - a single test module
+(`test_numerical_parity.py`) running every operation above through one large randomized sweep in
+one place, the "stage 5" gate the original workplan named but scoped generically; broken out here
+as its own PR so it exists as one auditable artifact (all operations, one file) rather than
+scattered per-stage checks someone has to reassemble by hand later to answer "has the whole
+subset actually been checked."
 
 ### 4. numerical parity validation
 
@@ -194,7 +294,9 @@ every operation in the subset rather than assumed to transfer. The two known ris
 validation" section need this check explicitly and early, not as an afterthought - checking
 against numpy transitively re-validates against the pure-Python reference that document's own
 classes were already checked against, so a three-way match (Rust, numpy, pure Python) is strictly
-stronger evidence than a two-way one.
+stronger evidence than a two-way one. The uniform RNG fill is the one named exception to "same
+discipline" - see PR 7 above for why bit-identical parity isn't the achievable bar there, and what
+gets checked instead.
 
 ### 5. what stays explicitly out of scope for this workplan
 

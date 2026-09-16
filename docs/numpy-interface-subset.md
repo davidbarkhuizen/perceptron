@@ -24,6 +24,18 @@ operation traceable to a specific method in the class design that actually needs
 follow-on covering a specific variant (say, a vectorized ReLU sibling) would extend this list
 with exactly what *that* variant needs (`np.maximum`, `np.where`), not before.
 
+## re-checked against the built implementation, not just the design doc
+
+This table was originally derived from [vectorized array-based model classes](vectorized-array-classes.md)'s
+own design tables before that document's classes were built. Now that `array_layer.py` and
+`vectorized_multiclass_backprop_classifier_network.py` exist, re-checking this table against the
+real, committed code (not re-deriving it from the design doc's prose a second time) surfaced two
+operations the original derivation missed: `.sum(axis=0)` (`accumulate_gradient_batch`'s batched
+bias gradient) and the 2D tuple-index write `target_batch[row, category] = 1.0`
+(`learn_batch`'s batched one-hot target) - a different index shape than the single-example
+`target[category] = 1.0` case already documented. Both are folded into the table below rather
+than left as a stale gap between what got built and what this document claims it needs.
+
 ## dtype and shape
 
 `float64` only, matching Python's own `float` (the same reasoning
@@ -40,13 +52,14 @@ in the class design - this codebase never batches over more than one axis at onc
 | construct zero-filled | `np.zeros(shape)` | build a 1D or 2D array of zeros at a given shape | `ArrayLayer.__init__`'s `W`/`b`; gradient accumulators; one-hot target construction |
 | shape | `.shape` | read an array's dimensions | `learn_batch`'s `X.shape == (batch_size, input_size)` |
 | transpose | `.T` | swap a 2D array's two axes | `X @ self.W.T`; `next_layer.W.T @ next_layer.delta`; `delta_batch.T @ X_batch` |
-| single-index write | `arr[i] = value` | write one element by integer index | one-hot target construction (`target[category] = 1.0`) |
+| single-element write | `arr[i] = value` (1D) and `arr[i, j] = value` (2D) | write one element by integer index - either a scalar index into a 1D array or a `(row, col)` tuple index into a 2D array | one-hot target construction, both the single-example (`target[category] = 1.0`) and batched (`target_batch[row, category] = 1.0`, `learn_batch`) cases - two different index shapes, not the same call re-derived |
 | matrix multiplication | `@` | matrix-vector product (1D x 2D or 2D x 1D) and matrix-matrix product (2D x 2D), no broadcasting beyond standard matmul rules | every `forward`/`forward_batch`/`compute_hidden_delta` formula in `ArrayLayer` |
 | elementwise `+` | `+` | elementwise add, with two scoped broadcasting cases: vector + vector (same shape) and matrix + row-vector (bias add across every row of a batch) | `W @ x + b`; `X @ W.T + b` |
 | elementwise `- * /` | `- * /` | elementwise arithmetic, same-shape operands or a scalar operand (learning-rate scaling) | every delta/gradient formula (`(a - reference) * a * (1 - a)`; `W -= lr * grad_W / batch_size`) |
 | in-place accumulate | `+=` | elementwise add into an existing array, in place | gradient accumulators (`self._grad_W += ...`) |
 | elementwise exp | `np.exp` | elementwise `e^x` over a whole array | `sigmoid`'s own array-wide formula |
 | outer product | `np.outer(a, b)` | the full pairwise-product matrix of two 1D vectors | `accumulate_gradient`'s single-example gradient (`np.outer(delta, input_layer.a)`) |
+| row-sum reduction | `.sum(axis=0)` | sum a 2D array's rows into a 1D vector - one fixed axis, not a general axis-parameterized reduction | `accumulate_gradient_batch`'s batched bias gradient (`self._grad_b += self.delta_batch.sum(axis=0)`) |
 | argmax | `np.argmax(a)` | the index of the largest element in a 1D array | `classify_state` |
 | uniform random fill | `np.random.uniform(low, high, size=shape)` | fill an array of the given shape with independent uniform draws | `randomize()`'s fan-in-aware initialization |
 | copy | `.copy()` | an independent copy of an array (mutating the copy must not affect the original) | `snapshot()` |
@@ -61,14 +74,17 @@ in the class design - this codebase never batches over more than one axis at onc
 - **General N-dimensional arrays.** Every operation above is 1D or 2D only.
 - **General broadcasting.** Only the two specific cases named above (vector+vector,
   matrix+row-vector) - not scalar-to-N-d, not arbitrary shape alignment rules.
-- **Fancy or boolean indexing.** Only single-element index writes (`arr[i] = value`) and
-  contiguous slices (`arr[:, :-1]`) - no boolean masks, no integer-array indexing.
-- **Axis-parameterized reductions** (`sum`/`max`/`argmax` with an `axis` argument), `np.where`,
-  `np.maximum`/`np.minimum`, `np.clip`. These belong to variants
-  [vectorized array-based model classes](vectorized-array-classes.md) explicitly defers (ReLU,
-  softmax, momentum, L2) - real operations `vectorization.md`'s own original inventory already
-  identified, just not required by *this* subset's base-case scope. A follow-on covering one of
-  those variants would add exactly the operations it needs here, not before.
+- **Fancy or boolean indexing.** Only single-element index writes (`arr[i] = value` or
+  `arr[i, j] = value`) and contiguous slices (`arr[:, :-1]`) - no boolean masks, no
+  integer-array indexing.
+- **General axis-parameterized reductions** (`sum`/`max`/`argmax` with an arbitrary `axis`
+  argument), `np.where`, `np.maximum`/`np.minimum`, `np.clip` - with one specific, already-required
+  exception: `.sum(axis=0)` on a 2D array (see the required-operations table above), needed by
+  `accumulate_gradient_batch`'s batched bias gradient. Everything else in this bullet belongs to
+  variants [vectorized array-based model classes](vectorized-array-classes.md) explicitly defers
+  (ReLU, softmax, momentum, L2) - real operations `vectorization.md`'s own original inventory
+  already identified, just not required by *this* subset's base-case scope. A follow-on covering
+  one of those variants would add exactly the operations it needs here, not before.
 - **Any linear algebra beyond matmul and outer product** - no inverse, no decomposition, no
   eigenvalues; this codebase's own math never needs them.
 
