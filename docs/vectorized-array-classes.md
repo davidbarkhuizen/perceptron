@@ -8,11 +8,14 @@ arrays instead of individual node objects. Originally analysis and workplan only
 build has since been greenlit and completed - `perceptron/model/array_layer.py` and
 `perceptron/model/vectorized_multiclass_backprop_classifier_network.py` now exist, purely
 additively (no existing class changed), parity-checked against the pure-Python reference at
-every stage (see "measured results" below). Deliberately scoped to use real `numpy` as the
-concrete array backend for this stage - see "why numpy here, now" - not a decision to adopt it
-as a permanent dependency; see [the numpy interface subset](numpy-interface-subset.md) and
-[the Rust implementation plan](rust-array-core.md) for how a hand-built replacement would take
-its place later, a still-undecided question.
+every stage (see "measured results" below). Originally scoped to use real `numpy` as the
+concrete array backend for this stage - see "why numpy here, now" - as a deliberate prototyping
+choice, not (at the time) a decision to adopt it as a permanent dependency; that's since been
+decided (see [vectorization](vectorization.md#decision-numpy-stays-permanently-as-a-benchmark-mirror-the-rust-core-becomes-production)):
+this numpy-backed implementation is kept indefinitely as a performance-benchmarking mirror, not
+superseded once [the Rust core](rust-array-core.md) exists - see
+[the numpy interface subset](numpy-interface-subset.md) and that document for the hand-built
+implementation that becomes production instead, alongside this one.
 
 ## why numpy here, now
 
@@ -221,8 +224,9 @@ a real measurement.
 ## what this document is not
 
 This phase's build (the classes and workplan above) is now done - see "measured results". What
-this document still is *not*: a decision to adopt `numpy` as a permanent dependency. Whether
-`numpy` ever becomes more than this workplan's own scoped prototyping vehicle - vs. swapping to
-[the Rust core](rust-array-core.md), vs. leaving it as-is - remains the explicitly flagged,
-undecided question [structure](structure.md#possible-next-steps) already raises for
-vectorization as a whole.
+this document used to not be: a decision to adopt `numpy` as a permanent dependency. That's since
+been decided (see [vectorization](vectorization.md#decision-numpy-stays-permanently-as-a-benchmark-mirror-the-rust-core-becomes-production)) -
+`numpy` is kept permanently, but scoped specifically to this benchmarking-mirror role, not as
+this codebase's production array backend; that role goes to [the Rust core](rust-array-core.md)
+once built. The class design above doesn't change either way - it was already validated against
+the pure-Python reference independently of which array library eventually backs production code.
